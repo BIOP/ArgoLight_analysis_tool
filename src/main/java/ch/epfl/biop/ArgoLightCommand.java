@@ -42,7 +42,7 @@ public class ArgoLightCommand extends DynamicCommand implements Command, Initial
 
     static int port = 4064;
     static long argoLightProjectId = 663;
-    static String argoLightName = "Argo-SIM v2.0";
+    static String argoSlideName = "Argo-SIM v2.0";
 
 
 
@@ -51,8 +51,10 @@ public class ArgoLightCommand extends DynamicCommand implements Command, Initial
 
         Client client = new Client();
 
+        // connect to OMERO
         try {
             client.connect(host, port, username, password.toCharArray());
+            logger.error("Successful connection to OMERO");
         } catch (ServiceException e) {
             logger.error("Cannot connect to OMERO");
             throw new RuntimeException(e);
@@ -60,23 +62,21 @@ public class ArgoLightCommand extends DynamicCommand implements Command, Initial
 
 
         try{
+            // get the ArgoSim project
             ProjectWrapper project_wpr = client.getProject(argoLightProjectId);
-            List<DatasetWrapper> datasets = project_wpr.getDatasets().stream().filter(e -> e.getName().contains(microscope)).collect(Collectors.toList());
 
-            if(datasets.size() == 1) {
-                DatasetWrapper datasetWrapper = datasets.get(0);
+            // get the specified dataset
+            List<DatasetWrapper> datasetWrapperList = project_wpr.getDatasets().stream().filter(e -> e.getName().contains(microscope)).collect(Collectors.toList());
 
-                // filter by tags
-                List<ImageWrapper> imageWrappers = datasetWrapper.getImages(client).stream().filter(e-> {
-                        try {
-                            return (e.getTags(client).stream().noneMatch(t->(t.getName().equals("raw")||t.getName().equals("processed")))
-                                    && !(e.getName().contains("[macro image]")));
-                        } catch (ServiceException | AccessException | ExecutionException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                    }).collect(Collectors.toList());
+            if(datasetWrapperList.size() == 1) {
+                DatasetWrapper datasetWrapper = datasetWrapperList.get(0);
+                System.out.println("Image will be downloaded from dataset : "+datasetWrapper.getName());
 
-                imageWrappers.forEach(imageWrapper-> DataManagement.processImage(client, imageWrapper, datasetWrapper, argoLightName));
+                // filter all new images
+                List<ImageWrapper> imageWrapperList = DataManagement.filterNewImages(client, datasetWrapper);
+
+                // run analysis
+                imageWrapperList.forEach(imageWrapper-> ImageProcessing.runAnalysis(client, imageWrapper,datasetWrapper, argoSlideName));
 
             }
 
@@ -107,6 +107,7 @@ public class ArgoLightCommand extends DynamicCommand implements Command, Initial
         List<String> names = new ArrayList<>();
         names.add("LSM700_INT2");
         names.add("LSM700_INT1");
+        names.add("LSM980");
         microscopes.setChoices(names);
     }
 
