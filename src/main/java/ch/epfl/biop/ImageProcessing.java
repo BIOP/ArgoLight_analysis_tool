@@ -1,5 +1,6 @@
 package ch.epfl.biop;
 
+import com.google.common.primitives.Doubles;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
@@ -51,9 +52,10 @@ public class ImageProcessing {
         String rawImageName = DataManagement.getNameWithoutExtension(imageWrapper.getName());
 
         ResultsTable analysisResultsRT = new ResultsTable();
-        List<ImagePlus> distortionMaps;
-        List<ImagePlus> uniformityMaps;
-        List<ImagePlus> fwhmMaps;
+
+        List<ImagePlus> distortionMaps = new ArrayList<>();
+        List<ImagePlus> uniformityMaps = new ArrayList<>();
+        List<ImagePlus> fwhmMaps = new ArrayList<>();
 
         // open the image on ImageJ
         ImagePlus imp;
@@ -74,9 +76,12 @@ public class ImageProcessing {
 
             // get the central cross
             Roi crossRoi = getCenterCross(channel);
+            double xCross = crossRoi.getStatistics().xCentroid;
+            double yCross = crossRoi.getStatistics().yCentroid;
+
             RoiManager roiManager = new RoiManager();
             roiManager.addRoi(crossRoi);
-            roiManager.addRoi(new PointRoi(crossRoi.getStatistics().xCentroid,crossRoi.getStatistics().yCentroid));
+            roiManager.addRoi(new PointRoi(xCross,yCross));
             channel.setRoi(crossRoi);
 
             // create a difference of gaussian image to find point centers
@@ -119,23 +124,18 @@ public class ImageProcessing {
             List<Double> fieldDistortionValues = computeFieldDistortion(gridPoints, idealGridPoints);
             List<Double> fieldUniformityValues = computeFieldUniformity(gridPoints,channel,ovalRadius);
             List<Double> fwhmValues = computeFWHM(gridPoints,channel, lineLength, roiManager);
+            List<Double> crossPositionOnImage = Doubles.asList(xCross, imp.getWidth() - xCross, yCross, imp.getHeight() - yCross);
 
             // compute statistics on each metrics and save them in the resultsTable
             computeStatistics(fieldDistortionValues,analysisResultsRT,"field_distortion",i);
             computeStatistics(fieldUniformityValues,analysisResultsRT,"field_uniformity",i);
             computeStatistics(fwhmValues,analysisResultsRT,"fwhm",i);
+            computeStatistics(crossPositionOnImage,analysisResultsRT,"cross_center_to_image_borders",i);
 
             // build heat maps of each metrics
-            ImagePlus fdHeatMap = computeHeatMap("field_distortion", fieldDistortionValues, (int) Math.sqrt(gridPoints.size() + 1));
-            ImagePlus fuHeatMap = computeHeatMap("field_uniformity", fieldUniformityValues, (int) Math.sqrt(gridPoints.size() + 1));
-            ImagePlus fwhmHeatMap = computeHeatMap("fwhm", fwhmValues, (int) Math.sqrt(gridPoints.size() + 1));
-
-            fdHeatMap.show();
-            fuHeatMap.show();
-            fwhmHeatMap.show();
-
-
-
+            distortionMaps.add(computeHeatMap("field_distortion", fieldDistortionValues, (int) Math.sqrt(gridPoints.size() + 1)));
+            uniformityMaps.add(computeHeatMap("field_uniformity", fieldUniformityValues, (int) Math.sqrt(gridPoints.size() + 1)));
+            fwhmMaps.add(computeHeatMap("fwhm", fwhmValues, (int) Math.sqrt(gridPoints.size() + 1)));
         }
 
 
@@ -417,6 +417,7 @@ public class ImageProcessing {
         ImagePlus enlarged_imp = imp.resize(heatMapSize, heatMapSize, "none");
         enlarged_imp.setTitle(title);
         IJ.run(enlarged_imp, "Fire", "");
+        enlarged_imp.show();
 
         return enlarged_imp;
     }
