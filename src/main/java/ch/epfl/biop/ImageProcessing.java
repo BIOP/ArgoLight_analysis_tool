@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
 public class ImageProcessing {
 
@@ -52,6 +53,7 @@ public class ImageProcessing {
         String rawImageName = DataManagement.getNameWithoutExtension(imageWrapper.getName());
 
         ResultsTable analysisResultsRT = new ResultsTable();
+        RoiManager generalRoisForPCC = new RoiManager();
 
         List<ImagePlus> distortionMaps = new ArrayList<>();
         List<ImagePlus> uniformityMaps = new ArrayList<>();
@@ -111,12 +113,15 @@ public class ImageProcessing {
             //double radius = (int)(0.5 * argoSpacing / pixelSizeImage);
 
             gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius, pR.getY()-ovalRadius, 2*ovalRadius, 2*ovalRadius));});
-            gridPoints.forEach(pR-> {roiManager.addRoi(new PointRoi(pR.getX(), pR.getY()));});
+
 
             // sort the computed grid points according to ideal grid order
             gridPoints = sortFromReference(Arrays.asList(roiManager.getRoisAsArray()),idealGridPoints);
 
             // display ideal grid points
+            gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius, pR.getY()-ovalRadius, 2*ovalRadius, 2*ovalRadius));});
+            gridPoints.forEach(pR-> {generalRoisForPCC.addRoi(new OvalRoi(pR.getX()-ovalRadius, pR.getY()-ovalRadius, 2*ovalRadius, 2*ovalRadius));});
+            gridPoints.forEach(pR-> {roiManager.addRoi(new PointRoi(pR.getX(), pR.getY()));});
             idealGridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius/2, pR.getY()-ovalRadius/2, ovalRadius, ovalRadius));});
             roiManager.runCommand(channel,"Show All without labels");
 
@@ -136,6 +141,10 @@ public class ImageProcessing {
             distortionMaps.add(computeHeatMap("field_distortion", fieldDistortionValues, (int) Math.sqrt(gridPoints.size() + 1)));
             uniformityMaps.add(computeHeatMap("field_uniformity", fieldUniformityValues, (int) Math.sqrt(gridPoints.size() + 1)));
             fwhmMaps.add(computeHeatMap("fwhm", fwhmValues, (int) Math.sqrt(gridPoints.size() + 1)));
+        }
+
+        if(NChannels > 1){
+
         }
 
 
@@ -384,6 +393,37 @@ public class ImageProcessing {
         });
 
         return fwhmValues;
+    }
+
+    private static List<Double> computePCC(List<ImagePlus> impList1, List<ImagePlus> impList2){
+        if(impList1.size() != impList2.size())
+            return new ArrayList<>();
+
+        List<Double> pccList = new ArrayList<>();
+        for(int i = 0; i < impList1.size(); i++)
+            pccList.add(computePCC(impList1.get(i),impList2.get(i)));
+
+        return pccList;
+    }
+
+
+    private static double computePCC(ImagePlus imp1, ImagePlus imp2){
+
+        if(imp1.getWidth() != imp2.getWidth() || imp1.getHeight() != imp2.getHeight())
+            return Double.NaN;
+
+        List<Float> array1 = new ArrayList<>();
+        List<Float> array2 = new ArrayList<>();
+
+        for(int k = 0; k < imp1.getWidth(); k++){
+            for (int l = 0; l < imp1.getHeight(); l++){
+                array1.add(imp1.getProcessor().getPixelValue(k, l));
+                array2.add(imp2.getProcessor().getPixelValue(k, l));
+            }
+        }
+
+        PearsonsCorrelation pcc = new PearsonsCorrelation();
+        return pcc.correlation(array1.stream().mapToDouble(Float::floatValue).toArray(),array2.stream().mapToDouble(Float::floatValue).toArray());
     }
 
     private static void computeStatistics(List<Double> values, ResultsTable rt, String metric, int channel){
