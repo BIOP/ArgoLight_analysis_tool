@@ -2,6 +2,7 @@ package ch.epfl.biop;
 
 import com.google.common.primitives.Doubles;
 import fr.igred.omero.Client;
+import fr.igred.omero.annotations.TableWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.DatasetWrapper;
@@ -16,48 +17,57 @@ import ij.plugin.RoiEnlarger;
 import ij.plugin.frame.RoiManager;
 import ij.process.FloatProcessor;
 
-import java.awt.Image;
-import java.awt.Point;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+
+import omero.model.NamedValue;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.xml.crypto.Data;
+
 
 public class ImageProcessing {
 
+    final private static Logger logger = LoggerFactory.getLogger(ImageProcessing.class);
     final private static int heatMapSize = 256;
-    final private static String heatMapBitDepth = "32-bit black";
+    final public static String heatMapBitDepth = "32-bit black";
     final private static String thresholdingMethod = "Huang dark";
 
     final private static boolean measureGridStep = true;
     final private static String imageCenter = "cross";
-    //final private static int ovalDiameter = 20;
 
     final private static int argoSpacing = 5; // um
     final private static int argoFOV = 100; // um
     final private static int argoNPoints = 21; // on each row/column
 
-    public static void runAnalysis(Client client, ImageWrapper imageWrapper, DatasetWrapper datasetWrapper, String argoLightName) {
+    public static void runAnalysis(Client client, ImageWrapper imageWrapper, DatasetWrapper datasetWrapper, String testedMicroscope, String savingOption, File folder) {
 
         final double pixelSizeImage = imageWrapper.getPixels().getPixelSizeX().getValue();
         final double lineLength = (int)(1.25 / pixelSizeImage);
         final double ovalRadius = (int)(1.25 / pixelSizeImage);
         final int NChannels = imageWrapper.getPixels().getSizeC();
 
-        System.out.println("Pixel size : "+pixelSizeImage);
+        final String rawImageName = DataManagement.getNameWithoutExtension(imageWrapper.getName());
 
-        String rawImageName = DataManagement.getNameWithoutExtension(imageWrapper.getName());
+        IJ.log("[INFO] [runAnalysis] -- Pixel size : "+pixelSizeImage);
 
         ResultsTable analysisResultsRT = new ResultsTable();
-        RoiManager generalRoisForPCC = new RoiManager();
+        ResultsTable pccResultsRT = new ResultsTable();
+        RoiManager roiManager = new RoiManager();
+        List<Roi> generalRoisForPCC = new ArrayList<>();
 
         List<ImagePlus> distortionMaps = new ArrayList<>();
         List<ImagePlus> uniformityMaps = new ArrayList<>();
         List<ImagePlus> fwhmMaps = new ArrayList<>();
+        List<ImagePlus> pccMaps = new ArrayList<>();
 
         // open the image on ImageJ
         ImagePlus imp;
@@ -68,7 +78,13 @@ public class ImageProcessing {
         }
 
         for(int i = 0; i < NChannels; i++){
+            // reset all windows
             IJ.run("Close All", "");
+            roiManager.reset();
+
+            analysisResultsRT.incrementCounter();
+            analysisResultsRT.setValue("Image name", i, rawImageName);
+            analysisResultsRT.setValue("Channel",i,i+1);
 
             // extract the current channel
             ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + (i + 1), imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
@@ -77,11 +93,11 @@ public class ImageProcessing {
             channel.show();
 
             // get the central cross
-            Roi crossRoi = getCenterCross(channel);
+            Roi crossRoi = getCenterCross(channel, roiManager);
             double xCross = crossRoi.getStatistics().xCentroid;
             double yCross = crossRoi.getStatistics().yCentroid;
 
-            RoiManager roiManager = new RoiManager();
+            // add the cross ROI on the image
             roiManager.addRoi(crossRoi);
             roiManager.addRoi(new PointRoi(xCross,yCross));
             channel.setRoi(crossRoi);
@@ -96,15 +112,15 @@ public class ImageProcessing {
 
             // get the average x step
             double xStepAvg = getAverageStep(gridPoints.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage);
-            System.out.println("xStepAvg = " +xStepAvg + " pix");
+            IJ.log("[INFO] [runAnalysis] -- xStepAvg = " +xStepAvg + " pix");
 
             // get the average y step
             double yStepAvg = getAverageStep(gridPoints.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage);
-            System.out.println("yStepAvg = " +yStepAvg + " pix");
+            IJ.log("[INFO] [runAnalysis] -- yStepAvg = " +yStepAvg + " pix");
 
             // get the rotation angle
             double rotationAngle = getRotationAngle(gridPoints, crossRoi);
-            System.out.println("theta = "+rotationAngle*180/Math.PI + "°");
+            IJ.log("[INFO] [runAnalysis] -- theta = "+rotationAngle*180/Math.PI + "°");
 
             // get the ideal grid
             List<Point2D> idealGridPoints = getIdealGridPoints(crossRoi, (int)Math.sqrt(gridPoints.size() + 1), pixelSizeImage, rotationAngle);
@@ -119,8 +135,9 @@ public class ImageProcessing {
             gridPoints = sortFromReference(Arrays.asList(roiManager.getRoisAsArray()),idealGridPoints);
 
             // display ideal grid points
+            roiManager.reset();
             gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius, pR.getY()-ovalRadius, 2*ovalRadius, 2*ovalRadius));});
-            gridPoints.forEach(pR-> {generalRoisForPCC.addRoi(new OvalRoi(pR.getX()-ovalRadius, pR.getY()-ovalRadius, 2*ovalRadius, 2*ovalRadius));});
+            generalRoisForPCC = Arrays.asList(roiManager.getRoisAsArray());
             gridPoints.forEach(pR-> {roiManager.addRoi(new PointRoi(pR.getX(), pR.getY()));});
             idealGridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius/2, pR.getY()-ovalRadius/2, ovalRadius, ovalRadius));});
             roiManager.runCommand(channel,"Show All without labels");
@@ -143,16 +160,59 @@ public class ImageProcessing {
             fwhmMaps.add(computeHeatMap("fwhm", fwhmValues, (int) Math.sqrt(gridPoints.size() + 1)));
         }
 
+        // compute PCC if there is more than 1 channel
         if(NChannels > 1){
+            // create a new resultsTable
+            pccResultsRT.incrementCounter();
 
+            int cnt = 0;
+            for(int i = 0; i < NChannels-1; i++){
+                for(int j = i+1; j < NChannels; j++){
+                    imp.setPosition(i+1,1,1);
+                    ImagePlus ch1 = new ImagePlus("ch"+i,imp.getProcessor());
+                    imp.setPosition(j+1,1,1);
+                    ImagePlus ch2 = new ImagePlus("ch"+j,imp.getProcessor());
+
+                    List<Double> pccValues = computePCC(ch1, ch2, generalRoisForPCC);
+                    computeStatistics(pccValues, pccResultsRT, "PCC_(ch"+(i+1)+"-ch"+(j+1)+")", cnt);
+                    pccMaps.add(computeHeatMap("PCC_(ch"+(i+1)+"-ch"+(j+1)+")", pccValues, (int) Math.sqrt(pccValues.size() + 1)));
+                    cnt++;
+                }
+            }
         }
 
+        DataManagement.addTag(client, imageWrapper,"raw");
+        DataManagement.addTag(client, imageWrapper,"ArgoLight");
 
+        List<NamedValue> keyValues = DataManagement.generateKeyValuesForProject(client, imageWrapper, datasetWrapper, testedMicroscope, pixelSizeImage, thresholdingMethod);
+        DataManagement.addKeyValues(client, imageWrapper, keyValues);
 
+        DataManagement.generateSummaryTable(client, datasetWrapper, imageWrapper.getId(), analysisResultsRT,testedMicroscope+"_Table");
+        if(NChannels > 1)
+            DataManagement.generateSummaryTable(client, imageWrapper, imageWrapper.getId(), pccResultsRT,testedMicroscope+"_PCC_Table");
+
+        if(savingOption.equals("Save heat maps locally")){
+            DataManagement.saveHeatMapsLocally(distortionMaps,rawImageName,folder.getAbsolutePath());
+            DataManagement.saveHeatMapsLocally(uniformityMaps,rawImageName,folder.getAbsolutePath());
+            DataManagement.saveHeatMapsLocally(fwhmMaps,rawImageName,folder.getAbsolutePath());
+            if(NChannels > 1)
+                DataManagement.saveHeatMapsLocally(pccMaps,rawImageName,folder.getAbsolutePath());
+        }
+        if(savingOption.equals("Save heat maps in OMERO")){
+            DataManagement.uploadHeatMaps(client,datasetWrapper,distortionMaps,rawImageName,folder.getAbsolutePath());
+            DataManagement.uploadHeatMaps(client,datasetWrapper,uniformityMaps,rawImageName,folder.getAbsolutePath());
+            DataManagement.uploadHeatMaps(client,datasetWrapper,fwhmMaps,rawImageName,folder.getAbsolutePath());
+            if(NChannels > 1)
+                DataManagement.uploadHeatMaps(client,datasetWrapper,pccMaps,rawImageName,folder.getAbsolutePath());
+        }
+
+        roiManager.close();
     }
 
-    private static Roi getCenterCross(ImagePlus imp){
-        RoiManager rm = new RoiManager();
+
+
+    private static Roi getCenterCross(ImagePlus imp, RoiManager rm){
+        rm.reset();
 
         // make sure no ROI is left on the imp
         IJ.run(imp, "Select None", "");
@@ -162,7 +222,6 @@ public class ImageProcessing {
         ImagePlus mask_imp = imp.duplicate();
         IJ.setAutoThreshold(mask_imp, thresholdingMethod);
         IJ.run(mask_imp, "Convert to Mask", "");
-
         IJ.run(mask_imp, "Analyze Particles...", "size="+(0.04*imp.getWidth())+"-Infinity add");
 
         // get central ROIs while excluding bounding semi-crosses
@@ -171,11 +230,10 @@ public class ImageProcessing {
                 && (roi.getStatistics().yCentroid < 5 * imp.getHeight() / 8.0
                 && roi.getStatistics().yCentroid > 3 * imp.getHeight() / 8.0))).collect(Collectors.toList());
 
-
         // get the ROI with larger width
         Roi crossRoi = rois.stream().max(Comparator.comparing(roi -> roi.getStatistics().roiWidth)).get();
 
-        rm.close();
+        rm.reset();
         return new Roi(crossRoi.getBounds());
     }
 
@@ -395,9 +453,27 @@ public class ImageProcessing {
         return fwhmValues;
     }
 
+
+    private static List<Double> computePCC(ImagePlus imp1, ImagePlus imp2, List<Roi> rois){
+        List<ImagePlus> imp1Crops = new ArrayList<>();
+        List<ImagePlus> imp2Crops = new ArrayList<>();
+        // get raw pixels of each ROI for each channel
+
+        rois.forEach(roi->{
+            imp1.setRoi(roi);
+            imp1Crops.add(imp1.crop());
+            imp2.setRoi(roi);
+            imp2Crops.add(imp2.crop());
+        });
+
+        return computePCC(imp1Crops, imp2Crops);
+    }
+
     private static List<Double> computePCC(List<ImagePlus> impList1, List<ImagePlus> impList2){
-        if(impList1.size() != impList2.size())
+        if(impList1.size() != impList2.size()) {
+            IJ.log("[ERROR] [computePCC] -- Images lists do not have the same size :  "+impList1.size()+" vs " +impList2.size());
             return new ArrayList<>();
+        }
 
         List<Double> pccList = new ArrayList<>();
         for(int i = 0; i < impList1.size(); i++)
@@ -409,8 +485,10 @@ public class ImageProcessing {
 
     private static double computePCC(ImagePlus imp1, ImagePlus imp2){
 
-        if(imp1.getWidth() != imp2.getWidth() || imp1.getHeight() != imp2.getHeight())
+        if(imp1.getWidth() != imp2.getWidth() || imp1.getHeight() != imp2.getHeight()) {
+            IJ.log("[ERROR] [computePCC] -- Image patches do not have the same dimensions ; w x h : "+imp1.getWidth()+" x " +imp1.getHeight() +" and " + imp2.getWidth()+" x "+imp2.getHeight());
             return Double.NaN;
+        }
 
         List<Float> array1 = new ArrayList<>();
         List<Float> array2 = new ArrayList<>();
@@ -440,10 +518,10 @@ public class ImageProcessing {
         rt.setValue(metric+"_min", channel, min);
         rt.setValue(metric+"_max", channel, max);
 
-        System.out.println(metric+"_avg "+average);
+        /*System.out.println(metric+"_avg "+average);
         System.out.println(metric+"_std "+std);
         System.out.println(metric+"_min "+min);
-        System.out.println(metric+"_max "+max);
+        System.out.println(metric+"_max "+max);*/
     }
 
     private static ImagePlus computeHeatMap(String title, List<Double> values, int nPoints){

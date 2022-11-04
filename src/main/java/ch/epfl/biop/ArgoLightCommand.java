@@ -6,6 +6,7 @@ import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.repository.ProjectWrapper;
+import ij.IJ;
 import net.imagej.ImageJ;
 import org.scijava.Initializable;
 import org.scijava.command.Command;
@@ -14,6 +15,7 @@ import org.scijava.module.MutableModuleItem;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -39,27 +41,28 @@ public class ArgoLightCommand extends DynamicCommand implements Command, Initial
     @Parameter(label="Dataset name")
     String microscope;
 
+    @Parameter(label="Saving options",choices={"No heat maps saving","Save heat maps locally","Save heat maps in OMERO"})
+    String savingOption;
+
+    @Parameter(label="Saving folder",style="directory")
+    File folder;
 
     static int port = 4064;
     static long argoLightProjectId = 663;
-    static String argoSlideName = "Argo-SIM v2.0";
-
 
 
     @Override
     public void run() {
-
         Client client = new Client();
 
         // connect to OMERO
         try {
             client.connect(host, port, username, password.toCharArray());
-            logger.error("Successful connection to OMERO");
+            IJ.log("[INFO] [ArgoLightCommand][run] -- Successful connection to OMERO");
         } catch (ServiceException e) {
-            logger.error("Cannot connect to OMERO");
+            IJ.log("[ERROR] [ArgoLightCommand][run] -- Cannot connect to OMERO");
             throw new RuntimeException(e);
         }
-
 
         try{
             // get the ArgoSim project
@@ -70,32 +73,30 @@ public class ArgoLightCommand extends DynamicCommand implements Command, Initial
 
             if(datasetWrapperList.size() == 1) {
                 DatasetWrapper datasetWrapper = datasetWrapperList.get(0);
-                System.out.println("Image will be downloaded from dataset : "+datasetWrapper.getName());
+                IJ.log("[INFO] [ArgoLightCommand][run] -- Image will be downloaded from dataset : "+datasetWrapper.getName());
 
                 // filter all new images
                 List<ImageWrapper> imageWrapperList = DataManagement.filterNewImages(client, datasetWrapper);
 
                 // run analysis
-                imageWrapperList.forEach(imageWrapper-> ImageProcessing.runAnalysis(client, imageWrapper,datasetWrapper, argoSlideName));
-
-            }
-
+                imageWrapperList.forEach(imageWrapper-> ImageProcessing.runAnalysis(client, imageWrapper,datasetWrapper, microscope, savingOption, folder));
+            }else if(datasetWrapperList.isEmpty())
+                IJ.log("[ERROR] [ArgoLightCommand][run] -- No dataset "+microscope+" can be found in the project "+argoLightProjectId);
+            else IJ.log("[ERROR] [ArgoLightCommand][run] -- More than one dataset refer to "+microscope+". Please, group these datasets or change their name.");
 
         } catch (ServiceException | ExecutionException | AccessException e) {
             throw new RuntimeException(e);
         }finally {
-            System.out.println("Disconnection");
-            logger.info("Disconnect from OMERO");
+            IJ.log("[INFO] [ArgoLightCommand][run] -- Disconnect from OMERO ");
             client.disconnect();
         }
-
     }
 
 
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
+    public static void main(String[] args) {
         final ImageJ ij = new ImageJ();
         ij.ui().showUI();
-
+        //DebugTools.enableLogging("DEBUG");
         //ij.command().run(ArgoLight.class, true).get();
     }
 
