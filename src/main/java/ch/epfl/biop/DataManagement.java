@@ -328,7 +328,9 @@ public class DataManagement {
         else name = imagesTitle.get(0);
 
         // create an image stack
-        ImagePlus imp = IJ.createImage(name, ImageProcessing.heatMapBitDepth, imps.get(0).getWidth(), imps.get(0).getHeight(), imps.get(0).getBitDepth());
+        ImagePlus imp = IJ.createHyperStack(name,imps.get(0).getWidth(), imps.get(0).getHeight(),1,imps.size(),1,imps.get(0).getBitDepth());
+                //IJ.createImage(name, ImageProcessing.heatMapBitDepth, imps.get(0).getWidth(), imps.get(0).getHeight(), imps.get(0).getBitDepth());
+
         for(int i = 0; i < imps.size(); i++){
             imp.setPosition(1,i+1,1);
             imp.setProcessor(imps.get(i).getProcessor());
@@ -471,10 +473,8 @@ public class DataManagement {
         ResultsTable rt = getResultTableFromTableWrapper(tableWrapper);
 
         // save locally the ResultsTable as a csv file.
-        String previous_name = rt.getTitle();
         File localTableFile = new File(folder, tableWrapper.getName().replace(" ","_") + ".csv");
         rt.save(localTableFile.toString());
-        rt.show(previous_name);
 
         try{
             // get the number of existing files
