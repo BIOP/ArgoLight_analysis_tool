@@ -1,6 +1,7 @@
 package ch.epfl.biop;
 
 import fr.igred.omero.Client;
+import fr.igred.omero.annotations.FileAnnotationWrapper;
 import fr.igred.omero.annotations.MapAnnotationWrapper;
 import fr.igred.omero.annotations.TableWrapper;
 import fr.igred.omero.annotations.TagAnnotationWrapper;
@@ -475,19 +476,28 @@ public class DataManagement {
         rt.save(localTableFile.toString());
 
         try{
-            // get the number of existing files
-            int nFile = repoWrapper.getFileAnnotations(client).size();
+            // get csv files with a name matching the dataset name
+            List<FileAnnotationWrapper> csvFiles = repoWrapper.getFileAnnotations(client)
+                    .stream()
+                    .filter(e -> e.getFileFormat().equals("csv") ||e.getFileFormat().equals("xls") && repoWrapper.getName().contains(e.getFileName().replaceAll("_Table.csv","")))
+                    .collect(Collectors.toList());
+
+            // delete those files
+            for(FileAnnotationWrapper csvFile:csvFiles) {
+                client.deleteFile(csvFile.getId());
+                IJ.log("[INFO] [DataManagement][addTableAsCSV] -- File "+csvFile.getFileName()+" with id "+csvFile.getId()+" has been deleted");
+            }
 
             // Import csv table on OMERO
             long fileID = repoWrapper.addFile(client, localTableFile);
 
             // test if all csv files are imported
-            if(repoWrapper.getFileAnnotations(client).size() == nFile + 1)
+            if(fileID != -1)
                 IJ.log("[INFO] [DataManagement][addTableAsCSV] -- The imageJ Results table has been successfully imported on OMERO with id : "+fileID);
 		    else
                 IJ.log("[ERROR] [DataManagement][addTableAsCSV] -- The imageJ Results table has not been imported for some reasons");
 
-        } catch (ServiceException | AccessException | ExecutionException | InterruptedException e){
+        } catch (ServiceException | AccessException | ExecutionException | InterruptedException | OMEROServerError e){
             IJ.log("[ERROR] [DataManagement][addTableAsCSV] -- Cannot upload imageJ Results table on OMERO");
         } finally{
             // delete the file after upload
