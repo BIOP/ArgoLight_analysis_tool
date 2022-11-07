@@ -139,8 +139,7 @@ public class DataManagement {
      * @param imageWrapper
      * @param datasetWrapper
      * @param microscope
-     * @param pixelSize
-     * @param threshMethod
+     * @param processingParameters
      * @return
      */
     public static List<NamedValue> generateKeyValuesForProject(Client client, ImageWrapper imageWrapper, DatasetWrapper datasetWrapper, String microscope, Map<String,String> processingParameters){
@@ -410,7 +409,7 @@ public class DataManagement {
             // add tags to the newly created image
             addTag(client, analysisImage_wpr, "processed");
             addTag(client, analysisImage_wpr, imp.getTitle().split(" ")[0]);
-            addTag(client, analysisImage_wpr, "ArgoLight");
+            addTag(client, analysisImage_wpr, "argolight");
 
         }catch (ServiceException | AccessException | ExecutionException | OMEROServerError e){
             IJ.log("[ERROR] [DataManagement][uploadHeatMap] -- Cannot upload heat maps on OMERO");

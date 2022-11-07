@@ -212,7 +212,7 @@ public class ImageProcessing {
 
         // add tags to the image on OMERO
         DataManagement.addTag(client, imageWrapper,"raw");
-        DataManagement.addTag(client, imageWrapper,"ArgoLight");
+        DataManagement.addTag(client, imageWrapper,"argolight");
 
         // create project's key value pairs
         List<NamedValue> keyValues = DataManagement.generateKeyValuesForProject(client, imageWrapper, datasetWrapper, testedMicroscope, processingParameters);
