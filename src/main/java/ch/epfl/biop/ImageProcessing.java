@@ -64,7 +64,7 @@ public class ImageProcessing {
         // get the image name without the extension
         final String rawImageName = DataManagement.getNameWithoutExtension(imageWrapper.getName());
 
-        IJ.log("[INFO] [runAnalysis] -- Pixel size : "+pixelSizeImage);
+        IJ.log("[INFO] [runAnalysis] -- Pixel size : "+pixelSizeImage+" um");
 
         // initialize variables
         ResultsTable analysisResultsRT = new ResultsTable();
@@ -120,20 +120,23 @@ public class ImageProcessing {
             // create a difference of gaussian image to find point centers
             double sigma1 = 0.1 * argoSpacing / pixelSizeImage; // was 0.3 * at the beginning but the detected center was a bit eccentered from the real center
             double sigma2 = sigma1 / Math.sqrt(2);
-            ImagePlus dogImage = DoGFilter(imp, sigma2, sigma1);
+            ImagePlus dogImage = dogFilter(imp, sigma2, sigma1);
             processingParameters.put("DoG_sigma_1_(pix)",""+sigma1);
             processingParameters.put("DoG_sigma_2_(pix)",""+sigma2);
 
             // get the coordinates of each ring
             List<Point2D> gridPoints = getGridPoint(dogImage, crossRoi, pixelSizeImage);
 
+            // reduced grid to compute average step
+            List<Point2D> smallerGrid = gridPoints.stream().filter(e -> (Math.abs(e.getX() - xCross) < 12.5 / pixelSizeImage && Math.abs(e.getY() - yCross) < 12.5 / pixelSizeImage)).collect(Collectors.toList());
+            System.out.println(smallerGrid.size());
             // get the average x step
-            double xStepAvg = getAverageStep(gridPoints.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage);
+            double xStepAvg = getAverageStep(smallerGrid.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage);
             processingParameters.put("xStepAvg_(pix)",""+xStepAvg);
             IJ.log("[INFO] [runAnalysis] -- xStepAvg = " +xStepAvg + " pix");
 
             // get the average y step
-            double yStepAvg = getAverageStep(gridPoints.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage);
+            double yStepAvg = getAverageStep(smallerGrid.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage);
             processingParameters.put("yStepAvg_(pix)",""+yStepAvg);
             IJ.log("[INFO] [runAnalysis] -- yStepAvg = " +yStepAvg + " pix");
 
@@ -143,7 +146,7 @@ public class ImageProcessing {
             IJ.log("[INFO] [runAnalysis] -- Rotation angle theta = "+rotationAngle*180/Math.PI + "°");
 
             // get the ideal grid
-            List<Point2D> idealGridPoints = getIdealGridPoints(crossRoi, (int)Math.sqrt(gridPoints.size() + 1), pixelSizeImage, rotationAngle);
+            List<Point2D> idealGridPoints = getIdealGridPoints(crossRoi, (int)Math.sqrt(gridPoints.size() + 1), xStepAvg, yStepAvg, rotationAngle);
 
             // display all grid points
             gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius, pR.getY()-ovalRadius, 2*ovalRadius, 2*ovalRadius));});
@@ -287,7 +290,7 @@ public class ImageProcessing {
      * @param sigma2
      * @return
      */
-    private static ImagePlus DoGFilter(ImagePlus imp, double sigma1, double sigma2){
+    private static ImagePlus dogFilter(ImagePlus imp, double sigma1, double sigma2){
         ImagePlus impGauss1 = imp.duplicate();
         ImagePlus impGauss2 = imp.duplicate();
         IJ.run(impGauss1, "32-bit", "");
@@ -440,15 +443,16 @@ public class ImageProcessing {
 
 
     /**
-     * generate an ideal grid of points, based on the theoretical spacing between rings and the on the rotation angle
+     * generate an ideal grid of points, based on the computed spacing between rings and the on the rotation angle
      *
      * @param crossRoi
      * @param nPoints
-     * @param pixelSize
+     * @param xStepAvg
+     * @param yStepAvg
      * @param theta
      * @return
      */
-    private static List<Point2D> getIdealGridPoints(Roi crossRoi, int nPoints, double pixelSize, double theta){
+    private static List<Point2D> getIdealGridPoints(Roi crossRoi, int nPoints, double xStepAvg, double yStepAvg, double theta){
         // get central cross position
         double xCross = crossRoi.getStatistics().xCentroid;
         double yCross = crossRoi.getStatistics().yCentroid;
@@ -462,7 +466,7 @@ public class ImageProcessing {
         IntStream.range(-(nPoints-1)/2, (nPoints-1)/2+1).forEach(yP -> {
             IntStream.range(-(nPoints-1)/2, (nPoints-1)/2+1).forEach(xP -> {
                 if (!( xP == 0 && yP == 0) ){ // to avoid making a point at the cross
-                    double[] pt = {xCross + xP * argoSpacing / pixelSize, yCross + yP * argoSpacing / pixelSize};
+                    double[] pt = {xCross + xP * xStepAvg, yCross + yP * yStepAvg};
                     at.transform(pt, 0, pt, 0, 1);
                     idealPoints.add(new Point2D.Double(pt[0], pt[1]));
                 }
