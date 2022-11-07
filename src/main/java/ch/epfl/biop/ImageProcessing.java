@@ -206,11 +206,11 @@ public class ImageProcessing {
         DataManagement.addKeyValues(client, imageWrapper, keyValues);
 
         // add the ResultsTable of metrics on OMERO
-        DataManagement.generateSummaryTable(client, datasetWrapper, imageWrapper.getId(), analysisResultsRT,testedMicroscope+"_Table");
+        DataManagement.generateSummaryTable(client, datasetWrapper, imageWrapper.getId(), analysisResultsRT,testedMicroscope+"_Table", folder.getAbsolutePath());
 
         // add the PCC ResultsTable on OMERO
         if(NChannels > 1)
-            DataManagement.generateSummaryTable(client, imageWrapper, imageWrapper.getId(), pccResultsRT,testedMicroscope+"_PCC_Table");
+            DataManagement.generateSummaryTable(client, imageWrapper, imageWrapper.getId(), pccResultsRT,testedMicroscope+"_PCC_Table", folder.getAbsolutePath());
 
         // save heat maps on the computer
         if(savingOption.equals("Save heat maps locally")){

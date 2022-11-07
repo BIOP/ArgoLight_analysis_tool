@@ -17,6 +17,7 @@ import ij.measure.ResultsTable;
 import omero.ServerError;
 import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
+import omero.gateway.model.ImageData;
 import omero.gateway.model.ObjectiveData;
 import omero.gateway.model.TagAnnotationData;
 import omero.model.Microscope;
@@ -221,7 +222,7 @@ public class DataManagement {
      * @param rt
      * @param title
      */
-    public static void generateSummaryTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, long rowId, ResultsTable rt, String title){
+    public static void generateSummaryTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, long rowId, ResultsTable rt, String title, String folder){
         try{
             // get the tables that are already attached to the image/dataset
             TableWrapper tableWrapper = getTable(client, repoWrapper);
@@ -231,11 +232,13 @@ public class DataManagement {
                 tableWrapper.addRows(client, rt , rowId, new ArrayList<>(0));
                 tableWrapper.setName(title);
                 replaceTable(client, repoWrapper, tableWrapper);
+                addTableAsCSV(client, repoWrapper, tableWrapper, folder);
             }else{
                 //if no previous tables, create a new one and add it on OMERO
                 tableWrapper = new TableWrapper(client, rt , rowId, new ArrayList<>(0));
                 tableWrapper.setName(title);
                 addTable(client, repoWrapper, tableWrapper);
+                addTableAsCSV(client, repoWrapper, tableWrapper, folder);
             }
         }catch(ServiceException | AccessException | ExecutionException e){
             IJ.log("[ERROR] [DataManagement][generateSummaryTable] -- Could not generate an OMERO table for " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
@@ -415,6 +418,84 @@ public class DataManagement {
             boolean hasBeenDeleted = localImageFile.delete();
             if(hasBeenDeleted) IJ.log("[INFO] [DataManagement][uploadHeatMap] -- Temporary image deleted");
             else IJ.log("[ERROR] [DataManagement][uploadHeatMap] -- Cannot delete temporary saved image");
+        }
+    }
+
+
+    /**
+     * build a ResultTable from a TableWrapper
+     *
+     * @param tableWrapper
+     * @return
+     */
+    private static ResultsTable getResultTableFromTableWrapper(TableWrapper tableWrapper){
+        ResultsTable rt_image = new ResultsTable();
+
+        // get results and table size from OMERO table
+        Object[][] data = tableWrapper.getData();
+        int nbCol = tableWrapper.getColumnCount();
+        int nbRow = tableWrapper.getRowCount();
+
+        // build the ResultsTable
+        if(nbCol > 2){ // if we have more than a label to display
+
+            for(int i = 0; i < nbRow; i++){
+                rt_image.incrementCounter();
+                // add the image IDs at the end of the table to be compatible with omero.parade
+                ImageData imageData = (ImageData) (data[0][i]);
+                rt_image.setValue(tableWrapper.getColumnName(0), i, imageData.getId());  // this is very important to get the image ids and be omero.parade compatible
+
+                // populate the resultsTable
+                for(int j = 1 ; j < nbCol; j++){
+                    if(data[j][i] instanceof String)
+                        rt_image.setValue(tableWrapper.getColumnName(j), i, (String)data[j][i]);
+                    else  rt_image.setValue(tableWrapper.getColumnName(j), i, (double)data[j][i]);
+                }
+            }
+        }
+
+        return rt_image;
+    }
+
+
+    /**
+     * add a ResultsTable as CSV file on OMERO
+     *
+     * @param client
+     * @param repoWrapper
+     * @param tableWrapper
+     * @param folder
+     */
+    private static void addTableAsCSV(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, TableWrapper tableWrapper, String folder){
+        // generate an imageJ ResultsTable from an OMERO table
+        ResultsTable rt = getResultTableFromTableWrapper(tableWrapper);
+
+        // save locally the ResultsTable as a csv file.
+        String previous_name = rt.getTitle();
+        File localTableFile = new File(folder, tableWrapper.getName().replace(" ","_") + ".csv");
+        rt.save(localTableFile.toString());
+        rt.show(previous_name);
+
+        try{
+            // get the number of existing files
+            int nFile = repoWrapper.getFileAnnotations(client).size();
+
+            // Import csv table on OMERO
+            long fileID = repoWrapper.addFile(client, localTableFile);
+
+            // test if all csv files are imported
+            if(repoWrapper.getFileAnnotations(client).size() == nFile + 1)
+                IJ.log("[INFO] [DataManagement][uploadResultsTable] -- The imageJ Results table has been successfully imported on OMERO with id : "+fileID);
+		    else
+                IJ.log("[ERROR] [DataManagement][uploadResultsTable] -- The imageJ Results table has not been imported for some reasons");
+
+        } catch (ServiceException | AccessException | ExecutionException | InterruptedException e){
+            IJ.log("[ERROR] [DataManagement][uploadResultsTable] -- Cannot upload imageJ Results table on OMERO");
+        } finally{
+            // delete the file after upload
+            boolean hasBeenDeleted = localTableFile.delete();
+            if(hasBeenDeleted) IJ.log("[INFO] [DataManagement][uploadResultsTable] -- Temporary table deleted");
+            else IJ.log("[ERROR] [DataManagement][uploadResultsTable] -- Cannot delete temporary saved table");
         }
     }
 }
