@@ -8,26 +8,18 @@ import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.repository.ProjectWrapper;
 import ij.IJ;
 import net.imagej.ImageJ;
-import org.scijava.Initializable;
 import org.scijava.command.Command;
 import org.scijava.command.DynamicCommand;
-import org.scijava.module.MutableModuleItem;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight")
-public class ArgoLightCommand extends DynamicCommand implements Command, Initializable {
-
-    private final static Logger logger = LoggerFactory.getLogger(ArgoLightCommand.class);
+public class ArgoLightCommand extends DynamicCommand implements Command {
 
     @Parameter(label = "OMERO host")
     String host;
@@ -38,7 +30,9 @@ public class ArgoLightCommand extends DynamicCommand implements Command, Initial
     @Parameter(label = "Enter your gaspar password", style = "password", persist = false)
     String password;
 
-    @Parameter(label="Dataset name")
+    @Parameter(label="Dataset name",choices={"LSM700_INT2","LSM700_INT1","LSM700_UP2","LSM710", "SD_W1","SP8_FLIM","STED_3X","SP8_UP1",
+    "SP8_UP2","SP8_INT","CSU_W1","LSM980","CELLXCELLENCE","AXIOPLAN","STEREOLOGY","SIM-STORM","SLIDESCANNER_1","SLIDESCANNER_2",
+    "LATTICE_LIGHTSHEET","LIGHTSHEET_Z1","PALM_MICROBEAM","OPERETTA_CLS"})
     String microscope;
 
     @Parameter(label="Saving options",choices={"No heat maps saving","Save heat maps locally","Save heat maps in OMERO"})
@@ -99,18 +93,5 @@ public class ArgoLightCommand extends DynamicCommand implements Command, Initial
         //DebugTools.enableLogging("DEBUG");
         //ij.command().run(ArgoLight.class, true).get();
     }
-
-
-    @Override
-    public void initialize() {
-        final MutableModuleItem<String> microscopes = //
-                getInfo().getMutableInput("microscope", String.class);
-        List<String> names = new ArrayList<>();
-        names.add("LSM700_INT2");
-        names.add("LSM700_INT1");
-        names.add("LSM980");
-        microscopes.setChoices(names);
-    }
-
 }
 

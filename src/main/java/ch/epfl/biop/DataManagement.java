@@ -21,8 +21,6 @@ import omero.gateway.model.ObjectiveData;
 import omero.gateway.model.TagAnnotationData;
 import omero.model.Microscope;
 import omero.model.NamedValue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -32,12 +30,20 @@ import java.util.stream.Collectors;
 
 public class DataManagement {
 
-    final private static Logger logger = LoggerFactory.getLogger(ImageProcessing.class);
-
     static String argoSlideName = "Argo-SIM v2.0";
 
+    /**
+     * return the list of all images, inside the current dataset, that have never been processed yet.
+     *
+     * @param client
+     * @param datasetWrapper
+     * @return
+     * @throws AccessException
+     * @throws ServiceException
+     * @throws ExecutionException
+     */
     public static List<ImageWrapper> filterNewImages(Client client, DatasetWrapper datasetWrapper) throws AccessException, ServiceException, ExecutionException {
-        // get all images without the tags "raw" neither "process" and remove macro images from vsi files
+        // get all images without the tags "raw" nor "process" and remove macro images from vsi files.
         return datasetWrapper.getImages(client).stream().filter(e-> {
             try {
                 return (e.getTags(client).stream().noneMatch(t->(t.getName().equals("raw")||t.getName().equals("processed")))
@@ -49,6 +55,12 @@ public class DataManagement {
     }
 
 
+    /**
+     * remove the extension from an image name
+     *
+     * @param name
+     * @return
+     */
     public static String getNameWithoutExtension(String name){
         int pos = name.lastIndexOf(".");
         if (pos > 0) {
@@ -59,10 +71,24 @@ public class DataManagement {
     }
 
 
+    /**
+     * add a list of tags to an image on OMERO
+     * @param client
+     * @param imageWrapper
+     * @param tags
+     */
     public static void addTags(Client client, ImageWrapper imageWrapper, List<String> tags){
         tags.forEach(tag->addTag(client,imageWrapper,tag));
     }
 
+
+    /**
+     * add a tag to an image on OMERO
+     *
+     * @param client
+     * @param imageWrapper
+     * @param tag
+     */
     public static void addTag(Client client, ImageWrapper imageWrapper, String tag) {
         try {
             // get the corresponding tag in the list of available tags if exists
@@ -84,17 +110,37 @@ public class DataManagement {
         }
     }
 
+
+    /**
+     * add a list of key-values to an image on OMERO
+     *
+     * @param client
+     * @param imageWrapper
+     * @param keyValues
+     */
     public static void addKeyValues(Client client, ImageWrapper imageWrapper, List<NamedValue> keyValues){
-        // upload key-values on OMERO
+        // create a new MapAnnotation
         MapAnnotationWrapper newKeyValues = new MapAnnotationWrapper(keyValues);
         newKeyValues.setNameSpace("openmicroscopy.org/omero/client/mapAnnotation");
         try {
+            // upload key-values on OMERO
             imageWrapper.addMapAnnotation(client, newKeyValues);
         }catch(ServiceException | AccessException | ExecutionException e){
             IJ.log("[ERROR] [DataManagement][addKeyValues] -- KeyValues could not be added on the image " + imageWrapper.getId());
         }
     }
 
+    /**
+     * create all key-value pairs necessary for the project based on the dataset and the image name, as well as image metadata.
+     *
+     * @param client
+     * @param imageWrapper
+     * @param datasetWrapper
+     * @param microscope
+     * @param pixelSize
+     * @param threshMethod
+     * @return
+     */
     public static List<NamedValue> generateKeyValuesForProject(Client client, ImageWrapper imageWrapper, DatasetWrapper datasetWrapper, String microscope, double pixelSize, String threshMethod){
         // parse the image and dataset name
         String [] imgNameSplit = imageWrapper.getName().split("_");
@@ -166,15 +212,27 @@ public class DataManagement {
     }
 
 
+    /**
+     * create a new OMERO table with the imageJ ResultTable linked to a repository object.
+     *
+     * @param client
+     * @param repoWrapper
+     * @param rowId
+     * @param rt
+     * @param title
+     */
     public static void generateSummaryTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, long rowId, ResultsTable rt, String title){
         try{
-            // get the table of NChannels lines and store it on OMERO in ordre to compute the PCC between channels
+            // get the tables that are already attached to the image/dataset
             TableWrapper tableWrapper = getTable(client, repoWrapper);
+
+            // if previous tables, add results to the table
             if (tableWrapper != null){
                 tableWrapper.addRows(client, rt , rowId, new ArrayList<>(0));
                 tableWrapper.setName(title);
                 replaceTable(client, repoWrapper, tableWrapper);
             }else{
+                //if no previous tables, create a new one and add it on OMERO
                 tableWrapper = new TableWrapper(client, rt , rowId, new ArrayList<>(0));
                 tableWrapper.setName(title);
                 addTable(client, repoWrapper, tableWrapper);
@@ -182,10 +240,16 @@ public class DataManagement {
         }catch(ServiceException | AccessException | ExecutionException e){
             IJ.log("[ERROR] [DataManagement][generateSummaryTable] -- Could not generate an OMERO table for " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
         }
-
-
     }
 
+
+    /**
+     * get the last table attached to an image/dataset/project...
+     *
+     * @param client
+     * @param repoWrapper
+     * @return
+     */
     public static TableWrapper getTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper) {
         try {
             // Prepare a Table
@@ -203,11 +267,23 @@ public class DataManagement {
     }
 
 
+    /**
+     * replace the table by a new one. tableWrapper has the id of the previous table to update but already contains new values.
+     *
+     * @param client
+     * @param repoWrapper
+     * @param tableWrapper
+     */
     public static void replaceTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, TableWrapper tableWrapper){
         try {
+            // create the new table
             TableWrapper newTable = new TableWrapper(tableWrapper.createTable());
             newTable.setName(tableWrapper.getName());
+
+            // add the new table
             repoWrapper.addTable(client, newTable);
+
+            // delete the previous table
             client.deleteFile(tableWrapper.getId());
             IJ.log("[INFO] [DataManagement][replaceTable] -- Table successfully updated for " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
         }catch(ServiceException | AccessException | OMEROServerError | ExecutionException | InterruptedException e){
@@ -216,6 +292,13 @@ public class DataManagement {
     }
 
 
+    /**
+     * add a new OMERO table
+     *
+     * @param client
+     * @param repoWrapper
+     * @param tableWrapper
+     */
     public static void addTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, TableWrapper tableWrapper){
         try {
             repoWrapper.addTable(client, tableWrapper);
@@ -225,14 +308,23 @@ public class DataManagement {
         }
     }
 
+    /**
+     * convert a list of images into one an image stack (list of n images ===> one image with n slices)
+     *
+     * @param imps
+     * @return
+     */
     private static ImagePlus convertImageListToImageStack(List<ImagePlus> imps){
-        List<String> a = imps.stream().map(ImagePlus::getTitle).distinct().collect(Collectors.toList());
+        // get distinct image titles
+        List<String> imagesTitle = imps.stream().map(ImagePlus::getTitle).distinct().collect(Collectors.toList());
         String name = "";
 
-        if(a.size() > 1)
-            name = a.get(0).split("_")[0];
-        else name = a.get(0);
+        // get the first image title
+        if(imagesTitle.size() > 1)
+            name = imagesTitle.get(0).split("_")[0];
+        else name = imagesTitle.get(0);
 
+        // create an image stack
         ImagePlus imp = IJ.createImage(name, ImageProcessing.heatMapBitDepth, imps.get(0).getWidth(), imps.get(0).getHeight(), imps.get(0).getBitDepth());
         for(int i = 0; i < imps.size(); i++){
             imp.setPosition(1,i+1,1);
@@ -243,20 +335,35 @@ public class DataManagement {
     }
 
 
+    /**
+     * save a list of images locally on the computer
+     *
+     * @param imps
+     * @param imageName
+     * @param folder
+     */
     public static void saveHeatMapsLocally(List<ImagePlus> imps, String imageName, String folder){
         saveHeatMapLocally(convertImageListToImageStack(imps), imageName, folder);
     }
 
 
     /**
-     * save heatMaps locally
+     * save an image locally on the computer and returns the saved file
      *
+     * @param imp
+     * @param imageName
+     * @param folder
+     * @return
      */
     public static File saveHeatMapLocally(ImagePlus imp, String imageName, String folder){
         FileSaver fs = new FileSaver(imp);
+        // create an image file in the given folder, with the given imageName
         File analysisImage_output_path = new File(folder, imageName + "_" + imp.getTitle() + ".tif");
 
+        // save the image
         boolean hasBeenSaved = fs.saveAsTiff(analysisImage_output_path.toString());
+
+        // check if the image was correctly saved
         if(hasBeenSaved) IJ.log("[INFO] [DataManagement][saveHeatMapLocally] -- "+imp.getTitle()+".tif"+" was saved in : "+ folder);
         else IJ.log("[ERROR] [DataManagement][saveHeatMapLocally] -- Cannot save "+imp.getTitle()+ " in "+folder);
 
@@ -264,24 +371,43 @@ public class DataManagement {
     }
 
 
+    /**
+     * upload images on OMERO, in the given dataset.
+     *
+     * @param client
+     * @param datasetWrapper
+     * @param imps
+     * @param imageName
+     * @param folder
+     */
     public static void uploadHeatMaps(Client client, DatasetWrapper datasetWrapper, List<ImagePlus> imps, String imageName, String folder){
         uploadHeatMap(client, datasetWrapper, convertImageListToImageStack(imps), imageName, folder);
     }
 
 
-
+    /**
+     * upload an image on OMERO, in the given dataset.
+     *
+     * @param client
+     * @param datasetWrapper
+     * @param imp
+     * @param imageName
+     * @param folder
+     */
     public static void uploadHeatMap(Client client, DatasetWrapper datasetWrapper, ImagePlus imp, String imageName, String folder){
-
+        // save the image on the computer first and get the generate file
         File localImageFile = saveHeatMapLocally(imp, imageName, folder);
         try {
             // Import image on OMERO
             List<Long> analysisImage_omeroID = client.getDataset(datasetWrapper.getId()).importImage(client, localImageFile.toString());
-            // imp.getTitle()+".tif"+"_ was uploaded to OMERO with ID : "+ analysisImage_omeroID
             ImageWrapper analysisImage_wpr = client.getImage(analysisImage_omeroID.get(0));
+            IJ.log("[INFO] [DataManagement][uploadHeatMap] --"+imp.getTitle()+".tif"+" was uploaded to OMERO with ID : "+ analysisImage_omeroID);
+
+            // add tags to the newly created image
             addTag(client, analysisImage_wpr, "processed");
             addTag(client, analysisImage_wpr, imp.getTitle().split(" ")[0]);
             addTag(client, analysisImage_wpr, "ArgoLight");
-            IJ.log("[INFO] [DataManagement][uploadHeatMap] -- Heat maps successfully uploaded on OMERO");
+
         }catch (ServiceException | AccessException | ExecutionException | OMEROServerError e){
             IJ.log("[ERROR] [DataManagement][uploadHeatMap] -- Cannot upload heat maps on OMERO");
         } finally{
@@ -291,6 +417,4 @@ public class DataManagement {
             else IJ.log("[ERROR] [DataManagement][uploadHeatMap] -- Cannot delete temporary saved image");
         }
     }
-
-
 }
