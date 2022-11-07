@@ -483,17 +483,17 @@ public class DataManagement {
 
             // test if all csv files are imported
             if(repoWrapper.getFileAnnotations(client).size() == nFile + 1)
-                IJ.log("[INFO] [DataManagement][uploadResultsTable] -- The imageJ Results table has been successfully imported on OMERO with id : "+fileID);
+                IJ.log("[INFO] [DataManagement][addTableAsCSV] -- The imageJ Results table has been successfully imported on OMERO with id : "+fileID);
 		    else
-                IJ.log("[ERROR] [DataManagement][uploadResultsTable] -- The imageJ Results table has not been imported for some reasons");
+                IJ.log("[ERROR] [DataManagement][addTableAsCSV] -- The imageJ Results table has not been imported for some reasons");
 
         } catch (ServiceException | AccessException | ExecutionException | InterruptedException e){
-            IJ.log("[ERROR] [DataManagement][uploadResultsTable] -- Cannot upload imageJ Results table on OMERO");
+            IJ.log("[ERROR] [DataManagement][addTableAsCSV] -- Cannot upload imageJ Results table on OMERO");
         } finally{
             // delete the file after upload
             boolean hasBeenDeleted = localTableFile.delete();
-            if(hasBeenDeleted) IJ.log("[INFO] [DataManagement][uploadResultsTable] -- Temporary table deleted");
-            else IJ.log("[ERROR] [DataManagement][uploadResultsTable] -- Cannot delete temporary saved table");
+            if(hasBeenDeleted) IJ.log("[INFO] [DataManagement][addTableAsCSV] -- Temporary table deleted");
+            else IJ.log("[ERROR] [DataManagement][addTableAsCSV] -- Cannot delete temporary saved table");
         }
     }
 }

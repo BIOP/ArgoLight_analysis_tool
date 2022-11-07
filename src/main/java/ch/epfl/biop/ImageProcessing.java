@@ -64,6 +64,7 @@ public class ImageProcessing {
         // get the image name without the extension
         final String rawImageName = DataManagement.getNameWithoutExtension(imageWrapper.getName());
 
+        IJ.log("[INFO] [runAnalysis] -- Running on image " +imageWrapper.getId());
         IJ.log("[INFO] [runAnalysis] -- Pixel size : "+pixelSizeImage+" um");
 
         // initialize variables
@@ -95,14 +96,15 @@ public class ImageProcessing {
             // reset all windows
             IJ.run("Close All", "");
             roiManager.reset();
+            IJ.log("[INFO] [runAnalysis] -- Running on channel " +i);
 
             // add image name and channel id to the table
             analysisResultsRT.incrementCounter();
             analysisResultsRT.setValue("Image name", i, rawImageName);
-            analysisResultsRT.setValue("Channel",i,i+1);
+            analysisResultsRT.setValue("Channel", i, i);
 
             // extract the current channel
-            ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + (i + 1), imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
+            ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + i, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
             imp.setPosition(i+1,1,1);
             channel.setProcessor(imp.getProcessor());
             channel.show();
@@ -194,17 +196,17 @@ public class ImageProcessing {
                 for(int j = i+1; j < NChannels; j++){
                     // get the two images
                     imp.setPosition(i+1,1,1);
-                    ImagePlus ch1 = new ImagePlus("ch"+i,imp.getProcessor());
+                    ImagePlus ch1 = new ImagePlus("ch"+i, imp.getProcessor());
                     imp.setPosition(j+1,1,1);
-                    ImagePlus ch2 = new ImagePlus("ch"+j,imp.getProcessor());
+                    ImagePlus ch2 = new ImagePlus("ch"+j, imp.getProcessor());
 
                     // compute Pearson Correlation Coefficient
                     List<Double> pccValues = computePCC(ch1, ch2, generalRoisForPCC);
                     // compute PCC statistics
-                    IJ.log("[INFO] [runAnalysis] -- compute PCC for ch"+(i+1)+" - ch"+(j+1));
-                    computeStatistics(pccValues, pccResultsRT, "PCC_(ch"+(i+1)+"-ch"+(j+1)+")", cnt);
+                    IJ.log("[INFO] [runAnalysis] -- compute PCC for ch"+i+" - ch"+j);
+                    computeStatistics(pccValues, pccResultsRT, "PCC_(ch"+i+"-ch"+j+")", cnt);
                     // compute PCC heat map
-                    pccMaps.add(computeHeatMap("PCC_(ch"+(i+1)+"-ch"+(j+1)+")", pccValues, (int) Math.sqrt(pccValues.size() + 1)));
+                    pccMaps.add(computeHeatMap("PCC_(ch"+i+"-ch"+j+")", pccValues, (int) Math.sqrt(pccValues.size() + 1)));
                     cnt++;
                 }
             }
