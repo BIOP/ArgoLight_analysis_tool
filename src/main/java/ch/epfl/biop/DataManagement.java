@@ -26,6 +26,7 @@ import omero.model.NamedValue;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -142,7 +143,7 @@ public class DataManagement {
      * @param threshMethod
      * @return
      */
-    public static List<NamedValue> generateKeyValuesForProject(Client client, ImageWrapper imageWrapper, DatasetWrapper datasetWrapper, String microscope, double pixelSize, String threshMethod){
+    public static List<NamedValue> generateKeyValuesForProject(Client client, ImageWrapper imageWrapper, DatasetWrapper datasetWrapper, String microscope, Map<String,String> processingParameters){
         // parse the image and dataset name
         String [] imgNameSplit = imageWrapper.getName().split("_");
         String [] datasetNameSplit = datasetWrapper.getName().split("_");
@@ -204,10 +205,8 @@ public class DataManagement {
             IJ.log("[WARN] [DataManagement][generateKeyValues] -- Not able to read objective metadata");
         }
 
-        // get pixel size
-        namedValues.add(new NamedValue("Pixel_size_um", ""+pixelSize));
-        // get the thresholding method for processing
-        namedValues.add(new NamedValue("Thresholding_method", threshMethod));
+        // add all processing parameters
+        processingParameters.forEach((key, value) -> namedValues.add(new NamedValue(key, value)));
 
         return namedValues;
     }

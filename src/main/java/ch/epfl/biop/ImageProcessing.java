@@ -77,6 +77,12 @@ public class ImageProcessing {
         List<ImagePlus> fwhmMaps = new ArrayList<>();
         List<ImagePlus> pccMaps = new ArrayList<>();
 
+        Map<String, String> processingParameters = new HashMap<>();
+        processingParameters.put("Pixel_size_(um)",""+pixelSizeImage);
+        processingParameters.put("FWHM_profile_length_(pix)",""+lineLength);
+        processingParameters.put("Oval_radius_(pix)",""+ovalRadius);
+        processingParameters.put("thresholding_method", thresholdingMethod);
+
         // open the image on ImageJ
         ImagePlus imp;
         try {
@@ -112,23 +118,28 @@ public class ImageProcessing {
             channel.setRoi(crossRoi);
 
             // create a difference of gaussian image to find point centers
-            double sigma1 = 0.1 * argoSpacing / pixelSizeImage; // was 0.3 * at the begining but the detected center was a bit eccentered from the real center
+            double sigma1 = 0.1 * argoSpacing / pixelSizeImage; // was 0.3 * at the beginning but the detected center was a bit eccentered from the real center
             double sigma2 = sigma1 / Math.sqrt(2);
             ImagePlus dogImage = DoGFilter(imp, sigma2, sigma1);
+            processingParameters.put("DoG_sigma_1_(pix)",""+sigma1);
+            processingParameters.put("DoG_sigma_2_(pix)",""+sigma2);
 
             // get the coordinates of each ring
             List<Point2D> gridPoints = getGridPoint(dogImage, crossRoi, pixelSizeImage);
 
             // get the average x step
             double xStepAvg = getAverageStep(gridPoints.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage);
+            processingParameters.put("xStepAvg_(pix)",""+xStepAvg);
             IJ.log("[INFO] [runAnalysis] -- xStepAvg = " +xStepAvg + " pix");
 
             // get the average y step
             double yStepAvg = getAverageStep(gridPoints.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage);
+            processingParameters.put("yStepAvg_(pix)",""+yStepAvg);
             IJ.log("[INFO] [runAnalysis] -- yStepAvg = " +yStepAvg + " pix");
 
             // get the rotation angle
             double rotationAngle = getRotationAngle(gridPoints, crossRoi);
+            processingParameters.put("Rotation_angle_(deg)",""+rotationAngle*180/Math.PI);
             IJ.log("[INFO] [runAnalysis] -- Rotation angle theta = "+rotationAngle*180/Math.PI + "°");
 
             // get the ideal grid
@@ -138,7 +149,7 @@ public class ImageProcessing {
             gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius, pR.getY()-ovalRadius, 2*ovalRadius, 2*ovalRadius));});
 
             // sort the computed grid points according to ideal grid order
-            gridPoints = sortFromReference(Arrays.asList(roiManager.getRoisAsArray()),idealGridPoints);
+            gridPoints = sortFromReference(Arrays.asList(roiManager.getRoisAsArray()), idealGridPoints);
 
             // display ideal grid points
             roiManager.reset();
@@ -156,13 +167,13 @@ public class ImageProcessing {
 
             // compute statistics on each metrics and save them in the resultsTable
             IJ.log("[INFO] [runAnalysis] -- compute field distortion");
-            computeStatistics(fieldDistortionValues,analysisResultsRT,"field_distortion",i);
+            computeStatistics(fieldDistortionValues, analysisResultsRT,"field_distortion", i);
             IJ.log("[INFO] [runAnalysis] -- compute field uniformity");
-            computeStatistics(fieldUniformityValues,analysisResultsRT,"field_uniformity",i);
+            computeStatistics(fieldUniformityValues,analysisResultsRT,"field_uniformity", i);
             IJ.log("[INFO] [runAnalysis] -- compute FWHM");
-            computeStatistics(fwhmValues,analysisResultsRT,"fwhm",i);
+            computeStatistics(fwhmValues, analysisResultsRT,"fwhm",i);
             IJ.log("[INFO] [runAnalysis] -- compute pattern centering");
-            computeStatistics(crossPositionOnImage,analysisResultsRT,"cross_center_to_image_borders",i);
+            computeStatistics(crossPositionOnImage, analysisResultsRT,"cross_center_to_image_borders", i);
 
             // build heat maps of each metrics
             distortionMaps.add(computeHeatMap("field_distortion", fieldDistortionValues, (int) Math.sqrt(gridPoints.size() + 1)));
@@ -201,7 +212,7 @@ public class ImageProcessing {
         DataManagement.addTag(client, imageWrapper,"ArgoLight");
 
         // create project's key value pairs
-        List<NamedValue> keyValues = DataManagement.generateKeyValuesForProject(client, imageWrapper, datasetWrapper, testedMicroscope, pixelSizeImage, thresholdingMethod);
+        List<NamedValue> keyValues = DataManagement.generateKeyValuesForProject(client, imageWrapper, datasetWrapper, testedMicroscope, processingParameters);
         // add the key values on OMERO
         DataManagement.addKeyValues(client, imageWrapper, keyValues);
 
