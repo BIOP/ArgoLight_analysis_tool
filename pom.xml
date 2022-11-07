@@ -108,25 +108,25 @@
 	</mailingLists>
 
 	<scm>
-		<connection>scm:git:https://github.com/BIOP/ArgoLight</connection>
-		<developerConnection>scm:git:git@github.com:BIOP/ArgoLight</developerConnection>
+		<connection>scm:git:https://github.com/BIOP/ArgoLight_analysis_tool</connection>
+		<developerConnection>scm:git:git@github.com:BIOP/ArgoLight_analysis_tool</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/BIOP/ArgoLight</url>
+		<url>https://github.com/BIOP/ArgoLight_analysis_tool</url>
 	</scm>
 	
 	<issueManagement>
 		<system>GitHub Issues</system>
-		<url>https://github.com/BIOP/ArgoLight/issues</url>
+		<url>https://github.com/BIOP/ArgoLight_analysis_tool/issues</url>
 	</issueManagement>
 
 	<ciManagement>
 		<system>GitHub Actions</system>
-		<url>https://github.com/BIOP/ArgoLight/actions</url>
+		<url>https://github.com/BIOP/ArgoLight_analysis_tool/actions</url>
 	</ciManagement>
 
 	<properties>
-		<package-name>ch.epfl.biop.argolight</package-name>
-		<main-class>ch.epfl.biop.argolight.ArgoLightCommand</main-class>
+		<package-name>ch.epfl.biop.argolight_analysis_tool</package-name>
+		<main-class>ch.epfl.biop.argolight_analysis_tool.ArgoLightCommand</main-class>
 		<license.licenseName>gpl_v3</license.licenseName>
 		<license.copyrightOwners>ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP)</license.copyrightOwners>
 		<scijava.app.directory>C:/Fiji.app/</scijava.app.directory>
