@@ -80,7 +80,7 @@ public class ImageProcessing {
 
         Map<String, String> processingParameters = new HashMap<>();
         processingParameters.put("Pixel_size_(um)",""+pixelSizeImage);
-        processingParameters.put("FWHM_profile_length_(pix)",""+lineLength);
+        processingParameters.put("Profile_length_for_FWHM_(pix)",""+lineLength);
         processingParameters.put("Oval_radius_(pix)",""+ovalRadius);
         processingParameters.put("thresholding_method", thresholdingMethod);
 
@@ -165,20 +165,21 @@ public class ImageProcessing {
             roiManager.runCommand(channel,"Show All without labels");
 
             // compute metrics
-            List<Double> fieldDistortionValues = computeFieldDistortion(gridPoints, idealGridPoints);
+            List<Double> fieldDistortionValues = computeFieldDistortion(gridPoints, idealGridPoints, pixelSizeImage);
             List<Double> fieldUniformityValues = computeFieldUniformity(gridPoints,channel,ovalRadius);
-            List<Double> fwhmValues = computeFWHM(gridPoints,channel, lineLength, roiManager);
+            List<Double> fwhmValues = computeFWHM(gridPoints,channel, lineLength, roiManager, pixelSizeImage);
             List<Double> crossPositionOnImage = Doubles.asList(xCross, imp.getWidth() - xCross, yCross, imp.getHeight() - yCross);
+            crossPositionOnImage.forEach(e->e = e*pixelSizeImage);
 
             // compute statistics on each metrics and save them in the resultsTable
             IJ.log("[INFO] [runAnalysis] -- compute field distortion");
-            computeStatistics(fieldDistortionValues, analysisResultsRT,"field_distortion", i);
+            computeStatistics(fieldDistortionValues, analysisResultsRT,"field_distortion", i, "um");
             IJ.log("[INFO] [runAnalysis] -- compute field uniformity");
-            computeStatistics(fieldUniformityValues,analysisResultsRT,"field_uniformity", i);
+            computeStatistics(fieldUniformityValues,analysisResultsRT,"field_uniformity", i, "");
             IJ.log("[INFO] [runAnalysis] -- compute FWHM");
-            computeStatistics(fwhmValues, analysisResultsRT,"fwhm",i);
+            computeStatistics(fwhmValues, analysisResultsRT,"fwhm",i, "um");
             IJ.log("[INFO] [runAnalysis] -- compute pattern centering");
-            computeStatistics(crossPositionOnImage, analysisResultsRT,"cross_center_to_image_borders", i);
+            computeStatistics(crossPositionOnImage, analysisResultsRT,"cross_center_to_image_borders", i, "um");
 
             // build heat maps of each metrics
             distortionMaps.add(computeHeatMap("field_distortion", fieldDistortionValues, (int) Math.sqrt(gridPoints.size() + 1)));
@@ -204,7 +205,7 @@ public class ImageProcessing {
                     List<Double> pccValues = computePCC(ch1, ch2, generalRoisForPCC);
                     // compute PCC statistics
                     IJ.log("[INFO] [runAnalysis] -- compute PCC for ch"+i+" - ch"+j);
-                    computeStatistics(pccValues, pccResultsRT, "PCC_(ch"+i+"-ch"+j+")", cnt);
+                    computeStatistics(pccValues, pccResultsRT, "PCC_(ch"+i+"-ch"+j+")", cnt, "");
                     // compute PCC heat map
                     pccMaps.add(computeHeatMap("PCC_(ch"+i+"-ch"+j+")", pccValues, (int) Math.sqrt(pccValues.size() + 1)));
                     cnt++;
@@ -507,17 +508,17 @@ public class ImageProcessing {
 
 
     /**
-     * compute field distortion metric between an ideal and real set of points.
+     * compute field distortion metric between an ideal and real set of points in um.
      *
      * @param gridPoints
      * @param idealGridPoints
      * @return
      */
-    private static List<Double> computeFieldDistortion(List<Point2D> gridPoints, List<Point2D> idealGridPoints){
+    private static List<Double> computeFieldDistortion(List<Point2D> gridPoints, List<Point2D> idealGridPoints, double pixelSize){
         // Now we measure distance between ideal point and the measured one
         List<Double> distValues = new ArrayList<>();
         for(int i = 0; i < gridPoints.size(); i++){
-            distValues.add(gridPoints.get(i).distance(idealGridPoints.get(i)));
+            distValues.add(gridPoints.get(i).distance(idealGridPoints.get(i))*pixelSize);
         }
 
         return distValues;
@@ -545,7 +546,7 @@ public class ImageProcessing {
     }
 
     /**
-     * compute the Full Width at Half Maximum of a ring
+     * compute the Full Width at Half Maximum of a ring in um.
      *
      * @param gridPoints
      * @param imp
@@ -553,7 +554,7 @@ public class ImageProcessing {
      * @param rm
      * @return
      */
-    private static List<Double> computeFWHM(List<Point2D> gridPoints, ImagePlus imp, double lineLength, RoiManager rm){
+    private static List<Double> computeFWHM(List<Point2D> gridPoints, ImagePlus imp, double lineLength, RoiManager rm, double pixelSize){
         List<Double> fwhmValues = new ArrayList<>();
 
         // for each ring
@@ -580,7 +581,7 @@ public class ImageProcessing {
             double d = params[3]; // parameter d of gaussian, related to the FWHM, see http://fr.wikipedia.org/wiki/Largeur_%C3%A0_mi-hauteur
             double fwhm_val = (2 * Math.sqrt(2 * Math.log(2))) * d;
 
-            fwhmValues.add(fwhm_val);
+            fwhmValues.add(fwhm_val*pixelSize);
         });
 
         return fwhmValues;
@@ -673,7 +674,7 @@ public class ImageProcessing {
      * @param metric
      * @param channel
      */
-    private static void computeStatistics(List<Double> values, ResultsTable rt, String metric, int channel){
+    private static void computeStatistics(List<Double> values, ResultsTable rt, String metric, int channel, String unit){
         // average value
         double average = values.stream().reduce(0.0, Double::sum) / values.size();
 
@@ -688,15 +689,15 @@ public class ImageProcessing {
         double max = values.stream().max(Comparator.naturalOrder()).get();
 
         // save statistics
-        rt.setValue(metric+"_avg", channel, average);
-        rt.setValue(metric+"_std", channel, std);
-        rt.setValue(metric+"_min", channel, min);
-        rt.setValue(metric+"_max", channel, max);
+        rt.setValue(metric+"_avg "+unit, channel, average);
+        rt.setValue(metric+"_std "+unit, channel, std);
+        rt.setValue(metric+"_min "+unit, channel, min);
+        rt.setValue(metric+"_max "+unit, channel, max);
 
-        IJ.log("[INFO] [computeStatistics] -- average : " +average);
-        IJ.log("[INFO] [computeStatistics] -- std : " +std);
-        IJ.log("[INFO] [computeStatistics] -- min : " +min);
-        IJ.log("[INFO] [computeStatistics] -- max : " +max);
+        IJ.log("[INFO] [computeStatistics] -- average : " +average +" "+ unit);
+        IJ.log("[INFO] [computeStatistics] -- std : " +std +" "+ unit);
+        IJ.log("[INFO] [computeStatistics] -- min : " +min +" "+ unit);
+        IJ.log("[INFO] [computeStatistics] -- max : " +max +" "+ unit);
     }
 
     /**
