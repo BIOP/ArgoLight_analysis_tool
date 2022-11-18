@@ -131,7 +131,7 @@ public class ImageProcessing {
 
             // reduced grid to compute average step
             List<Point2D> smallerGrid = gridPoints.stream().filter(e -> (Math.abs(e.getX() - xCross) < 12.5 / pixelSizeImage && Math.abs(e.getY() - yCross) < 12.5 / pixelSizeImage)).collect(Collectors.toList());
-            System.out.println(smallerGrid.size());
+
             // get the average x step
             double xStepAvg = getAverageStep(smallerGrid.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage);
             processingParameters.put("xStepAvg_(pix)",""+xStepAvg);

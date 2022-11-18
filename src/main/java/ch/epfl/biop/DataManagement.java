@@ -21,6 +21,7 @@ import omero.gateway.exception.DSOutOfServiceException;
 import omero.gateway.model.ImageData;
 import omero.gateway.model.ObjectiveData;
 import omero.gateway.model.TagAnnotationData;
+import omero.model.Format;
 import omero.model.Microscope;
 import omero.model.NamedValue;
 
@@ -144,45 +145,46 @@ public class DataManagement {
      * @return
      */
     public static List<NamedValue> generateKeyValuesForProject(Client client, ImageWrapper imageWrapper, DatasetWrapper datasetWrapper, String microscope, Map<String,String> processingParameters){
-        // parse the image and dataset name
-        String [] imgNameSplit = imageWrapper.getName().split("_");
-        String [] datasetNameSplit = datasetWrapper.getName().split("_");
-
-        List<NamedValue> namedValues = new ArrayList<>();
-
-        // get acquisition date
-        namedValues.add(new NamedValue("Acquisition_Date", imageWrapper.asImageData().getAcquisitionDate().toLocalDateTime().toString().substring(0,9)));
-
         // WARNING: check for nulls beforehand (i, m, getModel(), ...)
         // image and dataset name have to be properly formatted
         // dataset name = CODE_Manufacturer_MicroscopeName
         // image name = MicroscopeName_objective_immersion_pattern_date_imageNumber
-        if(imgNameSplit.length < 6 || datasetNameSplit.length < 2) {
-            IJ.log("[WARN] [DataManagement][generateKeyValues] -- Image name is not written correctly. Please check image name convention");
-        } else{
-            // get microscope name and manufacturer
-            try{
-                Microscope m = client.getGateway().getMetadataService(client.getCtx())
-                        .loadInstrument(imageWrapper.asImageData()
-                                .getInstrumentId())
-                                .getMicroscope();
 
-                String model = m.getModel().getValue();
-                String manufacturer = m.getManufacturer().getValue();
-                namedValues.add(new NamedValue("Microscope", model));
-                namedValues.add(new NamedValue("Manufacturer", manufacturer));
+        // parse the image and dataset name
+        String [] imgNameSplit = imageWrapper.getName().split("_");
+        String [] datasetNameSplit = datasetWrapper.getName().split("_");
+        boolean nameCorrectlyWritten = true;
 
-            }catch(NullPointerException | DSOutOfServiceException | ServerError e){
-                IJ.log("[WARN] [DataManagement][generateKeyValues] -- Not able to read microscope metadata ; default default settings imported");
-                namedValues.add(new NamedValue("Microscope", microscope));
-                namedValues.add(new NamedValue("Manufacturer", datasetNameSplit[1]));
-            }
+        String imageFormat = imageWrapper.asImageData().asImage().getFormat().getValue().getValue();
+        List<NamedValue> namedValues = new ArrayList<>();
 
+        // check LIF files
+        if(imageFormat.equals("LIF") && imgNameSplit.length == 5){
+            String lastToken = imgNameSplit[4];
+            String date = lastToken.split("\\.")[0];
+            namedValues.add(new NamedValue("Acquisition_Date", date.replace("d","")));
+        }
+        // for all other files
+        else if(imgNameSplit.length == 6){
+            String lastToken = imgNameSplit[4];
+            namedValues.add(new NamedValue("Acquisition_Date", lastToken.replace("d","")));
+        }else{
+            IJ.log("[WARN] [DataManagement][generateKeyValues] -- Image name not correctly written");
+            nameCorrectlyWritten = false;
+        }
+
+        // get microscope name
+        namedValues.add(new NamedValue("Microscope", microscope));
+
+        if(datasetNameSplit.length > 2) {
+            // get microscope manufacturer
+            namedValues.add(new NamedValue("Manufacturer", datasetNameSplit[1]));
             // get microscope internal code
             namedValues.add(new NamedValue("Intern_Mic_Code", datasetNameSplit[0]));
+        }
+        if(nameCorrectlyWritten)
             // get the ArgoSlide pattern
             namedValues.add(new NamedValue("Argosim_pattern", imgNameSplit[3]));
-        }
 
         // get the ArgoSlide name
         namedValues.add(new NamedValue("Argoslide_name", argoSlideName));
@@ -191,18 +193,17 @@ public class DataManagement {
         // get objective information (type, immersion, magnification and NA)
         try{
             ObjectiveData objective = client.getMetadata().getImageAcquisitionData(client.getCtx(), imageWrapper.getId()).getObjective();
-            namedValues.add(new NamedValue("Objective", objective.getModel()));
-            //namedValues.add(new NamedValue("Obj_Manufacturer", imgData.getObjective().getManufacturer()))
-            namedValues.add(new NamedValue("Magnification", ""+objective.getNominalMagnification()));
-            namedValues.add(new NamedValue("NA", ""+objective.getLensNA()));
-
-            if(objective.getImmersion().equals("Other"))
-                namedValues.add(new NamedValue("Immersion", imgNameSplit[2]));
-            else
-                namedValues.add(new NamedValue("Immersion", objective.getImmersion()));
-
+            if(!objective.getModel().isEmpty())
+                namedValues.add(new NamedValue("Objective", objective.getModel()));
+            if(objective.getLensNA() != -1)
+                namedValues.add(new NamedValue("NA", ""+objective.getLensNA()));
         }catch(NullPointerException | DSOutOfServiceException | ExecutionException | DSAccessException e){
             IJ.log("[WARN] [DataManagement][generateKeyValues] -- Not able to read objective metadata");
+        }
+
+        if(nameCorrectlyWritten) {
+            namedValues.add(new NamedValue("Magnification", imgNameSplit[1]));
+            namedValues.add(new NamedValue("Immersion", imgNameSplit[2]));
         }
 
         // add all processing parameters

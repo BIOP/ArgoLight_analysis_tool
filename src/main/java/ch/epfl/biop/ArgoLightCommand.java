@@ -31,7 +31,7 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
     String password;
 
     @Parameter(label="Dataset name",choices={"LSM700_INT2","LSM700_INT1","LSM700_UP2","LSM710", "SD_W1","SP8_FLIM","STED_3X","SP8_UP1",
-    "SP8_UP2","SP8_INT","CSU_W1","LSM980","CELLXCELLENCE","AXIOPLAN","STEREOLOGY","SIM-STORM","SLIDESCANNER_1","SLIDESCANNER_2",
+    "SP8_UP2","SP8_INT1","CSU_W1","LSM980","CELLXCELLENCE","AXIOPLAN","STEREOLOGY","SIM-STORM","SLIDESCANNER_1","SLIDESCANNER_2",
     "LATTICE_LIGHTSHEET","LIGHTSHEET_Z1","PALM_MICROBEAM","OPERETTA_CLS"})
     String microscope;
 
