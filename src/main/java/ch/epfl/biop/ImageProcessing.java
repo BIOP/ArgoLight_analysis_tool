@@ -102,6 +102,7 @@ public class ImageProcessing {
             analysisResultsRT.incrementCounter();
             analysisResultsRT.setValue("Image name", i, rawImageName);
             analysisResultsRT.setValue("Channel", i, i);
+            analysisResultsRT.setValue("Acquisition Date", i, DataManagement.getAcquisitionDate(imageWrapper));
 
             // extract the current channel
             ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + i, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
@@ -144,7 +145,7 @@ public class ImageProcessing {
 
             // get the rotation angle
             double rotationAngle = getRotationAngle(gridPoints, crossRoi);
-            processingParameters.put("Rotation_angle_(deg)",""+rotationAngle*180/Math.PI);
+            analysisResultsRT.setValue("Rotation angle (deg)", i, rotationAngle*180/Math.PI);
             IJ.log("[INFO] [runAnalysis] -- Rotation angle theta = "+rotationAngle*180/Math.PI + "°");
 
             // get the ideal grid

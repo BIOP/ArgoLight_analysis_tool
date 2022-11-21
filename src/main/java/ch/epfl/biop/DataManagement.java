@@ -134,6 +134,37 @@ public class DataManagement {
         }
     }
 
+
+    /**
+     * get the acquisition date of the image by parsing the image name.
+     * If the name is not correctly written, it finds the date in the image metadata.
+     *
+     * @param imageWrapper
+     * @return
+     */
+    public static String getAcquisitionDate(ImageWrapper imageWrapper){
+        // image name = MicroscopeName_objective_immersion_pattern_date.lif [imageNumber] for lif files
+        // image name = MicroscopeName_objective_immersion_pattern_date_imageNumber for all other file formats
+
+        String [] imgNameSplit = imageWrapper.getName().split("_");
+        String imageFormat = imageWrapper.asImageData().asImage().getFormat().getValue().getValue();
+
+        // check LIF files
+        if(imageFormat.equals("LIF") && imgNameSplit.length == 5){
+            String lastToken = imgNameSplit[4];
+            String date = lastToken.split("\\.")[0];
+            return date.replace("d","");
+        }
+        // for all other files
+        else if(imgNameSplit.length == 6){
+            String lastToken = imgNameSplit[4];
+            return lastToken.replace("d","");
+        }else{
+            // if the file is not written correctly
+            return imageWrapper.asImageData().getAcquisitionDate().toLocalDateTime().toString().substring(0,10).replace("-","");
+        }
+    }
+
     /**
      * create all key-value pairs necessary for the project based on the dataset and the image name, as well as image metadata.
      *
@@ -148,27 +179,18 @@ public class DataManagement {
         // WARNING: check for nulls beforehand (i, m, getModel(), ...)
         // image and dataset name have to be properly formatted
         // dataset name = CODE_Manufacturer_MicroscopeName
-        // image name = MicroscopeName_objective_immersion_pattern_date_imageNumber
+        // image name = MicroscopeName_objective_immersion_pattern_date.lif [imageNumber] for lif files
+        // image name = MicroscopeName_objective_immersion_pattern_date_imageNumber for all other file formats
 
         // parse the image and dataset name
         String [] imgNameSplit = imageWrapper.getName().split("_");
         String [] datasetNameSplit = datasetWrapper.getName().split("_");
         boolean nameCorrectlyWritten = true;
 
-        String imageFormat = imageWrapper.asImageData().asImage().getFormat().getValue().getValue();
         List<NamedValue> namedValues = new ArrayList<>();
 
-        // check LIF files
-        if(imageFormat.equals("LIF") && imgNameSplit.length == 5){
-            String lastToken = imgNameSplit[4];
-            String date = lastToken.split("\\.")[0];
-            namedValues.add(new NamedValue("Acquisition_Date", date.replace("d","")));
-        }
-        // for all other files
-        else if(imgNameSplit.length == 6){
-            String lastToken = imgNameSplit[4];
-            namedValues.add(new NamedValue("Acquisition_Date", lastToken.replace("d","")));
-        }else{
+        // check LIF files and correct image name
+        if(!((imageWrapper.asImageData().asImage().getFormat().getValue().getValue().equals("LIF") && imgNameSplit.length == 5) || imgNameSplit.length == 6)){
             IJ.log("[WARN] [DataManagement][generateKeyValues] -- Image name not correctly written");
             nameCorrectlyWritten = false;
         }
