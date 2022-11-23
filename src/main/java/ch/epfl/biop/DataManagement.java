@@ -15,18 +15,18 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.io.FileSaver;
 import ij.measure.ResultsTable;
-import omero.ServerError;
+import javafx.scene.control.Tab;
 import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
 import omero.gateway.model.ImageData;
 import omero.gateway.model.ObjectiveData;
+import omero.gateway.model.TableData;
 import omero.gateway.model.TagAnnotationData;
-import omero.model.Format;
-import omero.model.Microscope;
 import omero.model.NamedValue;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -37,7 +37,7 @@ public class DataManagement {
     static String argoSlideName = "Argo-SIM v2.0";
 
     /**
-     * return the list of all images, inside the current dataset, that have never been processed yet.
+     * return the list of all images that have never been processed yet.
      *
      * @param client
      * @param datasetWrapper
@@ -58,6 +58,28 @@ public class DataManagement {
         }).collect(Collectors.toList());
     }
 
+    /**
+     * return the list of all images (processed and unprocessed)
+     *
+     * @param client
+     * @param datasetWrapper
+     * @return
+     * @throws AccessException
+     * @throws ServiceException
+     * @throws ExecutionException
+     */
+    public static List<ImageWrapper> filterAllImages(Client client, DatasetWrapper datasetWrapper) throws AccessException, ServiceException, ExecutionException {
+        // get all images without the tags "raw" nor "process" and remove macro images from vsi files.
+        return datasetWrapper.getImages(client).stream().filter(e-> {
+            try {
+                return (e.getTags(client).stream().noneMatch(t->t.getName().equals("processed"))
+                        && !(e.getName().contains("[macro image]")));
+            } catch (ServiceException | AccessException | ExecutionException ex) {
+                throw new RuntimeException(ex);
+            }
+        }).collect(Collectors.toList());
+    }
+
 
     /**
      * remove the extension from an image name
@@ -66,6 +88,13 @@ public class DataManagement {
      * @return
      */
     public static String getNameWithoutExtension(String name){
+        // special case for lif files
+        if(name.contains(".lif"))
+            return name.replace(".lif","");
+        // special case for vsi files
+        if(name.contains(".vsi"))
+            return name.replace(".vsi","");
+
         int pos = name.lastIndexOf(".");
         if (pos > 0) {
             name = name.substring(0, pos);
@@ -142,7 +171,7 @@ public class DataManagement {
      * @param imageWrapper
      * @return
      */
-    public static String getAcquisitionDate(ImageWrapper imageWrapper){
+    public static int getAcquisitionDate(ImageWrapper imageWrapper){
         // image name = MicroscopeName_objective_immersion_pattern_date.lif [imageNumber] for lif files
         // image name = MicroscopeName_objective_immersion_pattern_date_imageNumber for all other file formats
 
@@ -153,15 +182,16 @@ public class DataManagement {
         if(imageFormat.equals("LIF") && imgNameSplit.length == 5){
             String lastToken = imgNameSplit[4];
             String date = lastToken.split("\\.")[0];
-            return date.replace("d","");
+            return Integer.parseInt(date.replace("d",""));
         }
         // for all other files
         else if(imgNameSplit.length == 6){
             String lastToken = imgNameSplit[4];
-            return lastToken.replace("d","");
+            return Integer.parseInt(lastToken.replace("d",""));
         }else{
             // if the file is not written correctly
-            return imageWrapper.asImageData().getAcquisitionDate().toLocalDateTime().toString().substring(0,10).replace("-","");
+            String date = imageWrapper.asImageData().getAcquisitionDate().toLocalDateTime().toString().substring(0,10).replace("-","");
+            return Integer.parseInt(date);
         }
     }
 
@@ -170,12 +200,12 @@ public class DataManagement {
      *
      * @param client
      * @param imageWrapper
-     * @param datasetWrapper
+     * @param datasetName
      * @param microscope
      * @param processingParameters
      * @return
      */
-    public static List<NamedValue> generateKeyValuesForProject(Client client, ImageWrapper imageWrapper, DatasetWrapper datasetWrapper, String microscope, Map<String,String> processingParameters){
+    public static List<NamedValue> generateKeyValuesForProject(Client client, ImageWrapper imageWrapper, String datasetName, String microscope, Map<String,String> processingParameters){
         // WARNING: check for nulls beforehand (i, m, getModel(), ...)
         // image and dataset name have to be properly formatted
         // dataset name = CODE_Manufacturer_MicroscopeName
@@ -184,7 +214,7 @@ public class DataManagement {
 
         // parse the image and dataset name
         String [] imgNameSplit = imageWrapper.getName().split("_");
-        String [] datasetNameSplit = datasetWrapper.getName().split("_");
+        String [] datasetNameSplit = datasetName.split("_");
         boolean nameCorrectlyWritten = true;
 
         List<NamedValue> namedValues = new ArrayList<>();
@@ -234,36 +264,74 @@ public class DataManagement {
         return namedValues;
     }
 
+public static TableWrapper populateDatasetTable(TableWrapper tableWrapper, Client client, ResultsTable rt, long id){
+
+    try{
+        if(tableWrapper == null)
+            tableWrapper = new TableWrapper(client,rt,id,new ArrayList<>());
+        else
+            tableWrapper.addRows(client,rt,id,new ArrayList<>());
+
+    }catch(ServiceException | AccessException | ExecutionException e){
+        IJ.log("[ERROR] [DataManagement][populateDatasetTable] -- Could not populate an OMERO table ");
+    }
+
+    return tableWrapper;
+
+}
+
+
+    public static void generateDatasetTable(Client client, DatasetWrapper  datasetWrapper,  TableWrapper newTable, String title, String folder, boolean processAllImages){
+        // get the tables that are already attached to the image/dataset
+       // TableWrapper tableWrapper = getTable(client, datasetWrapper);
+
+        // if previous tables, add results to the table
+        if (newTable != null && !processAllImages){
+            //int beginIdx = tableWrapper.getRowCount()-1;
+           // tableWrapper.addRows(client, rt , null, new ArrayList<>(0));
+           // int endIdx = tableWrapper.getRowCount()-1;
+           // TableWrapper updatedTableWrapper = includeImageData(tableWrapper,imageDataList,beginIdx,endIdx);
+            //newTable.setName(title);
+            replaceTable(client, datasetWrapper, newTable.getId(), newTable, title);
+            replaceTableCSVFile(client, datasetWrapper, newTable, title, folder);
+        }else{
+            //if no previous tables, create a new one and add it on OMERO
+            //tableWrapper = new TableWrapper(client, rt , null, new ArrayList<>(0));
+            //TableWrapper updatedTableWrapper = includeImageData(tableWrapper,imageDataList,0,tableWrapper.getRowCount()-1);
+            newTable.setName(title);
+            addTable(client, datasetWrapper, newTable);
+            addTableAsCSV(client, datasetWrapper, newTable, folder);
+        }
+    }
 
     /**
      * create a new OMERO table with the imageJ ResultTable linked to a repository object.
      *
      * @param client
-     * @param repoWrapper
+     * @param imageWrapper
      * @param rowId
      * @param rt
      * @param title
      */
-    public static void generateSummaryTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, long rowId, ResultsTable rt, String title, String folder){
+    public static void generateImageTable(Client client, ImageWrapper imageWrapper, long rowId, ResultsTable rt, String title, String folder, boolean processAllImages){
         try{
             // get the tables that are already attached to the image/dataset
-            TableWrapper tableWrapper = getTable(client, repoWrapper);
+            TableWrapper tableWrapper = getTable(client, imageWrapper);
 
             // if previous tables, add results to the table
-            if (tableWrapper != null){
+            if (tableWrapper != null && !processAllImages){
                 tableWrapper.addRows(client, rt , rowId, new ArrayList<>(0));
-                tableWrapper.setName(title);
-                replaceTable(client, repoWrapper, tableWrapper);
-                addTableAsCSV(client, repoWrapper, tableWrapper, folder);
+                replaceTable(client, imageWrapper, tableWrapper.getId(), tableWrapper, title);
+                replaceTableCSVFile(client, imageWrapper, tableWrapper, title, folder);
             }else{
                 //if no previous tables, create a new one and add it on OMERO
                 tableWrapper = new TableWrapper(client, rt , rowId, new ArrayList<>(0));
                 tableWrapper.setName(title);
-                addTable(client, repoWrapper, tableWrapper);
-                addTableAsCSV(client, repoWrapper, tableWrapper, folder);
+                addTable(client, imageWrapper, tableWrapper);
+                addTableAsCSV(client, imageWrapper, tableWrapper, folder);
             }
         }catch(ServiceException | AccessException | ExecutionException e){
-            IJ.log("[ERROR] [DataManagement][generateSummaryTable] -- Could not generate an OMERO table for " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
+            IJ.log("[ERROR] [DataManagement][generateSummaryTable] -- Could not generate an OMERO table for " + imageWrapper.getName()+" ("+imageWrapper.getId()+")");
         }
     }
 
@@ -281,8 +349,18 @@ public class DataManagement {
             List<TableWrapper> repoTables = repoWrapper.getTables(client);
 
             if (!repoTables.isEmpty()) {
+                // get al names
+                List<String> names = repoTables.stream().map(TableWrapper::getName).collect(Collectors.toList());
+
+                // get dates
+                List<String> orderedDate = new ArrayList<>();
+                names.forEach(name-> orderedDate.add(name.split("_")[0]));
+
+                // sort dates in reverse order (larger to smaller date)
+                orderedDate.sort(Comparator.reverseOrder());
+
                 // take the last table
-                return repoTables.get(repoTables.size() - 1);
+                return repoTables.stream().filter(e->e.getName().contains(orderedDate.get(0))).collect(Collectors.toList()).get(0);
             } else
                 return null;
         }catch(ServiceException | AccessException | ExecutionException e){
@@ -298,18 +376,19 @@ public class DataManagement {
      * @param client
      * @param repoWrapper
      * @param tableWrapper
+     * @param title
      */
-    public static void replaceTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, TableWrapper tableWrapper){
+    public static void replaceTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, long tableToDelete, TableWrapper tableWrapper, String title){
         try {
             // create the new table
             TableWrapper newTable = new TableWrapper(tableWrapper.createTable());
-            newTable.setName(tableWrapper.getName());
+            newTable.setName(title);
 
             // add the new table
             repoWrapper.addTable(client, newTable);
 
             // delete the previous table
-            client.deleteFile(tableWrapper.getId());
+            client.deleteFile(tableToDelete);
             IJ.log("[INFO] [DataManagement][replaceTable] -- Table successfully updated for " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
         }catch(ServiceException | AccessException | OMEROServerError | ExecutionException | InterruptedException e){
             IJ.log("[ERROR] [DataManagement][replaceTable] -- Could not update table attached to " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
@@ -402,13 +481,13 @@ public class DataManagement {
      * upload images on OMERO, in the given dataset.
      *
      * @param client
-     * @param datasetWrapper
+     * @param datasetId
      * @param imps
      * @param imageName
      * @param folder
      */
-    public static void uploadHeatMaps(Client client, DatasetWrapper datasetWrapper, List<ImagePlus> imps, String imageName, String folder){
-        uploadHeatMap(client, datasetWrapper, convertImageListToImageStack(imps), imageName, folder);
+    public static void uploadHeatMaps(Client client, long datasetId, List<ImagePlus> imps, String imageName, String folder){
+        uploadHeatMap(client, datasetId, convertImageListToImageStack(imps), imageName, folder);
     }
 
 
@@ -416,17 +495,17 @@ public class DataManagement {
      * upload an image on OMERO, in the given dataset.
      *
      * @param client
-     * @param datasetWrapper
+     * @param datasetId
      * @param imp
      * @param imageName
      * @param folder
      */
-    public static void uploadHeatMap(Client client, DatasetWrapper datasetWrapper, ImagePlus imp, String imageName, String folder){
+    public static void uploadHeatMap(Client client, long datasetId, ImagePlus imp, String imageName, String folder){
         // save the image on the computer first and get the generate file
         File localImageFile = saveHeatMapLocally(imp, imageName, folder);
         try {
             // Import image on OMERO
-            List<Long> analysisImage_omeroID = client.getDataset(datasetWrapper.getId()).importImage(client, localImageFile.toString());
+            List<Long> analysisImage_omeroID = client.getDataset(datasetId).importImage(client, localImageFile.toString());
             ImageWrapper analysisImage_wpr = client.getImage(analysisImage_omeroID.get(0));
             IJ.log("[INFO] [DataManagement][uploadHeatMap] --"+imp.getTitle()+".tif"+" was uploaded to OMERO with ID : "+ analysisImage_omeroID);
 
@@ -483,26 +562,27 @@ public class DataManagement {
 
 
     /**
-     * add a ResultsTable as CSV file on OMERO
+     * replace an existing CSV file on OMERO by a new updated one
      *
      * @param client
      * @param repoWrapper
      * @param tableWrapper
+     * @param title
      * @param folder
      */
-    private static void addTableAsCSV(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, TableWrapper tableWrapper, String folder){
+    private static void replaceTableCSVFile(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, TableWrapper tableWrapper, String title, String folder){
         // generate an imageJ ResultsTable from an OMERO table
         ResultsTable rt = getResultTableFromTableWrapper(tableWrapper);
 
         // save locally the ResultsTable as a csv file.
-        File localTableFile = new File(folder, tableWrapper.getName().replace(" ","_") + ".csv");
+        File localTableFile = new File(folder, title.replace(" ","_") + ".csv");
         rt.save(localTableFile.toString());
 
         try{
             // get csv files with a name matching the dataset name
             List<FileAnnotationWrapper> csvFiles = repoWrapper.getFileAnnotations(client)
                     .stream()
-                    .filter(e -> e.getFileFormat().equals("csv") ||e.getFileFormat().equals("xls") && repoWrapper.getName().contains(e.getFileName().replaceAll("_Table.csv","")))
+                    .filter(e -> e.getFileFormat().equals("csv") ||e.getFileFormat().equals("xls") && tableWrapper.getName().contains(e.getFileName().replaceAll("_Table.csv","")))
                     .collect(Collectors.toList());
 
             // delete those files
@@ -521,6 +601,42 @@ public class DataManagement {
                 IJ.log("[ERROR] [DataManagement][addTableAsCSV] -- The imageJ Results table has not been imported for some reasons");
 
         } catch (ServiceException | AccessException | ExecutionException | InterruptedException | OMEROServerError e){
+            IJ.log("[ERROR] [DataManagement][addTableAsCSV] -- Cannot upload imageJ Results table on OMERO");
+        } finally{
+            // delete the file after upload
+            boolean hasBeenDeleted = localTableFile.delete();
+            if(hasBeenDeleted) IJ.log("[INFO] [DataManagement][addTableAsCSV] -- Temporary table deleted");
+            else IJ.log("[ERROR] [DataManagement][addTableAsCSV] -- Cannot delete temporary saved table");
+        }
+    }
+
+    /**
+     * add a new ResultsTable as CSV file on OMERO
+     *
+     * @param client
+     * @param repoWrapper
+     * @param tableWrapper
+     * @param folder
+     */
+    private static void addTableAsCSV(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper, TableWrapper tableWrapper, String folder){
+        // generate an imageJ ResultsTable from an OMERO table
+        ResultsTable rt = getResultTableFromTableWrapper(tableWrapper);
+
+        // save locally the ResultsTable as a csv file.
+        File localTableFile = new File(folder, tableWrapper.getName().replace(" ","_") + ".csv");
+        rt.save(localTableFile.toString());
+
+        try{
+            // Import csv table on OMERO
+            long fileID = repoWrapper.addFile(client, localTableFile);
+
+            // test if all csv files are imported
+            if(fileID != -1)
+                IJ.log("[INFO] [DataManagement][addTableAsCSV] -- The imageJ Results table has been successfully imported on OMERO with id : "+fileID);
+            else
+                IJ.log("[ERROR] [DataManagement][addTableAsCSV] -- The imageJ Results table has not been imported for some reasons");
+
+        } catch (ExecutionException | InterruptedException e){
             IJ.log("[ERROR] [DataManagement][addTableAsCSV] -- Cannot upload imageJ Results table on OMERO");
         } finally{
             // delete the file after upload

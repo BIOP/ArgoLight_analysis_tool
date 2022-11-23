@@ -2,6 +2,7 @@ package ch.epfl.biop;
 
 import com.google.common.primitives.Doubles;
 import fr.igred.omero.Client;
+import fr.igred.omero.annotations.TableWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.DatasetWrapper;
@@ -19,13 +20,19 @@ import ij.process.FloatProcessor;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.io.File;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import omero.gateway.model.ImageData;
 import omero.model.NamedValue;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
+
+import javax.xml.crypto.Data;
 
 
 public class ImageProcessing {
@@ -40,17 +47,88 @@ public class ImageProcessing {
     final private static int argoFOV = 100; // um
     final private static int argoNPoints = 21; // on each row/column
 
+
+    public static void processDataset(Client client,
+                                      List<ImageWrapper> imageWrapperList,
+                                      DatasetWrapper datasetWrapper,
+                                      String testedMicroscope,
+                                      String savingOption,
+                                      File folder,
+                                      boolean processAllImages) {
+        // get the current date
+        LocalDateTime localDateTime = LocalDateTime.now();
+        LocalTime localTime = localDateTime.toLocalTime();
+        LocalDate localDate = localDateTime.toLocalDate();
+
+        String date = ""+localDate.getYear()+
+                localDate.getMonthValue()+
+                localDate.getDayOfMonth()+"-"+
+                localTime.getHour()+"h"+
+                localTime.getMinute() +"m"+
+                localTime.getSecond();
+
+        String tableName = date+"_"+testedMicroscope+"_Table";
+
+        //ResultsTable analysisResultsRT = new ResultsTable();
+        TableWrapper tableWrapper = DataManagement.getTable(client,datasetWrapper);
+        if(processAllImages)
+            tableWrapper = null;
+
+        List<ImageData> firstTableColumn = new ArrayList<>();
+
+
+        for(ImageWrapper imageWrapper:imageWrapperList) {
+            tableWrapper = processImage(client,
+                    imageWrapper,
+                    tableWrapper,
+                    firstTableColumn,
+                    datasetWrapper.getName(),
+                    datasetWrapper.getId(),
+                    tableName,
+                    testedMicroscope,
+                    savingOption,
+                    folder,
+                    processAllImages);
+        }
+
+        // add the ResultsTable of metrics on OMERO
+        DataManagement.generateDatasetTable(client,
+                datasetWrapper,
+                tableWrapper,
+                tableName,
+                folder.getAbsolutePath(),
+                processAllImages);
+
+
+    }
+
+
     /**
      * compute the full analysis pipeline on an image and save metrics/heat maps on OMERO
      *
      * @param client
      * @param imageWrapper
-     * @param datasetWrapper
+     * @param tableWrapper
+     * @param firstTableColumn
+     * @param datasetName
+     * @param datasetId
+     * @param tableName
+     * @param processAllImages
      * @param testedMicroscope
      * @param savingOption
      * @param folder
      */
-    public static void runAnalysis(Client client, ImageWrapper imageWrapper, DatasetWrapper datasetWrapper, String testedMicroscope, String savingOption, File folder) {
+    public static TableWrapper processImage(Client client,
+                                    ImageWrapper imageWrapper,
+                                    TableWrapper tableWrapper,
+                                    List<ImageData> firstTableColumn,
+                                    String datasetName,
+                                    long datasetId,
+                                    String tableName,
+                                    String testedMicroscope,
+                                    String savingOption,
+                                    File folder,
+                                    boolean processAllImages) {
 
         // pixel size of the image
         final double pixelSizeImage = imageWrapper.getPixels().getPixelSizeX().getValue();
@@ -100,9 +178,11 @@ public class ImageProcessing {
 
             // add image name and channel id to the table
             analysisResultsRT.incrementCounter();
-            analysisResultsRT.setValue("Image name", i, rawImageName);
-            analysisResultsRT.setValue("Channel", i, i);
-            analysisResultsRT.setValue("Acquisition date", i, DataManagement.getAcquisitionDate(imageWrapper));
+            int lastRow = analysisResultsRT.getCounter()-1;
+            analysisResultsRT.setValue("Image name", lastRow, rawImageName);
+            analysisResultsRT.setValue("Channel", lastRow, i);
+            analysisResultsRT.setValue("Acquisition date", lastRow, DataManagement.getAcquisitionDate(imageWrapper));
+            firstTableColumn.add(imageWrapper.asImageData());
 
             // extract the current channel
             ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + i, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
@@ -145,12 +225,11 @@ public class ImageProcessing {
 
             // get the rotation angle
             double rotationAngle = getRotationAngle(gridPoints, crossRoi);
-            analysisResultsRT.setValue("Rotation angle deg", i, rotationAngle*180/Math.PI);
+            analysisResultsRT.setValue("Rotation angle deg", lastRow, rotationAngle*180/Math.PI);
             IJ.log("[INFO] [runAnalysis] -- Rotation angle theta = "+rotationAngle*180/Math.PI + "°");
 
             // get the ideal grid
             List<Point2D> idealGridPoints = getIdealGridPoints(crossRoi, (int)Math.sqrt(gridPoints.size() + 1), xStepAvg, yStepAvg, rotationAngle);
-
             // display all grid points
             gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius, pR.getY()-ovalRadius, 2*ovalRadius, 2*ovalRadius));});
 
@@ -174,13 +253,13 @@ public class ImageProcessing {
 
             // compute statistics on each metrics and save them in the resultsTable
             IJ.log("[INFO] [runAnalysis] -- compute field distortion");
-            computeStatistics(fieldDistortionValues, analysisResultsRT,"field_distortion", i, "um");
+            computeStatistics(fieldDistortionValues, analysisResultsRT,"field_distortion", lastRow, "um");
             IJ.log("[INFO] [runAnalysis] -- compute field uniformity");
-            computeStatistics(fieldUniformityValues,analysisResultsRT,"field_uniformity", i, "");
+            computeStatistics(fieldUniformityValues,analysisResultsRT,"field_uniformity", lastRow, "");
             IJ.log("[INFO] [runAnalysis] -- compute FWHM");
-            computeStatistics(fwhmValues, analysisResultsRT,"fwhm",i, "um");
+            computeStatistics(fwhmValues, analysisResultsRT,"fwhm",lastRow, "um");
             IJ.log("[INFO] [runAnalysis] -- compute pattern centering");
-            computeStatistics(crossPositionOnImage, analysisResultsRT,"cross_center_to_image_borders", i, "um");
+            computeStatistics(crossPositionOnImage, analysisResultsRT,"cross_center_to_image_borders", lastRow, "um");
 
             // build heat maps of each metrics
             distortionMaps.add(computeHeatMap("field_distortion", fieldDistortionValues, (int) Math.sqrt(gridPoints.size() + 1)));
@@ -219,16 +298,16 @@ public class ImageProcessing {
         DataManagement.addTag(client, imageWrapper,"argolight");
 
         // create project's key value pairs
-        List<NamedValue> keyValues = DataManagement.generateKeyValuesForProject(client, imageWrapper, datasetWrapper, testedMicroscope, processingParameters);
+        List<NamedValue> keyValues = DataManagement.generateKeyValuesForProject(client, imageWrapper, datasetName, testedMicroscope, processingParameters);
         // add the key values on OMERO
         DataManagement.addKeyValues(client, imageWrapper, keyValues);
 
-        // add the ResultsTable of metrics on OMERO
-        DataManagement.generateSummaryTable(client, datasetWrapper, imageWrapper.getId(), analysisResultsRT,testedMicroscope+"_Table", folder.getAbsolutePath());
+        // populate dataset table
+        tableWrapper = DataManagement.populateDatasetTable(tableWrapper, client, analysisResultsRT, imageWrapper.getId());
 
         // add the PCC ResultsTable on OMERO
         if(NChannels > 1)
-            DataManagement.generateSummaryTable(client, imageWrapper, imageWrapper.getId(), pccResultsRT,testedMicroscope+"_PCC_Table", folder.getAbsolutePath());
+            DataManagement.generateImageTable(client, imageWrapper, imageWrapper.getId(), pccResultsRT,tableName+"_PCC", folder.getAbsolutePath(), processAllImages);
 
         // save heat maps on the computer
         if(savingOption.equals("Save heat maps locally")){
@@ -241,14 +320,15 @@ public class ImageProcessing {
 
         // save heat maps on OMERO
         if(savingOption.equals("Save heat maps in OMERO")){
-            DataManagement.uploadHeatMaps(client,datasetWrapper,distortionMaps,rawImageName,folder.getAbsolutePath());
-            DataManagement.uploadHeatMaps(client,datasetWrapper,uniformityMaps,rawImageName,folder.getAbsolutePath());
-            DataManagement.uploadHeatMaps(client,datasetWrapper,fwhmMaps,rawImageName,folder.getAbsolutePath());
+            DataManagement.uploadHeatMaps(client,datasetId,distortionMaps,rawImageName,folder.getAbsolutePath());
+            DataManagement.uploadHeatMaps(client,datasetId,uniformityMaps,rawImageName,folder.getAbsolutePath());
+            DataManagement.uploadHeatMaps(client,datasetId,fwhmMaps,rawImageName,folder.getAbsolutePath());
             if(NChannels > 1)
-                DataManagement.uploadHeatMaps(client,datasetWrapper,pccMaps,rawImageName,folder.getAbsolutePath());
+                DataManagement.uploadHeatMaps(client,datasetId,pccMaps,rawImageName,folder.getAbsolutePath());
         }
 
         roiManager.close();
+        return tableWrapper;
     }
 
 
@@ -338,7 +418,8 @@ public class ImageProcessing {
         double large_rect_roi_h = enlargedRectangle.getStatistics().roiHeight;
 
         // find ring centers
-        IJ.run(DoGImage, "Find Maxima...", "prominence=1 output=[List]");
+        // add prominence 1, exclude points on image edge and restrict points to be closed (not open on an edge)
+        IJ.run(DoGImage, "Find Maxima...", "prominence=1 strict exclude output=[List]");
         ResultsTable rt_points = ResultsTable.getResultsTable("Results");
 
         if(rt_points == null)
@@ -436,7 +517,8 @@ public class ImageProcessing {
         // get the top left and top right corners
         Point2D topLeftCorner = cornerPoints.stream().filter(e->e.getX()<xCross && e.getY()<yCross).collect(Collectors.toList()).get(0);
         Point2D topRightCorner = cornerPoints.stream().filter(e->e.getX()>xCross && e.getY()<yCross).collect(Collectors.toList()).get(0);
-
+        System.out.println(topLeftCorner);
+        System.out.println(topRightCorner);
         // compute the rotation angle
         double theta = 0;
         if(Math.abs(topRightCorner.getX() - topLeftCorner.getX()) > 0.01){

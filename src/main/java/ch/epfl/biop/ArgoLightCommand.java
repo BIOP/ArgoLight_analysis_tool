@@ -41,6 +41,9 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
     @Parameter(label="Saving folder",style="directory")
     File folder;
 
+    @Parameter(label="Process all images (old + new ones)")
+    boolean processAllImages;
+
     static int port = 4064;
     static long argoLightProjectId = 663;
 
@@ -70,10 +73,15 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
                 IJ.log("[INFO] [ArgoLightCommand][run] -- Image will be downloaded from dataset : "+datasetWrapper.getName());
 
                 // filter all new images
-                List<ImageWrapper> imageWrapperList = DataManagement.filterNewImages(client, datasetWrapper);
+                List<ImageWrapper> imageWrapperList;
+                if(processAllImages)
+                    imageWrapperList = DataManagement.filterAllImages(client, datasetWrapper);
+                else
+                    imageWrapperList = DataManagement.filterNewImages(client, datasetWrapper);
 
                 // run analysis
-                imageWrapperList.forEach(imageWrapper-> ImageProcessing.runAnalysis(client, imageWrapper,datasetWrapper, microscope, savingOption, folder));
+                if(!imageWrapperList.isEmpty())
+                    ImageProcessing.processDataset(client, imageWrapperList, datasetWrapper, microscope, savingOption, folder, processAllImages);
             }else if(datasetWrapperList.isEmpty())
                 IJ.log("[ERROR] [ArgoLightCommand][run] -- No dataset "+microscope+" can be found in the project "+argoLightProjectId);
             else IJ.log("[ERROR] [ArgoLightCommand][run] -- More than one dataset refer to "+microscope+". Please, group these datasets or change their name.");
