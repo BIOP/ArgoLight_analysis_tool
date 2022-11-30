@@ -38,10 +38,13 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
     @Parameter(label="Saving options",choices={"No heat maps saving","Save heat maps locally","Save heat maps in OMERO"})
     String savingOption;
 
+    @Parameter(label="Save results locally", persist = true)
+    boolean saveLocally;
+
     @Parameter(label="Saving folder",style="directory")
     File folder;
 
-    @Parameter(label="Process all images (old + new ones)")
+    @Parameter(label="Process all images (old + new ones)", persist = false)
     boolean processAllImages;
 
     static int port = 4064;
@@ -81,7 +84,7 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
 
                 // run analysis
                 if(!imageWrapperList.isEmpty())
-                    ImageProcessing.processDataset(client, imageWrapperList, datasetWrapper, microscope, savingOption, folder, processAllImages);
+                    ImageProcessing.processDataset(client, imageWrapperList, datasetWrapper, microscope, savingOption, folder, processAllImages, saveLocally);
             }else if(datasetWrapperList.isEmpty())
                 IJ.log("[ERROR] [ArgoLightCommand][run] -- No dataset "+microscope+" can be found in the project "+argoLightProjectId);
             else IJ.log("[ERROR] [ArgoLightCommand][run] -- More than one dataset refer to "+microscope+". Please, group these datasets or change their name.");

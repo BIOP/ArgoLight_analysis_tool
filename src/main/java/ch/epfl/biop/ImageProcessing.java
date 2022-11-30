@@ -32,8 +32,6 @@ import omero.gateway.model.ImageData;
 import omero.model.NamedValue;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
-import javax.xml.crypto.Data;
-
 
 public class ImageProcessing {
     final private static int heatMapSize = 256;
@@ -48,13 +46,27 @@ public class ImageProcessing {
     final private static int argoNPoints = 21; // on each row/column
 
 
+    /**
+     *  run analysis over all images within the dataset and create dataset measurements table.
+     *  Dataset table can also be saved locally if specified.
+     *
+     * @param client
+     * @param imageWrapperList
+     * @param datasetWrapper
+     * @param testedMicroscope
+     * @param savingOption
+     * @param folder
+     * @param processAllImages
+     * @param saveResultsLocally
+     */
     public static void processDataset(Client client,
                                       List<ImageWrapper> imageWrapperList,
                                       DatasetWrapper datasetWrapper,
                                       String testedMicroscope,
                                       String savingOption,
                                       File folder,
-                                      boolean processAllImages) {
+                                      boolean processAllImages,
+                                      boolean saveResultsLocally) {
         // get the current date
         LocalDateTime localDateTime = LocalDateTime.now();
         LocalTime localTime = localDateTime.toLocalTime();
@@ -67,16 +79,17 @@ public class ImageProcessing {
                 localTime.getMinute() +"m"+
                 localTime.getSecond();
 
+        // get the name of the tables
         String tableName = date+"_"+testedMicroscope+"_Table";
 
-        //ResultsTable analysisResultsRT = new ResultsTable();
-        TableWrapper tableWrapper = DataManagement.getTable(client,datasetWrapper);
+        // get the latest OMERO table if exists
+        TableWrapper tableWrapper = DataManagement.getLastOmeroTable(client, datasetWrapper);
         if(processAllImages)
             tableWrapper = null;
 
         List<ImageData> firstTableColumn = new ArrayList<>();
 
-
+        // process each image that have not been processed yet
         for(ImageWrapper imageWrapper:imageWrapperList) {
             tableWrapper = processImage(client,
                     imageWrapper,
@@ -88,18 +101,43 @@ public class ImageProcessing {
                     testedMicroscope,
                     savingOption,
                     folder,
-                    processAllImages);
+                    processAllImages,
+                    saveResultsLocally);
         }
 
-        // add the ResultsTable of metrics on OMERO
-        DataManagement.generateDatasetTable(client,
-                datasetWrapper,
-                tableWrapper,
-                tableName,
-                folder.getAbsolutePath(),
-                processAllImages);
+        if(!saveResultsLocally)
+            // add the ResultsTable on OMERO
+            DataManagement.sendDatasetTableToOmero(client,
+                    datasetWrapper,
+                    tableWrapper,
+                    tableName,
+                    folder.getAbsolutePath(),
+                    processAllImages);
+        else {
+            try {
+                // get the latest local csv table if exists
+                File previousTable = null;
+                if (!processAllImages) {
+                    previousTable = DataManagement.getLastLocalTable(folder, testedMicroscope);
+                }
 
+                // save the current table as csv in the specified folder
+                String path = folder.getAbsolutePath() + File.separator + tableName + ".csv";
+                tableWrapper.saveAs(path, ',');
 
+                if (!processAllImages && previousTable != null) {
+                    // combine previous existing table with new results
+                    ResultsTable previousLocalTable = DataManagement.readCsvTableAsResultsTable(previousTable);
+                    ResultsTable currentLocalTable = DataManagement.readCsvTableAsResultsTable(new File(path));
+                    ResultsTable newTable = DataManagement.concatenateResultsTables(previousLocalTable, currentLocalTable);
+                    newTable.save(path);
+                    // delete the previous csv table
+                    previousTable.delete();
+                }
+            } catch(Exception e){
+                IJ.log("[ERROR] [processDataset] -- Error when saving the tableWrapper as csv table in "+folder.getAbsolutePath() + File.separator +  tableName + ".csv");
+            }
+        }
     }
 
 
@@ -128,7 +166,8 @@ public class ImageProcessing {
                                     String testedMicroscope,
                                     String savingOption,
                                     File folder,
-                                    boolean processAllImages) {
+                                    boolean processAllImages,
+                                    boolean saveResultsLocally) {
 
         // pixel size of the image
         final double pixelSizeImage = imageWrapper.getPixels().getPixelSizeX().getValue();
@@ -297,17 +336,24 @@ public class ImageProcessing {
         DataManagement.addTag(client, imageWrapper,"raw");
         DataManagement.addTag(client, imageWrapper,"argolight");
 
-        // create project's key value pairs
-        List<NamedValue> keyValues = DataManagement.generateKeyValuesForProject(client, imageWrapper, datasetName, testedMicroscope, processingParameters);
-        // add the key values on OMERO
-        DataManagement.addKeyValues(client, imageWrapper, keyValues);
+        if(!saveResultsLocally) {
+            // create project's key value pairs
+            List<NamedValue> keyValues = DataManagement.generateKeyValuesForProject(client, imageWrapper, datasetName, testedMicroscope, processingParameters);
+            // add the key values on OMERO
+            DataManagement.addKeyValues(client, imageWrapper, keyValues);
+        }
 
         // populate dataset table
         tableWrapper = DataManagement.populateDatasetTable(tableWrapper, client, analysisResultsRT, imageWrapper.getId());
 
         // add the PCC ResultsTable on OMERO
-        if(NChannels > 1)
-            DataManagement.generateImageTable(client, imageWrapper, imageWrapper.getId(), pccResultsRT,tableName+"_PCC", folder.getAbsolutePath(), processAllImages);
+        if(NChannels > 1 && !saveResultsLocally)
+            DataManagement.sendImageTableToOmero(client, imageWrapper, imageWrapper.getId(), pccResultsRT,tableName+"_PCC", folder.getAbsolutePath(), processAllImages);
+
+        if(NChannels > 1 && saveResultsLocally){
+            File localTableFile = new File(folder, tableName.replace(" ","_") + "_PCC.csv");
+            pccResultsRT.save(localTableFile.toString());
+        }
 
         // save heat maps on the computer
         if(savingOption.equals("Save heat maps locally")){

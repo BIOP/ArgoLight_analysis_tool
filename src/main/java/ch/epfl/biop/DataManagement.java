@@ -14,21 +14,17 @@ import fr.igred.omero.repository.ImageWrapper;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.io.FileSaver;
+import ij.macro.Variable;
 import ij.measure.ResultsTable;
-import javafx.scene.control.Tab;
 import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
 import omero.gateway.model.ImageData;
 import omero.gateway.model.ObjectiveData;
-import omero.gateway.model.TableData;
 import omero.gateway.model.TagAnnotationData;
 import omero.model.NamedValue;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.io.*;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -190,6 +186,9 @@ public class DataManagement {
             return Integer.parseInt(lastToken.replace("d",""));
         }else{
             // if the file is not written correctly
+            if(imageWrapper.asImageData().getAcquisitionDate() == null)
+                return -1;
+
             String date = imageWrapper.asImageData().getAcquisitionDate().toLocalDateTime().toString().substring(0,10).replace("-","");
             return Integer.parseInt(date);
         }
@@ -264,40 +263,48 @@ public class DataManagement {
         return namedValues;
     }
 
-public static TableWrapper populateDatasetTable(TableWrapper tableWrapper, Client client, ResultsTable rt, long id){
+    /**
+     * Add to the current OMERO table some measurements or create a new OMERO table
+     *
+     * @param tableWrapper
+     * @param client
+     * @param rt
+     * @param id
+     * @return
+     */
+    public static TableWrapper populateDatasetTable(TableWrapper tableWrapper, Client client, ResultsTable rt, long id){
 
-    try{
-        if(tableWrapper == null)
-            tableWrapper = new TableWrapper(client,rt,id,new ArrayList<>());
-        else
-            tableWrapper.addRows(client,rt,id,new ArrayList<>());
+        try{
+            if(tableWrapper == null)
+                tableWrapper = new TableWrapper(client,rt,id,new ArrayList<>());
+            else
+                tableWrapper.addRows(client,rt,id,new ArrayList<>());
 
-    }catch(ServiceException | AccessException | ExecutionException e){
-        IJ.log("[ERROR] [DataManagement][populateDatasetTable] -- Could not populate an OMERO table ");
+        }catch(ServiceException | AccessException | ExecutionException e){
+            IJ.log("[ERROR] [DataManagement][populateDatasetTable] -- Could not populate an OMERO table ");
+        }
+
+        return tableWrapper;
     }
 
-    return tableWrapper;
 
-}
-
-
-    public static void generateDatasetTable(Client client, DatasetWrapper  datasetWrapper,  TableWrapper newTable, String title, String folder, boolean processAllImages){
-        // get the tables that are already attached to the image/dataset
-       // TableWrapper tableWrapper = getTable(client, datasetWrapper);
-
+    /**
+     * send measurements to OMERO. Add new measurements to the existing OMERO table if exists or create a new OMERO table
+     *
+     * @param client
+     * @param datasetWrapper
+     * @param newTable
+     * @param title
+     * @param folder
+     * @param processAllImages
+     */
+    public static void sendDatasetTableToOmero(Client client, DatasetWrapper  datasetWrapper, TableWrapper newTable, String title, String folder, boolean processAllImages){
         // if previous tables, add results to the table
         if (newTable != null && !processAllImages){
-            //int beginIdx = tableWrapper.getRowCount()-1;
-           // tableWrapper.addRows(client, rt , null, new ArrayList<>(0));
-           // int endIdx = tableWrapper.getRowCount()-1;
-           // TableWrapper updatedTableWrapper = includeImageData(tableWrapper,imageDataList,beginIdx,endIdx);
-            //newTable.setName(title);
             replaceTable(client, datasetWrapper, newTable.getId(), newTable, title);
             replaceTableCSVFile(client, datasetWrapper, newTable, title, folder);
         }else{
             //if no previous tables, create a new one and add it on OMERO
-            //tableWrapper = new TableWrapper(client, rt , null, new ArrayList<>(0));
-            //TableWrapper updatedTableWrapper = includeImageData(tableWrapper,imageDataList,0,tableWrapper.getRowCount()-1);
             newTable.setName(title);
             addTable(client, datasetWrapper, newTable);
             addTableAsCSV(client, datasetWrapper, newTable, folder);
@@ -313,10 +320,10 @@ public static TableWrapper populateDatasetTable(TableWrapper tableWrapper, Clien
      * @param rt
      * @param title
      */
-    public static void generateImageTable(Client client, ImageWrapper imageWrapper, long rowId, ResultsTable rt, String title, String folder, boolean processAllImages){
+    public static void sendImageTableToOmero(Client client, ImageWrapper imageWrapper, long rowId, ResultsTable rt, String title, String folder, boolean processAllImages){
         try{
             // get the tables that are already attached to the image/dataset
-            TableWrapper tableWrapper = getTable(client, imageWrapper);
+            TableWrapper tableWrapper = getLastOmeroTable(client, imageWrapper);
 
             // if previous tables, add results to the table
             if (tableWrapper != null && !processAllImages){
@@ -343,7 +350,7 @@ public static TableWrapper populateDatasetTable(TableWrapper tableWrapper, Clien
      * @param repoWrapper
      * @return
      */
-    public static TableWrapper getTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper) {
+    public static TableWrapper getLastOmeroTable(Client client, GenericRepositoryObjectWrapper<?>  repoWrapper) {
         try {
             // Prepare a Table
             List<TableWrapper> repoTables = repoWrapper.getTables(client);
@@ -369,6 +376,126 @@ public static TableWrapper populateDatasetTable(TableWrapper tableWrapper, Clien
         }
     }
 
+
+    /**
+     * get the last table in the specified folder that correspond to the current microscope
+     *
+     * @param folder
+     * @param testedMicroscope
+     * @return
+     */
+    public static File getLastLocalTable(File folder, String testedMicroscope){
+        // list all files within the folder
+        File[] childfiles = folder.listFiles();
+
+        if(childfiles == null)
+            return null;
+
+        // get all names of csv files
+        List<String> names = Arrays.stream(childfiles)
+                .filter(e -> e.isFile() && e.getName().contains("."))
+                .filter(f -> f.getName().substring(f.getName().lastIndexOf(".") + 1).equals("csv"))
+                .map(File::getName)
+                .collect(Collectors.toList());
+
+        if(names.isEmpty())
+            return null;
+
+        // filter only argoLight related csv files
+        names = names.stream().filter(e->e.contains(testedMicroscope)).collect(Collectors.toList());
+
+        // get dates
+        List<String> orderedDate = new ArrayList<>();
+        names.forEach(name-> orderedDate.add(name.split("_")[0]));
+
+        // sort dates in reverse order (larger to smaller date)
+        orderedDate.sort(Comparator.reverseOrder());
+
+        if(orderedDate.isEmpty())
+            return null;
+
+        // get the name of the latest csv file
+        String lastTable = names.stream().filter(e -> e.contains(orderedDate.get(0))).collect(Collectors.toList()).get(0);
+
+        // return the csv file
+        return new File(folder + File.separator + lastTable);
+    }
+
+
+    /**
+     * convert a csv file into an ImageJ ResultsTable
+     *
+     * @param csvFile
+     * @return
+     */
+    public static ResultsTable readCsvTableAsResultsTable(File csvFile){
+        List<List<String>> data = new ArrayList<>();
+
+        // read the csv file
+        try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+                data.add(Arrays.asList(values));
+            }
+        }catch (IOException e){
+            IJ.log("[ERROR] [DataManagement][readCsvTableAsResultsTable] -- Error when reading csv file in "+csvFile.getAbsolutePath());
+        }
+
+        if(data.isEmpty())
+            return null;
+
+        // get headers
+        List<String> header = data.get(0);
+        data.remove(0);
+
+        // built ResultsTable
+        ResultsTable rt = new ResultsTable();
+        // loop on columns
+        for(int j = 0; j < data.size(); j++){
+            List<String> row = data.get(j);
+            rt.incrementCounter();
+            // loop on rows
+            for(int i = 0; i < row.size(); i++){
+                rt.setValue(header.get(i), j, row.get(i));
+            }
+        }
+        return rt;
+    }
+
+    /**
+     * merge two ResultsTables into a single one
+     *
+     * @param rt1
+     * @param rt2
+     * @return
+     */
+    public static ResultsTable concatenateResultsTables(ResultsTable rt1, ResultsTable rt2){
+        if(rt1 == null || rt2 == null)
+            return null;
+
+        int c1 = rt1.getLastColumn();
+        int c2 = rt2.getLastColumn();
+
+        // check the number of columns
+        if(c1 != c2)
+            return null;
+
+        ResultsTable rt = new ResultsTable();
+        String[] headings = rt1.getHeadings();
+
+        for(int i = 0; i < c1; i++){
+            // get the column of each table
+            Variable[] col1 = rt1.getColumnAsVariables(headings[i]);
+            Variable[] col2 = rt2.getColumnAsVariables(headings[i]);
+            Variable[] col = new Variable[rt1.getCounter()+rt2.size()];
+            // populate the new ResultsTable
+            System.arraycopy(col1, 0, col, 0, rt1.size());
+            System.arraycopy(col2, 0, col, rt1.size(), rt2.size());
+            rt.setColumn(headings[i],col);
+        }
+        return rt;
+    }
 
     /**
      * replace the table by a new one. tableWrapper has the id of the previous table to update but already contains new values.
