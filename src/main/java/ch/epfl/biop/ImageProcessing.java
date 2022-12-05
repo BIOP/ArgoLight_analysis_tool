@@ -12,7 +12,6 @@ import ij.ImagePlus;
 import ij.gui.*;
 import ij.measure.CurveFitter;
 import ij.measure.ResultsTable;
-import ij.plugin.ImageCalculator;
 import ij.plugin.RoiEnlarger;
 import ij.plugin.frame.RoiManager;
 import ij.process.FloatProcessor;
@@ -230,9 +229,10 @@ public class ImageProcessing {
             channel.show();
 
             // get the central cross
-            Roi crossRoi = getCentralCross(channel, roiManager);
+            Roi crossRoi = getCentralCross(channel, roiManager, pixelSizeImage);
             double xCross = crossRoi.getStatistics().xCentroid;
             double yCross = crossRoi.getStatistics().yCentroid;
+            IJ.log("[INFO] [runAnalysis] -- Cross = " +crossRoi);
 
             // add the cross ROI on the image
             roiManager.addRoi(crossRoi);
@@ -240,11 +240,11 @@ public class ImageProcessing {
             channel.setRoi(crossRoi);
 
             // create a difference of gaussian image to find point centers
-            double sigma1 = 0.1 * argoSpacing / pixelSizeImage; // was 0.3 * at the beginning but the detected center was a bit eccentered from the real center
-            double sigma2 = sigma1 / Math.sqrt(2);
-            ImagePlus dogImage = dogFilter(imp, sigma2, sigma1);
-            processingParameters.put("DoG_sigma_1_(pix)",""+sigma1);
-            processingParameters.put("DoG_sigma_2_(pix)",""+sigma2);
+            double sigma = 0.14 * argoSpacing / pixelSizeImage; // was 0.3 * at the beginning but the detected center was a bit eccentered from the real center
+            //double sigma2 = sigma1 / Math.sqrt(2);
+            ImagePlus dogImage = dogFilter(imp, sigma);
+            processingParameters.put("Gaussian_filtering_sigma_(pix)",""+sigma);
+            IJ.log("[INFO] [runAnalysis] -- Gaussian filtering sigma = " +sigma + " pix");
 
             // get the coordinates of each ring
             List<Point2D> gridPoints = getGridPoint(dogImage, crossRoi, pixelSizeImage);
@@ -270,7 +270,7 @@ public class ImageProcessing {
             // get the ideal grid
             List<Point2D> idealGridPoints = getIdealGridPoints(crossRoi, (int)Math.sqrt(gridPoints.size() + 1), xStepAvg, yStepAvg, rotationAngle);
             // display all grid points
-            gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius, pR.getY()-ovalRadius, 2*ovalRadius, 2*ovalRadius));});
+            gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-1.2*ovalRadius, pR.getY()-1.2*ovalRadius, 2.4*ovalRadius, 2.4*ovalRadius));});
 
             // sort the computed grid points according to ideal grid order
             gridPoints = sortFromReference(Arrays.asList(roiManager.getRoisAsArray()), idealGridPoints);
@@ -385,7 +385,7 @@ public class ImageProcessing {
      * @param rm
      * @return
      */
-    private static Roi getCentralCross(ImagePlus imp, RoiManager rm){
+    private static Roi getCentralCross(ImagePlus imp, RoiManager rm, double imagePixelSize){
         rm.reset();
 
         // make sure no ROI is left on the imp
@@ -396,13 +396,14 @@ public class ImageProcessing {
         ImagePlus mask_imp = imp.duplicate();
         IJ.setAutoThreshold(mask_imp, thresholdingMethod);
         IJ.run(mask_imp, "Convert to Mask", "");
-        IJ.run(mask_imp, "Analyze Particles...", "size="+(0.04*imp.getWidth())+"-Infinity add");
+        IJ.run(mask_imp, "Analyze Particles...", "size="+(2.5/imagePixelSize)+"-Infinity add"); // use pixel size dependency instead of 0.04*imp.getWidth()
 
         // get central ROIs while excluding bounding semi-crosses
-        List<Roi> rois = Arrays.stream(rm.getRoisAsArray()).filter(roi -> ((roi.getStatistics().xCentroid < 5 * imp.getWidth() / 8.0
-                && roi.getStatistics().xCentroid > 3 * imp.getWidth() / 8.0)
-                && (roi.getStatistics().yCentroid < 5 * imp.getHeight() / 8.0
-                && roi.getStatistics().yCentroid > 3 * imp.getHeight() / 8.0))).collect(Collectors.toList());
+        double gridFactor = argoFOV/(4*imagePixelSize); // size of the central window depend on the pixel size
+        List<Roi> rois = Arrays.stream(rm.getRoisAsArray()).filter(roi -> ((roi.getStatistics().xCentroid < imp.getWidth()/2.0 + gridFactor
+                && roi.getStatistics().xCentroid > imp.getWidth()/2.0 - gridFactor)
+                && (roi.getStatistics().yCentroid < imp.getHeight()/2.0 + gridFactor
+                && roi.getStatistics().yCentroid > imp.getHeight()/2.0 - gridFactor))).collect(Collectors.toList());
 
         // get the ROI with larger width corresponding to the central cross
         Roi crossRoi = rois.stream().max(Comparator.comparing(roi -> roi.getStatistics().roiWidth)).get();
@@ -413,23 +414,18 @@ public class ImageProcessing {
 
 
     /**
-     * compute a Difference Of Gaussian operation on an image
+     * gaussian blur the image
      *
      * @param imp
-     * @param sigma1
-     * @param sigma2
+     * @param sigma
      * @return
      */
-    private static ImagePlus dogFilter(ImagePlus imp, double sigma1, double sigma2){
+    private static ImagePlus dogFilter(ImagePlus imp, double sigma){
         ImagePlus impGauss1 = imp.duplicate();
-        ImagePlus impGauss2 = imp.duplicate();
         IJ.run(impGauss1, "32-bit", "");
-        IJ.run(impGauss2, "32-bit", "");
+        IJ.run(impGauss1, "Gaussian Blur...", "sigma="+sigma);
 
-        IJ.run(impGauss1, "Gaussian Blur...", "sigma="+sigma1);
-        IJ.run(impGauss2, "Gaussian Blur...", "sigma="+sigma2);
-
-        return ImageCalculator.run(impGauss1, impGauss2, "Subtract create");
+        return impGauss1;
     }
 
     /**
@@ -563,8 +559,7 @@ public class ImageProcessing {
         // get the top left and top right corners
         Point2D topLeftCorner = cornerPoints.stream().filter(e->e.getX()<xCross && e.getY()<yCross).collect(Collectors.toList()).get(0);
         Point2D topRightCorner = cornerPoints.stream().filter(e->e.getX()>xCross && e.getY()<yCross).collect(Collectors.toList()).get(0);
-        System.out.println(topLeftCorner);
-        System.out.println(topRightCorner);
+
         // compute the rotation angle
         double theta = 0;
         if(Math.abs(topRightCorner.getX() - topLeftCorner.getX()) > 0.01){
