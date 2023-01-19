@@ -16,6 +16,7 @@ import ij.plugin.RoiEnlarger;
 import ij.plugin.frame.RoiManager;
 import ij.process.FloatProcessor;
 
+import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.io.File;
@@ -240,14 +241,16 @@ public class ImageProcessing {
             channel.setRoi(crossRoi);
 
             // create a difference of gaussian image to find point centers
-            double sigma = 0.14 * argoSpacing / pixelSizeImage; // was 0.3 * at the beginning but the detected center was a bit eccentered from the real center
+            /*double sigma = 0.14 * argoSpacing / pixelSizeImage; // was 0.3 * at the beginning but the detected center was a bit eccentered from the real center
             //double sigma2 = sigma1 / Math.sqrt(2);
             ImagePlus dogImage = dogFilter(imp, sigma);
             processingParameters.put("Gaussian_filtering_sigma_(pix)",""+sigma);
             IJ.log("[INFO] [runAnalysis] -- Gaussian filtering sigma = " +sigma + " pix");
 
             // get the coordinates of each ring
-            List<Point2D> gridPoints = getGridPoint(dogImage, crossRoi, pixelSizeImage);
+            List<Point2D> gridPoints = getGridPoint(dogImage, crossRoi, pixelSizeImage);*/
+            double sigma = 0.14 * argoSpacing / (pixelSizeImage * Math.sqrt(2));
+            List<Point2D> gridPoints = getGridPoint2(imp, crossRoi, pixelSizeImage, sigma);
 
             // reduced grid to compute average step
             List<Point2D> smallerGrid = gridPoints.stream().filter(e -> (Math.abs(e.getX() - xCross) < 12.5 / pixelSizeImage && Math.abs(e.getY() - yCross) < 12.5 / pixelSizeImage)).collect(Collectors.toList());
@@ -277,10 +280,10 @@ public class ImageProcessing {
 
             // display ideal grid points
             roiManager.reset();
-            gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius, pR.getY()-ovalRadius, 2*ovalRadius, 2*ovalRadius));});
+            gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi((pR.getX()-ovalRadius+0.5), pR.getY()-ovalRadius+0.5, 2*ovalRadius, 2*ovalRadius));});
             generalRoisForPCC = Arrays.asList(roiManager.getRoisAsArray());
             gridPoints.forEach(pR-> {roiManager.addRoi(new PointRoi(pR.getX(), pR.getY()));});
-            idealGridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius/2, pR.getY()-ovalRadius/2, ovalRadius, ovalRadius));});
+            idealGridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-ovalRadius/2 +0.5, pR.getY()-ovalRadius/2 +0.5, ovalRadius, ovalRadius));});
             roiManager.runCommand(channel,"Show All without labels");
 
             // compute metrics
@@ -487,6 +490,66 @@ public class ImageProcessing {
         return gridPoints;
     }
 
+
+    private static List<Point2D> getGridPoint2(ImagePlus imp, Roi crossRoi, double pixelSizeImage, double sigma){
+        int nPoints;
+        Roi enlargedRectangle;
+
+        // compute the number of points on each side of the center to adapt the size of the large rectangle
+        // if the FoV of the image is smaller than the pattern FoV => limited number of points
+        if((imp.getWidth()*pixelSizeImage < (argoFOV + 4)) && (imp.getHeight()*pixelSizeImage < (argoFOV + 4))){  // 100um of field of view + 2 um on each side
+            nPoints = (int)Math.min(Math.floor(((imp.getWidth()*pixelSizeImage/2)-2 )/argoSpacing), Math.floor(((imp.getHeight()*pixelSizeImage/2)-2)/argoSpacing));
+            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+2.5)/(crossRoi.getStatistics().roiWidth*pixelSizeImage/2))*crossRoi.getStatistics().roiWidth/2));
+
+        }
+        else{
+            // for image FoV larger than the pattern FoV => all points
+            nPoints = (argoNPoints-1)/2;
+            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+1.5)/(crossRoi.getStatistics().roiWidth*pixelSizeImage/2))*crossRoi.getStatistics().roiWidth/2));
+        }
+
+        // get the statistics
+        double large_rect_roi_x = enlargedRectangle.getStatistics().xCentroid;
+        double large_rect_roi_y = enlargedRectangle.getStatistics().yCentroid;
+        double large_rect_roi_w = enlargedRectangle.getStatistics().roiWidth;
+        double large_rect_roi_h = enlargedRectangle.getStatistics().roiHeight;
+
+        // find ring centers
+        // add prominence 1, exclude points on image edge and restrict points to be closed (not open on an edge)
+        ImagePlus imp2 = imp.duplicate();
+        IJ.run(imp2, "Median...", "radius="+sigma);
+        IJ.setAutoThreshold(imp2, "Li dark");
+        IJ.run(imp2, "Convert to Mask", "");
+        IJ.run("Set Measurements...", "area mean min centroid perimeter display redirect=None decimal=3");
+        IJ.run(imp2, "Analyze Particles...", "pixel display clear overlay add");
+        ResultsTable rt_points = ResultsTable.getResultsTable("Results");
+
+        if(rt_points == null)
+            return new ArrayList<>();
+
+        // get coordinates of each point
+        float[] raw_x_array = rt_points.getColumn(rt_points.getColumnIndex("X"));
+        float[] raw_y_array = rt_points.getColumn(rt_points.getColumnIndex("Y"));
+
+        List<Point2D> gridPoints = new ArrayList<>();
+
+        // filter points according to their position ; keep only those inside the large rectangle and outside the central cross bounding box
+        for(int i = 0; i < raw_x_array.length; i++){
+            double xInPixel = raw_x_array[i] / pixelSizeImage;
+            double yInPixel = raw_y_array[i] / pixelSizeImage;
+            double distance = Math.sqrt(Math.pow(crossRoi.getStatistics().xCentroid-xInPixel,2)+Math.pow(crossRoi.getStatistics().yCentroid-yInPixel,2));
+
+            if(distance <= (10.5*argoSpacing*1.414)/pixelSizeImage && Math.abs(xInPixel - large_rect_roi_x) <= large_rect_roi_w/2 &&
+               Math.abs(yInPixel - large_rect_roi_y) <= large_rect_roi_h/2 &&
+               !(Math.abs(xInPixel - crossRoi.getStatistics().xCentroid) <= crossRoi.getStatistics().roiWidth/2 &&
+               Math.abs(yInPixel - crossRoi.getStatistics().yCentroid) <= crossRoi.getStatistics().roiHeight/2)){
+                    gridPoints.add(new Point2D.Double(xInPixel, yInPixel));
+            }
+        }
+        return gridPoints;
+    }
+    
+    
 
     /**
      * compute the average step between values of the list
