@@ -65,29 +65,11 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
         }
 
         try{
-            // get the ArgoSim project
-            ProjectWrapper project_wpr = client.getProject(argoLightProjectId);
+            List<ImageWrapper> imageWrapperList = OMERORetriever.getImages(client, argoLightProjectId, microscope, processAllImages);
 
-            // get the specified dataset
-            List<DatasetWrapper> datasetWrapperList = project_wpr.getDatasets().stream().filter(e -> e.getName().contains(microscope)).collect(Collectors.toList());
-
-            if(datasetWrapperList.size() == 1) {
-                DatasetWrapper datasetWrapper = datasetWrapperList.get(0);
-                IJ.log("[INFO] [ArgoLightCommand][run] -- Image will be downloaded from dataset : "+datasetWrapper.getName());
-
-                // filter all new images
-                List<ImageWrapper> imageWrapperList;
-                if(processAllImages)
-                    imageWrapperList = DataManagement.filterAllImages(client, datasetWrapper);
-                else
-                    imageWrapperList = DataManagement.filterNewImages(client, datasetWrapper);
-
-                // run analysis
-                if(!imageWrapperList.isEmpty())
-                    ImageProcessing.processDataset(client, imageWrapperList, datasetWrapper, microscope, savingOption, folder, processAllImages, saveLocally);
-            }else if(datasetWrapperList.isEmpty())
-                IJ.log("[ERROR] [ArgoLightCommand][run] -- No dataset "+microscope+" can be found in the project "+argoLightProjectId);
-            else IJ.log("[ERROR] [ArgoLightCommand][run] -- More than one dataset refer to "+microscope+". Please, group these datasets or change their name.");
+            // run analysis
+            if(!imageWrapperList.isEmpty())
+                ImageProcessing.processDataset(client, imageWrapperList, datasetWrapper, microscope, savingOption, folder, processAllImages, saveLocally);
 
         } catch (ServiceException | ExecutionException | AccessException e) {
             throw new RuntimeException(e);
