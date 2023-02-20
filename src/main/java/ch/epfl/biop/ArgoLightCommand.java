@@ -58,9 +58,9 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
         // connect to OMERO
         try {
             client.connect(host, port, username, password.toCharArray());
-            IJ.log("[INFO] [ArgoLightCommand][run] -- Successful connection to OMERO");
+            IJLogger.info("Successful connection to OMERO");
         } catch (ServiceException e) {
-            IJ.log("[ERROR] [ArgoLightCommand][run] -- Cannot connect to OMERO");
+            IJLogger.error("Cannot connect to OMERO");
             throw new RuntimeException(e);
         }
 
@@ -68,8 +68,16 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
             List<ImageWrapper> imageWrapperList = OMERORetriever.getImages(client, argoLightProjectId, microscope, processAllImages);
 
             // run analysis
-            if(!imageWrapperList.isEmpty())
+            if(!imageWrapperList.isEmpty()) {
+
                 ImageProcessing.processDataset(client, imageWrapperList, datasetWrapper, microscope, savingOption, folder, processAllImages, saveLocally);
+
+
+
+
+
+            }
+            else IJLogger.error("No images are available for project "+argoLightProjectId+", dataset "+microscope);
 
         } catch (ServiceException | ExecutionException | AccessException e) {
             throw new RuntimeException(e);
