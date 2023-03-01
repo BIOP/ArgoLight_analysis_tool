@@ -78,6 +78,12 @@ public class ImageChannel {
         return computeStatistics(this.ringsFieldUniformity, "Field uniformity");
     }
 
+    public List<Double> getFWHM(){ return this.ringsFWHM; }
+
+    public List<Double> getFieldDistortion(){return this.ringsFieldDistortion;}
+
+    public List<Double> getFieldUniformity(){return this.ringsFieldUniformity;}
+
     public List<String> getTags(){
         return this.tags;
     }

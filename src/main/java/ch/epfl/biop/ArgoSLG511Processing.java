@@ -12,6 +12,7 @@ import ij.measure.CurveFitter;
 import ij.measure.ResultsTable;
 import ij.plugin.RoiEnlarger;
 import ij.plugin.frame.RoiManager;
+import ij.process.ImageStatistics;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
@@ -28,7 +29,7 @@ public class ArgoSLG511Processing {
     final private static int argoNPoints = 21; // on each row/column
     final private static String thresholdingMethod = "Huang dark";
 
-    public static void run(Retriever retriever){
+    public static void run(Retriever retriever, boolean savingHeatMaps){
         Sender sender = retriever.createSender();
 
         for(int i = 0; i < retriever.getNImages(); i++){
@@ -132,7 +133,7 @@ public class ArgoSLG511Processing {
 
             roiManager.reset();
             roiManager.close();
-            sender.sendResults(imageFile, retriever);
+            sender.sendResults(imageFile, retriever, savingHeatMaps);
         }
     }
 
@@ -236,25 +237,27 @@ public class ArgoSLG511Processing {
     private static List<Point2D> getGridPoint2(ImagePlus imp, Roi crossRoi, double pixelSizeImage, double sigma){
         int nPoints;
         Roi enlargedRectangle;
+        ImageStatistics crossStatistics = crossRoi.getStatistics();
 
         // compute the number of points on each side of the center to adapt the size of the large rectangle
         // if the FoV of the image is smaller than the pattern FoV => limited number of points
         if((imp.getWidth()*pixelSizeImage < (argoFOV + 4)) && (imp.getHeight()*pixelSizeImage < (argoFOV + 4))){  // 100um of field of view + 2 um on each side
             nPoints = (int)Math.min(Math.floor(((imp.getWidth()*pixelSizeImage/2)-2 )/argoSpacing), Math.floor(((imp.getHeight()*pixelSizeImage/2)-2)/argoSpacing));
-            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+2.5)/(crossRoi.getStatistics().roiWidth*pixelSizeImage/2))*crossRoi.getStatistics().roiWidth/2));
+            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+2.5)/(crossStatistics.roiWidth*pixelSizeImage/2))*crossStatistics.roiWidth/2));
 
         }
         else{
             // for image FoV larger than the pattern FoV => all points
             nPoints = (argoNPoints-1)/2;
-            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+1.5)/(crossRoi.getStatistics().roiWidth*pixelSizeImage/2))*crossRoi.getStatistics().roiWidth/2));
+            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+1.5)/(crossStatistics.roiWidth*pixelSizeImage/2))*crossStatistics.roiWidth/2));
         }
 
         // get the statistics
-        double large_rect_roi_x = enlargedRectangle.getStatistics().xCentroid;
-        double large_rect_roi_y = enlargedRectangle.getStatistics().yCentroid;
-        double large_rect_roi_w = enlargedRectangle.getStatistics().roiWidth;
-        double large_rect_roi_h = enlargedRectangle.getStatistics().roiHeight;
+        ImageStatistics largeCrossStatistics = enlargedRectangle.getStatistics();
+        double large_rect_roi_x = largeCrossStatistics.xCentroid;
+        double large_rect_roi_y = largeCrossStatistics.yCentroid;
+        double large_rect_roi_w = largeCrossStatistics.roiWidth;
+        double large_rect_roi_h = largeCrossStatistics.roiHeight;
 
         // find ring centers
         // add prominence 1, exclude points on image edge and restrict points to be closed (not open on an edge)
@@ -279,12 +282,12 @@ public class ArgoSLG511Processing {
         for(int i = 0; i < raw_x_array.length; i++){
             double xInPixel = raw_x_array[i]; /// pixelSizeImage;
             double yInPixel = raw_y_array[i]; /// pixelSizeImage;
-            double distance = Math.sqrt(Math.pow(crossRoi.getStatistics().xCentroid-xInPixel,2)+Math.pow(crossRoi.getStatistics().yCentroid-yInPixel,2));
+            double distance = Math.sqrt(Math.pow(crossStatistics.xCentroid-xInPixel, 2) + Math.pow(crossStatistics.yCentroid-yInPixel, 2));
 
             if(distance <= (10.5*argoSpacing*1.414)/pixelSizeImage && Math.abs(xInPixel - large_rect_roi_x) <= large_rect_roi_w/2 &&
                     Math.abs(yInPixel - large_rect_roi_y) <= large_rect_roi_h/2 &&
-                    !(Math.abs(xInPixel - crossRoi.getStatistics().xCentroid) <= crossRoi.getStatistics().roiWidth/2 &&
-                            Math.abs(yInPixel - crossRoi.getStatistics().yCentroid) <= crossRoi.getStatistics().roiHeight/2)){
+                    !(Math.abs(xInPixel - crossStatistics.xCentroid) <= crossStatistics.roiWidth/2 &&
+                            Math.abs(yInPixel - crossStatistics.yCentroid) <= crossStatistics.roiHeight/2)){
                 gridPoints.add(new Point2D.Double(xInPixel, yInPixel));
             }
         }
@@ -426,7 +429,8 @@ public class ArgoSLG511Processing {
         reference.forEach( iPt ->{
             for(Roi gPt : listToSort){
                 if (gPt.contains((int)iPt.getX(),(int)iPt.getY())) {
-                    sorted.add(new Point2D.Double(gPt.getStatistics().xCentroid, gPt.getStatistics().yCentroid));
+                    ImageStatistics stat = gPt.getStatistics();
+                    sorted.add(new Point2D.Double(stat.xCentroid, stat.yCentroid));
                     break;
                 }
             }

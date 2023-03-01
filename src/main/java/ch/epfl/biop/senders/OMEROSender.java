@@ -5,8 +5,10 @@ import ch.epfl.biop.ImageChannel;
 import ch.epfl.biop.ImageFile;
 import ch.epfl.biop.OMERORetriever;
 import ch.epfl.biop.Retriever;
+import com.google.common.primitives.Ints;
 import fr.igred.omero.Client;
 import fr.igred.omero.annotations.MapAnnotationWrapper;
+import fr.igred.omero.annotations.TableWrapper;
 import fr.igred.omero.annotations.TagAnnotationWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
@@ -30,11 +32,14 @@ import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
 import omero.gateway.facility.ROIFacility;
 import omero.gateway.model.EllipseData;
+import omero.gateway.model.ImageData;
 import omero.gateway.model.PolygonData;
 import omero.gateway.model.PolylineData;
 import omero.gateway.model.ROIData;
 import omero.gateway.model.RectangleData;
 import omero.gateway.model.ShapeData;
+import omero.gateway.model.TableData;
+import omero.gateway.model.TableDataColumn;
 import omero.gateway.model.TagAnnotationData;
 import omero.model.NamedValue;
 import org.apache.commons.io.FileUtils;
@@ -46,11 +51,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -61,29 +70,25 @@ public class OMEROSender implements Sender{
 
     public OMEROSender(Client client){
         this.client = client;
-    }
+    } //TODO ajouter le boolean "local heat map saving"
 
     @Override
-    public void sendResults(ImageFile imageFile, Retriever retriever) {
+    public void sendResults(ImageFile imageFile, Retriever retriever, boolean savingHeatMaps) {
         List<ImageChannel> channels = imageFile.getChannels();
         this.imageWrapper = ((OMERORetriever)retriever).getImageWrapper(imageFile.getId());
         String target = retriever.getTarget();
 
-        Map<String, String> commonKeyValues = new HashMap<>();
-        commonKeyValues.put("Microscope", imageFile.getMicroscope());
-        commonKeyValues.put("Objective", imageFile.getObjective());
-        commonKeyValues.put("Immersion", imageFile.getImmersion());
-        commonKeyValues.put("Zoom", imageFile.getZoomFactor());
-        commonKeyValues.put("ArgoSlide_name", imageFile.getSlideName());
-        commonKeyValues.put("ArgoSlide_pattern", imageFile.getSlidePattern());
-        commonKeyValues.put("Acquisition_date", imageFile.getAcquisitionDate());
+        Map<String, String> commonKeyValues = imageFile.getImageNameParsing();
 
         for(ImageChannel channel : channels){
             sendTags(channel.getTags(), this.imageWrapper);
             sendGridPoints(channel.getGridRings(), channel.getIdealGridRings(), channel.getId());
             sendKeyValues(commonKeyValues);
             sendKeyValues(channel.getKeyValues());
-            sendHeatMaps(channel, imageFile.getImgNameWithoutExtension(), target);
+            sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
+
+            if(savingHeatMaps)
+                sendHeatMaps(channel, imageFile.getImgNameWithoutExtension(), target);
         }
 
     }
@@ -230,6 +235,58 @@ public class OMEROSender implements Sender{
         }*/
 
     }
+
+    @Override
+    public void sendResultsTable(List<Double> fieldDistortion, List<Double> fieldUniformity, List<Double> fwhm, int channelId) {
+        List<TableDataColumn> columns = new ArrayList<>();
+        List<List<Object>> measurements = new ArrayList<>();
+        int i = 0;
+
+        // add the first column with the image data (linkable on OMERO)
+        columns.add(new TableDataColumn("Image ID",i++, ImageData.class));
+        List<Object> imageData = new ArrayList<>();
+
+        for (Double ignored : fieldDistortion) {
+            imageData.add(this.imageWrapper.asImageData());
+        }
+        measurements.add(imageData);
+
+        // add the second column with the ring id (from top-left to bottom-right)
+        columns.add(new TableDataColumn("Ring ID",i++, ImageData.class));
+        List<Object> ids = new ArrayList<>();
+        IntStream.range(0, fieldDistortion.size()).forEach(ids::add);
+        measurements.add(ids);
+
+        // add columns with computed parameters
+        List<Object> fieldDistortionObject = new ArrayList<>(fieldDistortion);
+        List<Object> fieldUniformityObject = new ArrayList<>(fieldUniformity);
+        List<Object> fwhmObject = new ArrayList<>(fwhm);
+
+        columns.add(new TableDataColumn("Field Distortion", i++, Double.class));
+        measurements.add(fieldDistortionObject);
+        columns.add(new TableDataColumn("Field Uniformity", i++, Double.class));
+        measurements.add(fieldUniformityObject);
+        columns.add(new TableDataColumn("FWHM", i, Double.class));
+        measurements.add(fwhmObject);
+
+        // send the omero Table
+        try {
+            TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
+            tableWrapper.setName("Results_table_ch"+channelId);
+            this.imageWrapper.addTable(client, tableWrapper);
+            IJLogger.info("Results table for image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId()+" has been uploaded");
+        }catch(DSAccessException | ServiceException | ExecutionException e){
+            IJLogger.error("Cannot add the results table to image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId());
+        }
+    }
+
+    @Override
+    public void populateParentTable() {
+
+
+
+    }
+
     /**
      * save an image locally on the computer and returns the saved file
      *

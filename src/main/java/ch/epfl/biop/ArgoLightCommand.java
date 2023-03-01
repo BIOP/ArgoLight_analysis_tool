@@ -62,9 +62,12 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
         try{
             OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(argoLightProjectId, microscope, processAllImages);
             int nImages = omeroRetriever.getNImages();
+
+            boolean savingHeatMaps = savingOption.equals("No heat maps saving");
+
             // run analysis
             if(nImages > 0)
-                ArgoSLG511Processing.run(omeroRetriever);
+                ArgoSLG511Processing.run(omeroRetriever, savingHeatMaps);
 
             else IJLogger.error("No images are available for project "+argoLightProjectId+", dataset "+microscope);
 

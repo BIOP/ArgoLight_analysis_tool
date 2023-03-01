@@ -5,6 +5,8 @@ import ij.ImagePlus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,27 +41,6 @@ public class ImageFile {
     public List<ImageChannel> getChannels(){
         return this.channels;
     }
-    public String getMicroscope(){
-        return this.microscope;
-    }
-    public String getObjective(){
-        return this.objective;
-    }
-    public String getImmersion(){
-        return this.immersionMedium;
-    }
-    public String getSlideName(){
-        return this.argoSlideName;
-    }
-    public String getSlidePattern(){
-        return this.argoSlidePattern;
-    }
-    public String getZoomFactor(){
-        return this.zoomFactor;
-    }
-    public String getAcquisitionDate(){
-        return this.acquisitionDate;
-    }
     public String getImgNameWithoutExtension() { return this.imgNameWithoutExtension; }
 
     public int getId(){
@@ -72,6 +53,20 @@ public class ImageFile {
             return null;
         }
         return this.channels.get(id);
+    }
+
+    public Map<String, String> getImageNameParsing(){
+        Map<String, String> commonKeyValues = new TreeMap<>();
+
+        commonKeyValues.put("Microscope", this.microscope);
+        commonKeyValues.put("Objective", this.objective);
+        commonKeyValues.put("Immersion", this.immersionMedium);
+        commonKeyValues.put("Zoom", this.zoomFactor);
+        commonKeyValues.put("ArgoSlide_name", this.argoSlideName);
+        commonKeyValues.put("ArgoSlide_pattern", this.argoSlidePattern);
+        commonKeyValues.put("Acquisition_date", this.acquisitionDate);
+
+        return commonKeyValues;
     }
 
     private void parseImageName(String imgName){
