@@ -1,11 +1,8 @@
 package ch.epfl.biop;
 
 import fr.igred.omero.Client;
-import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
-import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.ImageWrapper;
-import fr.igred.omero.repository.ProjectWrapper;
 import ij.IJ;
 import net.imagej.ImageJ;
 import org.scijava.command.Command;
@@ -15,8 +12,6 @@ import org.scijava.plugin.Plugin;
 
 import java.io.File;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
 public class ArgoLightCommand extends DynamicCommand implements Command {
@@ -48,7 +43,7 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
     boolean processAllImages;
 
     static int port = 4064;
-    static long argoLightProjectId = 663;
+    static long argoLightProjectId = 2004;//663;
 
 
     @Override
@@ -65,25 +60,17 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
         }
 
         try{
-            List<ImageWrapper> imageWrapperList = OMERORetriever.getImages(client, argoLightProjectId, microscope, processAllImages);
-
+            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(argoLightProjectId, microscope, processAllImages);
+            int nImages = omeroRetriever.getNImages();
             // run analysis
-            if(!imageWrapperList.isEmpty()) {
+            if(nImages > 0)
+                ArgoSLG511Processing.run(omeroRetriever);
 
-                ImageProcessing.processDataset(client, imageWrapperList, datasetWrapper, microscope, savingOption, folder, processAllImages, saveLocally);
-
-
-
-
-
-            }
             else IJLogger.error("No images are available for project "+argoLightProjectId+", dataset "+microscope);
 
-        } catch (ServiceException | ExecutionException | AccessException e) {
-            throw new RuntimeException(e);
-        }finally {
-            IJ.log("[INFO] [ArgoLightCommand][run] -- Disconnect from OMERO ");
+        } finally {
             client.disconnect();
+            IJLogger.info("Disconnected from OMERO ");
         }
     }
 

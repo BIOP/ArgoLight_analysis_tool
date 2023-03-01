@@ -163,7 +163,7 @@
 		<dependency>
 			<groupId>fr.igred</groupId>
 			<artifactId>simple-omero-client</artifactId>
-			<version>5.9.1</version>
+			<version>5.10.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -173,7 +173,7 @@
 
 
 
-		<!-- OME dependencies -->
+		<!-- OME dependencies-->
 		<dependency>
 			<groupId>com.zeroc</groupId>
 			<artifactId>glacier2</artifactId>
@@ -191,9 +191,9 @@
 		<dependency>
 			<groupId>org.openmicroscopy</groupId>
 			<artifactId>omero-blitz</artifactId>
-			<version>5.5.8</version>
+			<version>5.6.0</version>
 			<exclusions>
-				<exclusion>  <!-- declare the exclusion here -->
+				<exclusion> <!-- declare the exclusion here -->
 					<groupId>net.sourceforge.findbugs</groupId>
 					<artifactId>annotations</artifactId>
 				</exclusion>
@@ -202,7 +202,7 @@
 		<dependency>
 			<groupId>org.openmicroscopy</groupId>
 			<artifactId>omero-gateway</artifactId>
-			<version>5.6.5</version>
+			<version>5.7.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openmicroscopy</groupId>
