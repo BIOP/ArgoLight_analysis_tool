@@ -4,6 +4,8 @@ import fr.igred.omero.repository.ImageWrapper;
 import ij.ImagePlus;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -22,6 +24,8 @@ public class ImageFile {
     private String zoomFactor;
     private String argoSlidePattern;
     private final ImagePlus image;
+    private List<String> tags = new ArrayList<>();
+    private Map<String, String> keyValues = new HashMap<>();
     private final int id;
     private List<Double> pccValues;
     public List<ImageChannel> channels = new ArrayList<>();
@@ -37,14 +41,25 @@ public class ImageFile {
     public void addChannel(ImageChannel imageChannel){
         channels.add(imageChannel);
     }
+    public void addTags(String... tags){
+        this.tags.addAll(Arrays.asList(tags));
+    }
+
+    public void addKeyValue(String key, String value){
+        this.keyValues.put(key, value);
+    }
 
     public List<ImageChannel> getChannels(){
         return this.channels;
     }
     public String getImgNameWithoutExtension() { return this.imgNameWithoutExtension; }
+    public Map<String,String> getKeyValues(){ return this.keyValues; }
 
     public int getId(){
         return this.id;
+    }
+    public List<String> getTags(){
+        return this.tags;
     }
 
     public ImageChannel getChannel(int id){
@@ -53,20 +68,6 @@ public class ImageFile {
             return null;
         }
         return this.channels.get(id);
-    }
-
-    public Map<String, String> getImageNameParsing(){
-        Map<String, String> commonKeyValues = new TreeMap<>();
-
-        commonKeyValues.put("Microscope", this.microscope);
-        commonKeyValues.put("Objective", this.objective);
-        commonKeyValues.put("Immersion", this.immersionMedium);
-        commonKeyValues.put("Zoom", this.zoomFactor);
-        commonKeyValues.put("ArgoSlide_name", this.argoSlideName);
-        commonKeyValues.put("ArgoSlide_pattern", this.argoSlidePattern);
-        commonKeyValues.put("Acquisition_date", this.acquisitionDate);
-
-        return commonKeyValues;
     }
 
     private void parseImageName(String imgName){
@@ -80,6 +81,14 @@ public class ImageFile {
             this.argoSlideName = matcher.group("argoslide");
             this.argoSlidePattern = matcher.group("pattern");
             this.acquisitionDate = matcher.group("date");
+
+            this.keyValues.put("Microscope", this.microscope);
+            this.keyValues.put("Objective", this.objective);
+            this.keyValues.put("Immersion", this.immersionMedium);
+            this.keyValues.put("Zoom", this.zoomFactor);
+            this.keyValues.put("ArgoSlide_name", this.argoSlideName);
+            this.keyValues.put("ArgoSlide_pattern", this.argoSlidePattern);
+            this.keyValues.put("Acquisition_date", this.acquisitionDate);
 
            /* if(matcher.group("series") != null)
                 ;*/
@@ -109,6 +118,10 @@ public class ImageFile {
         }
 
         return name;
+    }
+
+    private void summaryForParentTable(){
+
     }
 
 }

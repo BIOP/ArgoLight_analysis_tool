@@ -73,17 +73,15 @@ public class OMEROSender implements Sender{
     } //TODO ajouter le boolean "local heat map saving"
 
     @Override
-    public void sendResults(ImageFile imageFile, Retriever retriever, boolean savingHeatMaps) {
+    public void sendResults(ImageFile imageFile, ImageWrapper imageWrapper, String target, boolean savingHeatMaps) {
         List<ImageChannel> channels = imageFile.getChannels();
-        this.imageWrapper = ((OMERORetriever)retriever).getImageWrapper(imageFile.getId());
-        String target = retriever.getTarget();
+        this.imageWrapper = imageWrapper;
 
-        Map<String, String> commonKeyValues = imageFile.getImageNameParsing();
+        sendKeyValues(imageFile.getKeyValues());
+        sendTags(imageFile.getTags(), this.imageWrapper);
 
         for(ImageChannel channel : channels){
-            sendTags(channel.getTags(), this.imageWrapper);
             sendGridPoints(channel.getGridRings(), channel.getIdealGridRings(), channel.getId());
-            sendKeyValues(commonKeyValues);
             sendKeyValues(channel.getKeyValues());
             sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
 

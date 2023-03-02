@@ -29,7 +29,7 @@ public class ArgoSLG511Processing {
     final private static int argoNPoints = 21; // on each row/column
     final private static String thresholdingMethod = "Huang dark";
 
-    public static void run(Retriever retriever, boolean savingHeatMaps){
+    public static void run(OMERORetriever retriever, boolean savingHeatMaps){
         Sender sender = retriever.createSender();
 
         for(int i = 0; i < retriever.getNImages(); i++){
@@ -37,15 +37,22 @@ public class ArgoSLG511Processing {
             ImagePlus imp = retriever.getImage(i);
             // create a new ImageFile object
             ImageFile imageFile = new ImageFile(imp, i);
+            // add tags
+            imageFile.addTags("raw", "argolight");
 
             // pixel size of the image
-            final double pixelSizeImage = imp.getCalibration().pixelWidth;//.getPixels().getPixelSizeX().getValue();
+            final double pixelSizeImage = imp.getCalibration().pixelWidth;
             // spot radius to compute the FWHM
             final double lineLength = (int)(1.25 / pixelSizeImage);
             // spot radius to compute other metrics
             final double ovalRadius = (int)(1.25 / pixelSizeImage);
             // Number of channels
             final int NChannels = imp.getNChannels();
+
+            imageFile.addKeyValue("Pixel_size_(um)",""+pixelSizeImage);
+            imageFile.addKeyValue("Profile_length_for_FWHM_(pix)",""+lineLength);
+            imageFile.addKeyValue("Oval_radius_(pix)",""+ovalRadius);
+            imageFile.addKeyValue("thresholding_method", thresholdingMethod);
 
             RoiManager roiManager = new RoiManager();
 
@@ -55,10 +62,6 @@ public class ArgoSLG511Processing {
                 roiManager.reset();
 
                 ImageChannel imageChannel = new ImageChannel(c);
-                imageChannel.addKeyValue("Pixel_size_(um)",""+pixelSizeImage);
-                imageChannel.addKeyValue("Profile_length_for_FWHM_(pix)",""+lineLength);
-                imageChannel.addKeyValue("Oval_radius_(pix)",""+ovalRadius);
-                imageChannel.addKeyValue("thresholding_method", thresholdingMethod);
 
                 // extract the current channel
                 ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + c, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
@@ -85,12 +88,12 @@ public class ArgoSLG511Processing {
 
                 // get the average x step
                 double xStepAvg = getAverageStep(smallerGrid.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage);
-                imageChannel.addKeyValue("xStepAvg_(pix)",""+xStepAvg);
+                imageChannel.addKeyValue("ch"+c+"_xStepAvg_(pix)",""+xStepAvg);
                 IJLogger.info("Channel "+c,"xStepAvg = " +xStepAvg + " pix");
 
                 // get the average y step
                 double yStepAvg = getAverageStep(smallerGrid.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage);
-                imageChannel.addKeyValue("yStepAvg_(pix)",""+yStepAvg);
+                imageChannel.addKeyValue("ch"+c+"_yStepAvg_(pix)",""+yStepAvg);
                 IJLogger.info("Channel "+c,"yStepAvg = " +yStepAvg + " pix");
 
                 // get the rotation angle
@@ -127,13 +130,12 @@ public class ArgoSLG511Processing {
                 imageChannel.addFieldUniformity(computeFieldUniformity(gridPoints,channel,ovalRadius));
                 imageChannel.addFWHM(computeFWHM(gridPoints,channel, lineLength, roiManager, pixelSizeImage));
 
-                imageChannel.addTags("raw", "argolight");
                 imageFile.addChannel(imageChannel);
             }
 
             roiManager.reset();
             roiManager.close();
-            sender.sendResults(imageFile, retriever, savingHeatMaps);
+            sender.sendResults(imageFile, retriever.getImageWrapper(i), retriever.getTarget(), savingHeatMaps);
         }
     }
 

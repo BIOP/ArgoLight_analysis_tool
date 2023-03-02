@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class ImageChannel {
     final private static int HEAT_MAP_SIZE = 256;
@@ -23,8 +24,8 @@ public class ImageChannel {
     private List<Roi> gridRings = new ArrayList<>();
     private List<Roi> idealGridRings = new ArrayList<>();
     private double rotationAngle;
-    private List<String> tags = new ArrayList<>();
-    private Map<String, String> keyValues = new HashMap<>();
+
+    private Map<String, String> keyValues = new TreeMap<>();
     private Roi centerCross;
 
     public ImageChannel(int id){
@@ -34,6 +35,7 @@ public class ImageChannel {
     public void addFWHM(List<Double> fwhm) {
         this.ringsFWHM.addAll(fwhm);
     }
+
     public void addFieldDistortion(List<Double> fieldDistortion) {
         this.ringsFieldDistortion.addAll(fieldDistortion);
     }
@@ -58,10 +60,6 @@ public class ImageChannel {
         this.keyValues.put(key, value);
     }
 
-    public void addTags(String... tags){
-        this.tags.addAll(Arrays.asList(tags));
-    }
-
     public void setCenterCross(Roi cross){
         this.centerCross = cross;
     }
@@ -83,10 +81,6 @@ public class ImageChannel {
     public List<Double> getFieldDistortion(){return this.ringsFieldDistortion;}
 
     public List<Double> getFieldUniformity(){return this.ringsFieldUniformity;}
-
-    public List<String> getTags(){
-        return this.tags;
-    }
 
     public int getId(){ return this.channelId; }
 
