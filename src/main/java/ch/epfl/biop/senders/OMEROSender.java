@@ -14,6 +14,7 @@ import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.DatasetWrapper;
+import fr.igred.omero.repository.GenericRepositoryObjectWrapper;
 import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.roi.EllipseWrapper;
 import fr.igred.omero.roi.GenericShapeWrapper;
@@ -58,6 +59,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -286,73 +288,9 @@ public class OMEROSender implements Sender{
     }
 
 
-    /*public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, String target, boolean populateExistingTable) {
-        if(!summary.isEmpty() && !headers.isEmpty()) {
-            List<TableDataColumn> columns = new ArrayList<>();
-            List<List<Object>> measurements = new ArrayList<>();
-            int index = 0;
-            columns.add(new TableDataColumn("Image ID",index++, ImageData.class));
-            columns.add(new TableDataColumn("Label", index++, String.class));
-            for(String header : headers)
-                columns.add(new TableDataColumn(header, index++, Double.class));
-
-            List<Object> imageData = new ArrayList<>();
-            List<Object> imageName = new ArrayList<>();
-
-
-            List<List<Double>> reducedList = summary.values().stream()
-                    .flatMap(Collection::stream)
-                    .collect(Collectors.toList());
-
-            List<Integer> sizeOfChannels = summary.values().stream()
-                    .flatMap(Collection::stream)
-                    .map(List::size)
-                    .collect(Collectors.toList());
-
-            List<ImageWrapper> imageWrapperList = new ArrayList<>(summary.keySet());
-
-            for(int i = 0; i < sizeOfChannels.size(); i++){
-                for(int j = 0; j < sizeOfChannels.get(i); j++) {
-                    imageData.add(imageWrapperList.get(i));
-                    imageName.add(imageWrapperList.get(i).getName());
-                }
-            }
-
-            measurements.add(imageData);
-            measurements.add(imageName);
-
-            for (List<Double> metric : reducedList) measurements.add(new ArrayList<>(metric));
-
-            LocalDateTime localDateTime = LocalDateTime.now();
-            LocalTime localTime = localDateTime.toLocalTime();
-            LocalDate localDate = localDateTime.toLocalDate();
-            String date = ""+localDate.getYear()+
-                    (localDate.getMonthValue() < 10 ? "0"+localDate.getMonthValue():localDate.getMonthValue()) +
-                    (localDate.getDayOfMonth() < 10 ? "0"+localDate.getDayOfMonth():localDate.getDayOfMonth())+"-"+
-                    (localTime.getHour() < 10 ? "0"+localTime.getHour():localTime.getHour())+"h"+
-                    (localTime.getMinute() < 10 ? "0"+localTime.getMinute():localTime.getMinute())+"m"+
-                    (localTime.getSecond() < 10 ? "0"+localTime.getSecond():localTime.getSecond());
-
-            // send the omero Table
-            if(!populateExistingTable)
-                try {
-                    DatasetWrapper dataset = this.client.getDataset(Long.parseLong(target));
-                    TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
-                    tableWrapper.addRow();
-                    tableWrapper.setName(date+"_"+dataset.getName()+"_Table");
-                    dataset.addTable(client, tableWrapper);
-                    IJLogger.info("Results table for image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId()+" has been uploaded");
-                }catch(DSAccessException | ServiceException | ExecutionException e){
-                    IJLogger.error("Cannot add the results table to image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId());
-                }
-
-        }
-
-    }*/
-
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, String target, boolean populateExistingTable) {
-
+        // get the current date
         LocalDateTime localDateTime = LocalDateTime.now();
         LocalTime localTime = localDateTime.toLocalTime();
         LocalDate localDate = localDateTime.toLocalDate();
@@ -363,45 +301,103 @@ public class OMEROSender implements Sender{
                 (localTime.getMinute() < 10 ? "0"+localTime.getMinute():localTime.getMinute())+"m"+
                 (localTime.getSecond() < 10 ? "0"+localTime.getSecond():localTime.getSecond());
 
-        // send the omero Table
-        if(!populateExistingTable)
-            try {
-                DatasetWrapper dataset = this.client.getDataset(Long.parseLong(target));
-                TableWrapper tableWrapper = new TableWrapper(headers.size() + 2,date+"_"+dataset.getName()+"_Table");
+        // format data
+        List<Object[]> fullRows = new ArrayList<>();
+        for (Map.Entry<ImageWrapper, List<List<Double>>> image : summary.entrySet()) {
+            List<List<Double>> allChannelMetrics = image.getValue();
 
-                tableWrapper.setColumn(0,"Image",ImageData.class);
-                tableWrapper.setColumn(1,"Label",String.class);
+            // convert to Object type
+            List<List<Object>> allChannelMetricsAsObject = new ArrayList<>();
+            for (List<Double> objects : allChannelMetrics)
+                allChannelMetricsAsObject.add(new ArrayList<>(objects));
 
-                int i = 2;
-                for(String header : headers)
-                    tableWrapper.setColumn(i++,header, Double.class);
-
-                List<Object[]> fullRows = new ArrayList<>();
-
-                for(Map.Entry<ImageWrapper, List<List<Double>>> image : summary.entrySet()) {
-                    List<List<Double>> allChannelMetrics = image.getValue();
-
-                    // convert to Object type
-                    List<List<Object>> allChannelMetricsAsObject = new ArrayList<>();
-                    for(List<Double> objects : allChannelMetrics)
-                        allChannelMetricsAsObject.add(new ArrayList<>(objects));
-
-                    for (List<Object> metrics: allChannelMetricsAsObject) {
-                        metrics.add(0, image.getKey().getName());
-                        metrics.add(0, image.getKey().asImageData());
-                        fullRows.add(metrics.toArray());
-                    }
-                }
-
-                tableWrapper.setRowCount(fullRows.size());
-                for(Object[] row : fullRows) tableWrapper.addRow(row);
-
-                dataset.addTable(client, tableWrapper);
-                IJLogger.info("Results table for image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId()+" has been uploaded");
-            }catch(DSAccessException | ServiceException | ExecutionException e){
-                IJLogger.error("Cannot add the results table to image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId());
+            for (List<Object> metrics : allChannelMetricsAsObject) {
+                metrics.add(0, image.getKey().getName());
+                metrics.add(0, image.getKey().asImageData());
+                fullRows.add(metrics.toArray());
             }
+        }
 
+        try {
+            // get the current dataset
+            DatasetWrapper dataset = this.client.getDataset(Long.parseLong(target));
+
+            if(populateExistingTable) {
+                // get existing table
+                TableWrapper tableWrapper = getLastOmeroTable(client, dataset);
+
+                // apply the adding/replacement policy
+                if(tableWrapper == null)
+                    addNewTable(fullRows, headers, dataset, date);
+                else replaceExistingTable(fullRows, dataset, tableWrapper, date);
+            } else
+                addNewTable(fullRows, headers, dataset, date);
+
+            IJLogger.info("Results table for dataset " + dataset.getName() + " : " + dataset.getId() + " has been uploaded");
+        } catch (DSAccessException | ServiceException | ExecutionException e) {
+            IJLogger.error("Cannot add the results table to dataset " + target);
+        }
+
+    }
+
+    private void addNewTable(List<Object[]> fullRows, List<String> headers, GenericRepositoryObjectWrapper<?> repo, String date) {
+
+        try {
+            // create a new table
+            TableWrapper tableWrapper = new TableWrapper(headers.size() + 2, date + "_" + repo.getName() + "_Table");
+
+            // set headers
+            tableWrapper.setColumn(0, "Image", ImageData.class);
+            tableWrapper.setColumn(1, "Label", String.class);
+
+            int i = 2;
+            for (String header : headers)
+                tableWrapper.setColumn(i++, header, Double.class);
+
+            // set table size
+            tableWrapper.setRowCount(fullRows.size());
+
+            // add metrics to the table
+            for (Object[] row : fullRows) tableWrapper.addRow(row);
+
+            // add the table to OMERO
+            repo.addTable(client, tableWrapper);
+
+            IJLogger.info("Results table for image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId() + " has been uploaded");
+        } catch (DSAccessException | ServiceException | ExecutionException e) {
+            IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
+        }
+    }
+
+    private void replaceExistingTable(List<Object[]> fullRows, GenericRepositoryObjectWrapper<?> repoWrapper, TableWrapper tableWrapper, String date){
+        try {
+            // get the table size
+            int nExistingRows = tableWrapper.getRowCount();
+
+            // set new table size
+            tableWrapper.setRowCount(nExistingRows + fullRows.size());
+
+            // add metrics to the table
+            for (Object[] row : fullRows) tableWrapper.addRow(row);
+
+            // duplicate the table
+            TableWrapper newTable = new TableWrapper(tableWrapper.createTable());
+
+            // set table name (with the new date)
+            newTable.setName(date + "_" + repoWrapper.getName() + "_Table");
+
+            // add the new table
+            repoWrapper.addTable(client, newTable);
+
+            // delete the previous table
+            client.deleteFile(tableWrapper.getId());
+
+            IJ.log("[INFO] [DataManagement][replaceTable] -- Table successfully updated for " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
+        } catch (ServiceException | AccessException | ExecutionException e) {
+            IJLogger.error("Cannot add results to previous table " + tableWrapper.getName() + " : " + tableWrapper.getId());
+        } catch (OMEROServerError | InterruptedException e ){
+            IJLogger.error("Cannot delete previous table " + tableWrapper.getName() + " : " + tableWrapper.getId());
+        }
     }
 
     /**
@@ -454,5 +450,38 @@ public class OMEROSender implements Sender{
         }
 
         return shapes;
+    }
+
+    /**
+     * get the last table attached to an image/dataset/project...
+     *
+     * @param client
+     * @param repoWrapper
+     * @return
+     */
+    public static TableWrapper getLastOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper) {
+        try {
+            // Prepare a Table
+            List<TableWrapper> repoTables = repoWrapper.getTables(client);
+
+            if (!repoTables.isEmpty()) {
+                // get al names
+                List<String> names = repoTables.stream().map(TableWrapper::getName).collect(Collectors.toList());
+
+                // get dates
+                List<String> orderedDate = new ArrayList<>();
+                names.forEach(name-> orderedDate.add(name.split("_")[0]));
+
+                // sort dates in reverse order (larger to smaller date)
+                orderedDate.sort(Comparator.reverseOrder());
+
+                // take the last table
+                return repoTables.stream().filter(e->e.getName().contains(orderedDate.get(0))).collect(Collectors.toList()).get(0);
+            } else
+                return null;
+        }catch(ServiceException | AccessException | ExecutionException e){
+            IJ.log("[ERROR] [DataManagement][getTable] -- Could not get table attached to " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
+            return null;
+        }
     }
 }
