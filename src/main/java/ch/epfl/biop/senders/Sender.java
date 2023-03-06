@@ -18,5 +18,5 @@ public interface Sender {
     void sendKeyValues(Map<String, String> keyValues);
     void sendGridPoints(List<Roi> grid, List<Roi> ideal, int channelId);
     void sendResultsTable(List<Double> fieldDistortion, List<Double> fieldUniformity, List<Double> fwhm, int channelId);
-    void populateParentTable();
+    void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, String target, boolean populateExistingTable);
 }

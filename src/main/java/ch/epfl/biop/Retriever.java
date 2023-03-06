@@ -8,4 +8,5 @@ public interface Retriever {
     int getNImages();
     Sender createSender();
     String getTarget();
+    boolean isProcessingAllRawImages();
 }

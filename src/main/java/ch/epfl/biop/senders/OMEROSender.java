@@ -13,6 +13,7 @@ import fr.igred.omero.annotations.TagAnnotationWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
+import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.roi.EllipseWrapper;
 import fr.igred.omero.roi.GenericShapeWrapper;
@@ -50,8 +51,12 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -60,6 +65,8 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -77,12 +84,12 @@ public class OMEROSender implements Sender{
         List<ImageChannel> channels = imageFile.getChannels();
         this.imageWrapper = imageWrapper;
 
-        sendKeyValues(imageFile.getKeyValues());
+       // sendKeyValues(imageFile.getKeyValues());
         sendTags(imageFile.getTags(), this.imageWrapper);
 
         for(ImageChannel channel : channels){
-            sendGridPoints(channel.getGridRings(), channel.getIdealGridRings(), channel.getId());
-            sendKeyValues(channel.getKeyValues());
+            //sendGridPoints(channel.getGridRings(), channel.getIdealGridRings(), channel.getId()); // working
+           // sendKeyValues(channel.getKeyValues()); //working
             sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
 
             if(savingHeatMaps)
@@ -250,9 +257,9 @@ public class OMEROSender implements Sender{
         measurements.add(imageData);
 
         // add the second column with the ring id (from top-left to bottom-right)
-        columns.add(new TableDataColumn("Ring ID",i++, ImageData.class));
+        columns.add(new TableDataColumn("Ring ID",i++, Long.class));
         List<Object> ids = new ArrayList<>();
-        IntStream.range(0, fieldDistortion.size()).forEach(ids::add);
+        LongStream.range(0, fieldDistortion.size()).forEach(ids::add);
         measurements.add(ids);
 
         // add columns with computed parameters
@@ -278,10 +285,122 @@ public class OMEROSender implements Sender{
         }
     }
 
+
+    /*public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, String target, boolean populateExistingTable) {
+        if(!summary.isEmpty() && !headers.isEmpty()) {
+            List<TableDataColumn> columns = new ArrayList<>();
+            List<List<Object>> measurements = new ArrayList<>();
+            int index = 0;
+            columns.add(new TableDataColumn("Image ID",index++, ImageData.class));
+            columns.add(new TableDataColumn("Label", index++, String.class));
+            for(String header : headers)
+                columns.add(new TableDataColumn(header, index++, Double.class));
+
+            List<Object> imageData = new ArrayList<>();
+            List<Object> imageName = new ArrayList<>();
+
+
+            List<List<Double>> reducedList = summary.values().stream()
+                    .flatMap(Collection::stream)
+                    .collect(Collectors.toList());
+
+            List<Integer> sizeOfChannels = summary.values().stream()
+                    .flatMap(Collection::stream)
+                    .map(List::size)
+                    .collect(Collectors.toList());
+
+            List<ImageWrapper> imageWrapperList = new ArrayList<>(summary.keySet());
+
+            for(int i = 0; i < sizeOfChannels.size(); i++){
+                for(int j = 0; j < sizeOfChannels.get(i); j++) {
+                    imageData.add(imageWrapperList.get(i));
+                    imageName.add(imageWrapperList.get(i).getName());
+                }
+            }
+
+            measurements.add(imageData);
+            measurements.add(imageName);
+
+            for (List<Double> metric : reducedList) measurements.add(new ArrayList<>(metric));
+
+            LocalDateTime localDateTime = LocalDateTime.now();
+            LocalTime localTime = localDateTime.toLocalTime();
+            LocalDate localDate = localDateTime.toLocalDate();
+            String date = ""+localDate.getYear()+
+                    (localDate.getMonthValue() < 10 ? "0"+localDate.getMonthValue():localDate.getMonthValue()) +
+                    (localDate.getDayOfMonth() < 10 ? "0"+localDate.getDayOfMonth():localDate.getDayOfMonth())+"-"+
+                    (localTime.getHour() < 10 ? "0"+localTime.getHour():localTime.getHour())+"h"+
+                    (localTime.getMinute() < 10 ? "0"+localTime.getMinute():localTime.getMinute())+"m"+
+                    (localTime.getSecond() < 10 ? "0"+localTime.getSecond():localTime.getSecond());
+
+            // send the omero Table
+            if(!populateExistingTable)
+                try {
+                    DatasetWrapper dataset = this.client.getDataset(Long.parseLong(target));
+                    TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
+                    tableWrapper.addRow();
+                    tableWrapper.setName(date+"_"+dataset.getName()+"_Table");
+                    dataset.addTable(client, tableWrapper);
+                    IJLogger.info("Results table for image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId()+" has been uploaded");
+                }catch(DSAccessException | ServiceException | ExecutionException e){
+                    IJLogger.error("Cannot add the results table to image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId());
+                }
+
+        }
+
+    }*/
+
     @Override
-    public void populateParentTable() {
+    public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, String target, boolean populateExistingTable) {
 
+        LocalDateTime localDateTime = LocalDateTime.now();
+        LocalTime localTime = localDateTime.toLocalTime();
+        LocalDate localDate = localDateTime.toLocalDate();
+        String date = ""+localDate.getYear()+
+                (localDate.getMonthValue() < 10 ? "0"+localDate.getMonthValue():localDate.getMonthValue()) +
+                (localDate.getDayOfMonth() < 10 ? "0"+localDate.getDayOfMonth():localDate.getDayOfMonth())+"-"+
+                (localTime.getHour() < 10 ? "0"+localTime.getHour():localTime.getHour())+"h"+
+                (localTime.getMinute() < 10 ? "0"+localTime.getMinute():localTime.getMinute())+"m"+
+                (localTime.getSecond() < 10 ? "0"+localTime.getSecond():localTime.getSecond());
 
+        // send the omero Table
+        if(!populateExistingTable)
+            try {
+                DatasetWrapper dataset = this.client.getDataset(Long.parseLong(target));
+                TableWrapper tableWrapper = new TableWrapper(headers.size() + 2,date+"_"+dataset.getName()+"_Table");
+
+                tableWrapper.setColumn(0,"Image",ImageData.class);
+                tableWrapper.setColumn(1,"Label",String.class);
+
+                int i = 2;
+                for(String header : headers)
+                    tableWrapper.setColumn(i++,header, Double.class);
+
+                List<Object[]> fullRows = new ArrayList<>();
+
+                for(Map.Entry<ImageWrapper, List<List<Double>>> image : summary.entrySet()) {
+                    List<List<Double>> allChannelMetrics = image.getValue();
+
+                    // convert to Object type
+                    List<List<Object>> allChannelMetricsAsObject = new ArrayList<>();
+                    for(List<Double> objects : allChannelMetrics)
+                        allChannelMetricsAsObject.add(new ArrayList<>(objects));
+
+                    for (List<Object> metrics: allChannelMetricsAsObject) {
+                        metrics.add(0, image.getKey().getName());
+                        metrics.add(0, image.getKey().asImageData());
+                        fullRows.add(metrics.toArray());
+                    }
+                }
+
+                tableWrapper.setRowCount(fullRows.size());
+                for(Object[] row : fullRows) tableWrapper.addRow(row);
+
+                dataset.addTable(client, tableWrapper);
+                IJLogger.info("Results table for image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId()+" has been uploaded");
+            }catch(DSAccessException | ServiceException | ExecutionException e){
+                IJLogger.error("Cannot add the results table to image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId());
+            }
 
     }
 

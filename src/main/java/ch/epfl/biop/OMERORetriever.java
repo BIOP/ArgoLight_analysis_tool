@@ -21,28 +21,33 @@ public class OMERORetriever implements Retriever {
     private List<ImageWrapper> images = new ArrayList<>();
     private long datasetId = -1;
 
+    private boolean processAllRawImages = false;
+
     public OMERORetriever(Client client){
         this.client = client;
     }
 
-    public OMERORetriever loadRawImages(long datasetId, boolean filterRawImages) {
+    public OMERORetriever loadRawImages(long datasetId, boolean processAllRawImages) {
+        this.processAllRawImages = processAllRawImages;
         try {
             // get dataset
             DatasetWrapper datasetWrapper = this.client.getDataset(datasetId);
             this.datasetId = datasetWrapper.getId();
 
+
             // get children images
             List<ImageWrapper> imageWrapperList = datasetWrapper.getImages(this.client);
 
             // filter images
-            this.images = filterImages(imageWrapperList, filterRawImages);
+            this.images = filterImages(imageWrapperList, processAllRawImages);
         } catch(AccessException | ServiceException | ExecutionException e){
             IJLogger.error("Retrieve OMERO images","Cannot retrieve images in dataset "+datasetId);
         }
         return this;
     }
 
-    public OMERORetriever loadRawImages(long projectId, String datasetName, boolean filterRawImages) {
+    public OMERORetriever loadRawImages(long projectId, String datasetName, boolean processAllRawImages) {
+        this.processAllRawImages = processAllRawImages;
         try {
             // get the ArgoSim project
             ProjectWrapper project_wpr = this.client.getProject(projectId);
@@ -56,7 +61,7 @@ public class OMERORetriever implements Retriever {
                 this.datasetId = datasetWrapper.getId();
 
                 List<ImageWrapper> imageWrapperList = datasetWrapper.getImages(this.client);
-                this.images = filterImages(imageWrapperList, filterRawImages);
+                this.images = filterImages(imageWrapperList, processAllRawImages);
             } else if(datasetWrapperList.isEmpty())
                 IJLogger.warn("Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name *"+datasetName+"*");
             else IJLogger.warn("More than one dataset refer to "+datasetName+" Please, group these datasets or change their name.");
@@ -71,14 +76,14 @@ public class OMERORetriever implements Retriever {
      * return the list of all images that have never been processed yet.
      *
      * @param imageWrapperList
-     * @param filterRawImages
+     * @param processAllRawImages
      * @return
      */
-    public List<ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean filterRawImages) {
+    public List<ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages) {
         // get all images without the tags "raw" nor "process" and remove macro images from vsi files.
         return imageWrapperList.stream().filter(e-> {
             try {
-                if(filterRawImages)
+                if(!processAllRawImages)
                     return (e.getTags(this.client).stream().noneMatch(t->(t.getName().equals("raw")||t.getName().equals("processed")))
                             && !(e.getName().contains("[macro image]")));
                 else
@@ -130,6 +135,11 @@ public class OMERORetriever implements Retriever {
     @Override
     public String getTarget() {
         return ""+this.datasetId;
+    }
+
+    @Override
+    public boolean isProcessingAllRawImages() {
+        return this.processAllRawImages;
     }
 
     public Sender createLocalSender() {

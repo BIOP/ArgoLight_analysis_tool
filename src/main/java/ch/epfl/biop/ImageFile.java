@@ -2,15 +2,20 @@ package ch.epfl.biop;
 
 import fr.igred.omero.repository.ImageWrapper;
 import ij.ImagePlus;
+import ij.measure.ResultsTable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ImageFile {
     private final Pattern pattern = Pattern.compile("(?<microscope>.*)_o(?<objective>.*)_z(?<zoom>.*)_(?<immersion>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_?(?<series>.*)?\\.(?<extension>.*)");
@@ -120,8 +125,26 @@ public class ImageFile {
         return name;
     }
 
-    private void summaryForParentTable(){
+    /**
+     *
+     * @return
+     */
+    public Map<List<String>, List<List<Double>>> summaryForParentTable(){
+        List<List<Double>> summaryChannelsList = new ArrayList<>();
+        List<String> headers = new ArrayList<>();
+        Map<String, Double> statMap;
 
+        for(ImageChannel channel:this.channels){
+            statMap = channel.channelSummary();
+            statMap.put("Acquisition_date", this.acquisitionDate == null || this.acquisitionDate.equals("") ? 0.0 : Double.parseDouble(this.acquisitionDate));
+            summaryChannelsList.add(new ArrayList<>(statMap.values()));
+            headers = new ArrayList<>(statMap.keySet());
+        }
+
+        Map<List<String>, List<List<Double>>> finalMap = new HashMap<>();
+        finalMap.put(headers,summaryChannelsList);
+
+        return finalMap;
     }
 
 }

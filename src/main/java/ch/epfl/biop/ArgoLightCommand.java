@@ -2,8 +2,6 @@ package ch.epfl.biop;
 
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
-import fr.igred.omero.repository.ImageWrapper;
-import ij.IJ;
 import net.imagej.ImageJ;
 import org.scijava.command.Command;
 import org.scijava.command.DynamicCommand;
@@ -11,7 +9,6 @@ import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
 import java.io.File;
-import java.util.List;
 
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
 public class ArgoLightCommand extends DynamicCommand implements Command {
@@ -40,7 +37,7 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
     File folder;
 
     @Parameter(label="Process all images (old + new ones)", persist = false)
-    boolean processAllImages;
+    boolean isProcessingAllRawImages;
 
     static int port = 4064;
     static long argoLightProjectId = 2004;//663;
@@ -60,10 +57,10 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
         }
 
         try{
-            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(argoLightProjectId, microscope, processAllImages);
+            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(argoLightProjectId, microscope, isProcessingAllRawImages);
             int nImages = omeroRetriever.getNImages();
 
-            boolean savingHeatMaps = savingOption.equals("No heat maps saving");
+            boolean savingHeatMaps = !savingOption.equals("No heat maps saving");
 
             // run analysis
             if(nImages > 0)

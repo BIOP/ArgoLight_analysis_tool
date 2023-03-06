@@ -1,6 +1,7 @@
 package ch.epfl.biop;
 
 import ch.epfl.biop.senders.Sender;
+import fr.igred.omero.repository.ImageWrapper;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Line;
@@ -19,7 +20,9 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -31,14 +34,14 @@ public class ArgoSLG511Processing {
 
     public static void run(OMERORetriever retriever, boolean savingHeatMaps){
         Sender sender = retriever.createSender();
+        Map<ImageWrapper, List<List<Double>>> summaryMap = new HashMap<>();
+        List<String> headers = new ArrayList<>();
 
         for(int i = 0; i < retriever.getNImages(); i++){
             // get the image
             ImagePlus imp = retriever.getImage(i);
             // create a new ImageFile object
             ImageFile imageFile = new ImageFile(imp, i);
-            // add tags
-            imageFile.addTags("raw", "argolight");
 
             // pixel size of the image
             final double pixelSizeImage = imp.getCalibration().pixelWidth;
@@ -49,6 +52,10 @@ public class ArgoSLG511Processing {
             // Number of channels
             final int NChannels = imp.getNChannels();
 
+            // add tags
+            imageFile.addTags("raw", "argolight");
+
+            // add key-values common to all channels
             imageFile.addKeyValue("Pixel_size_(um)",""+pixelSizeImage);
             imageFile.addKeyValue("Profile_length_for_FWHM_(pix)",""+lineLength);
             imageFile.addKeyValue("Oval_radius_(pix)",""+ovalRadius);
@@ -61,7 +68,7 @@ public class ArgoSLG511Processing {
                 IJ.run("Close All", "");
                 roiManager.reset();
 
-                ImageChannel imageChannel = new ImageChannel(c);
+                ImageChannel imageChannel = new ImageChannel(c, imp.getWidth(), imp.getHeight());
 
                 // extract the current channel
                 ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + c, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
@@ -135,8 +142,18 @@ public class ArgoSLG511Processing {
 
             roiManager.reset();
             roiManager.close();
+
+            // send image results (metrics, rings, tags, key-values)
             sender.sendResults(imageFile, retriever.getImageWrapper(i), retriever.getTarget(), savingHeatMaps);
+
+            // metrics summary to populate parent table
+            Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
+            headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
+            if(!allChannelMetrics.values().isEmpty())
+                summaryMap.put(retriever.getImageWrapper(i), allChannelMetrics.values().iterator().next());
         }
+
+        sender.populateParentTable(summaryMap, headers, retriever.getTarget(), !retriever.isProcessingAllRawImages());
     }
 
 
