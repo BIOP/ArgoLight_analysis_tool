@@ -30,10 +30,8 @@ import omero.gateway.model.TableData;
 import omero.gateway.model.TableDataColumn;
 import omero.gateway.model.TagAnnotationData;
 import omero.model.NamedValue;
-import org.apache.commons.io.FileUtils;
 
 import java.io.File;
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -49,11 +47,11 @@ public class OMEROSender implements Sender{
     final Client client;
     private ImageWrapper imageWrapper;
     final private static String PROCESSED_FEATURE = "feature";
-    private final String target;
+    private final String datasetId;
 
     public OMEROSender(Client client, String datasetTarget){
         this.client = client;
-        this.target = datasetTarget;
+        this.datasetId = datasetTarget;
     } //TODO ajouter le boolean "local heat map saving"
 
     @Override
@@ -72,8 +70,11 @@ public class OMEROSender implements Sender{
            // sendKeyValues(channel.getKeyValues()); //working
             sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
 
-            if(savingHeatMaps)
-                sendHeatMaps(channel, imageFile.getImgNameWithoutExtension(), this.target);
+            if(savingHeatMaps) {
+                sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()), this.datasetId);
+                sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()), this.datasetId);
+                sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()), this.datasetId);
+            }
         }
 
     }
@@ -106,47 +107,38 @@ public class OMEROSender implements Sender{
     /**
      * target : dataset ID
      */
-    public void sendHeatMaps(ImageChannel channel, String parentImageName, String target) {
-        List<ImagePlus> heatMaps = new ArrayList<>();
-        heatMaps.add(channel.getFWHMHeatMap(parentImageName));
-        heatMaps.add(channel.getFieldDistortionHeatMap(parentImageName));
-        heatMaps.add(channel.getFieldUniformityHeatMap(parentImageName));
-
+    public void sendHeatMaps(ImagePlus imp, String target) {
         String home = Prefs.getHomeDir();
-        String tmpFolderPath = home + File.separator + "tmp";
 
-        if(new File(tmpFolderPath).mkdir()) {
-            try {
-                for(ImagePlus heatMap : heatMaps) {
-                    // save the image on the computer first and get the generate file
-                    File localImageFile = saveHeatMapLocally(heatMap, tmpFolderPath);
-                    // Import image on OMERO
-                    List<Long> analysisImage_omeroID = client.getDataset(Long.parseLong(target)).importImage(client, localImageFile.toString());
-                    ImageWrapper analysisImage_wpr = client.getImage(analysisImage_omeroID.get(0));
-                    IJLogger.info("Upload heatMap", heatMap.getTitle() + ".tif" + " was uploaded to OMERO with ID : " + analysisImage_omeroID);
+        // save the image on the computer first and get the generate file
+        File localImageFile = saveHeatMapLocally(imp, home);
+        if(localImageFile == null) {
+            IJLogger.error("Saving temporary heatMap","Cannot save temporary image "+imp.getTitle()+" in " +home);
+            return;
+        }
 
-                    List<String> tags = new ArrayList<String>(){{
-                        add("processed");
-                        add("argolight");
-                        add((String)heatMap.getProperty(PROCESSED_FEATURE));
-                    }};
-                    sendTags(tags, analysisImage_wpr);
-                }
+        try {
+            // Import image on OMERO
+            List<Long> analysisImage_omeroID = client.getDataset(Long.parseLong(target)).importImage(client, localImageFile.toString());
+            ImageWrapper analysisImage_wpr = client.getImage(analysisImage_omeroID.get(0));
+            IJLogger.info("Upload heatMap", imp.getTitle() + ".tif" + " was uploaded to OMERO with ID : " + analysisImage_omeroID);
 
-            } catch (ServiceException | AccessException | ExecutionException | OMEROServerError e) {
-                IJLogger.error("Upload heatMap", "Cannot upload heat maps on OMERO");
-            }
+            List<String> tags = new ArrayList<String>(){{
+                add("processed");
+                add("argolight");
+                add((String)imp.getProperty(PROCESSED_FEATURE));
+            }};
+            sendTags(tags, analysisImage_wpr);
 
-            // delete the whole folder
-            try {
-                // delete the file after upload
-                FileUtils.deleteDirectory(new File(tmpFolderPath));
-                IJLogger.info("Upload heatMap","Temporary folder deleted");
-            } catch (IOException e){
-                IJLogger.error("Upload heatMap","Cannot delete temporary folder "+tmpFolderPath);
-            }
+        } catch (ServiceException | AccessException | ExecutionException | OMEROServerError e) {
+            IJLogger.error("Upload heatMap", "Cannot upload heat maps on OMERO");
+        }
 
-        } else IJLogger.error("Upload heatMap","Cannot create temporary folder "+tmpFolderPath);
+        // delete the file after upload
+        boolean hasBeenDeleted = localImageFile.delete();
+        if(hasBeenDeleted)
+            IJLogger.info("Upload heatMap","Temporary image deleted");
+        else IJLogger.error("Upload heatMap","Cannot delete temporary image from "+localImageFile.getAbsolutePath());
     }
 
     @Override
@@ -296,7 +288,7 @@ public class OMEROSender implements Sender{
 
         try {
             // get the current dataset
-            DatasetWrapper dataset = this.client.getDataset(Long.parseLong(this.target));
+            DatasetWrapper dataset = this.client.getDataset(Long.parseLong(this.datasetId));
 
             if(populateExistingTable) {
                 // get existing table
@@ -311,7 +303,7 @@ public class OMEROSender implements Sender{
 
             IJLogger.info("Results table for dataset " + dataset.getName() + " : " + dataset.getId() + " has been uploaded");
         } catch (DSAccessException | ServiceException | ExecutionException e) {
-            IJLogger.error("Cannot add the results table to dataset " + this.target);
+            IJLogger.error("Cannot add the results table to dataset " + this.datasetId);
         }
 
     }
@@ -392,10 +384,9 @@ public class OMEROSender implements Sender{
         boolean hasBeenSaved = fs.saveAsTiff(analysisImage_output_path.toString());
 
         // check if the image was correctly saved
-       //if(hasBeenSaved) IJLogger.info("Saving heatmaps locally"+imp.getTitle()+".tif"+" was saved in : "+ folder);
-        //else IJ.log("[ERROR] [DataManagement][saveHeatMapLocally] -- Cannot save "+imp.getTitle()+ " in "+folder);
-
-        return analysisImage_output_path;
+       if(!hasBeenSaved)
+           return null;
+       return analysisImage_output_path;
     }
 
     private List<ShapeData> convertIJRoisToShapeData(List<Roi> rois, int channelId, String comment){

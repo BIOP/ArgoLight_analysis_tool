@@ -51,11 +51,6 @@ public class LocalSender implements Sender{
     }
 
     @Override
-    public void sendHeatMaps(ImageChannel channel, String imageName, String target) {
-
-    }
-
-   // @Override
     public void sendHeatMaps(ImagePlus imp, String target) {
         FileSaver fs = new FileSaver(imp);
         // create an image file in the given folder, with the given imageName
