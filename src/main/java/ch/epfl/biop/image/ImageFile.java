@@ -1,24 +1,17 @@
-package ch.epfl.biop;
+package ch.epfl.biop.image;
 
-import fr.igred.omero.repository.ImageWrapper;
-import ij.IJ;
+import ch.epfl.biop.utils.IJLogger;
+import ch.epfl.biop.utils.Tools;
 import ij.ImagePlus;
 import ij.gui.Roi;
-import ij.measure.ResultsTable;
-import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ImageFile {
     private final Pattern pattern = Pattern.compile("(?<microscope>.*)_o(?<objective>.*)_z(?<zoom>.*)_(?<immersion>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_?(?<series>.*)?\\.(?<extension>.*)");

@@ -1,8 +1,11 @@
-package ch.epfl.biop;
+package ch.epfl.biop.command;
 
+import ch.epfl.biop.processing.ArgoSLG511Processing;
+import ch.epfl.biop.retrievers.OMERORetriever;
 import ch.epfl.biop.senders.LocalSender;
 import ch.epfl.biop.senders.OMEROSender;
 import ch.epfl.biop.senders.Sender;
+import ch.epfl.biop.utils.IJLogger;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
 import net.imagej.ImageJ;

@@ -1,13 +1,10 @@
 package ch.epfl.biop.senders;
 
-import ch.epfl.biop.ImageChannel;
-import ch.epfl.biop.ImageFile;
-import ch.epfl.biop.Retriever;
+import ch.epfl.biop.image.ImageFile;
 import fr.igred.omero.repository.ImageWrapper;
 import ij.ImagePlus;
 import ij.gui.Roi;
 
-import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.Map;
 

@@ -1,6 +1,10 @@
-package ch.epfl.biop;
+package ch.epfl.biop.processing;
 
+import ch.epfl.biop.image.ImageChannel;
+import ch.epfl.biop.image.ImageFile;
+import ch.epfl.biop.retrievers.OMERORetriever;
 import ch.epfl.biop.senders.Sender;
+import ch.epfl.biop.utils.IJLogger;
 import fr.igred.omero.repository.ImageWrapper;
 import ij.IJ;
 import ij.ImagePlus;

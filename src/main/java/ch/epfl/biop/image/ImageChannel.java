@@ -1,15 +1,12 @@
-package ch.epfl.biop;
+package ch.epfl.biop.image;
 
-import ij.IJ;
+import ch.epfl.biop.utils.IJLogger;
+import ch.epfl.biop.utils.Tools;
 import ij.ImagePlus;
 import ij.gui.Roi;
-import ij.process.FloatProcessor;
 import ij.process.ImageStatistics;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;

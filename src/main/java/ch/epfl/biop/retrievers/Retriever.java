@@ -1,4 +1,4 @@
-package ch.epfl.biop;
+package ch.epfl.biop.retrievers;
 
 import ch.epfl.biop.senders.Sender;
 import ij.ImagePlus;

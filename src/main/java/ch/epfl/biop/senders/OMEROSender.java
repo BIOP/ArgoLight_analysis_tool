@@ -1,8 +1,8 @@
 package ch.epfl.biop.senders;
 
-import ch.epfl.biop.IJLogger;
-import ch.epfl.biop.ImageChannel;
-import ch.epfl.biop.ImageFile;
+import ch.epfl.biop.utils.IJLogger;
+import ch.epfl.biop.image.ImageChannel;
+import ch.epfl.biop.image.ImageFile;
 import fr.igred.omero.Client;
 import fr.igred.omero.annotations.MapAnnotationWrapper;
 import fr.igred.omero.annotations.TableWrapper;
