@@ -1,8 +1,11 @@
 package ch.epfl.biop;
 
 import fr.igred.omero.repository.ImageWrapper;
+import ij.IJ;
 import ij.ImagePlus;
+import ij.gui.Roi;
 import ij.measure.ResultsTable;
+import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,13 +35,13 @@ public class ImageFile {
     private List<String> tags = new ArrayList<>();
     private Map<String, String> keyValues = new HashMap<>();
     private final int id;
-    private List<Double> pccValues;
+    private List<List<Double>> pccValues = new ArrayList<>();
     public List<ImageChannel> channels = new ArrayList<>();
 
     public ImageFile(ImagePlus imp, int id){
         this.image = imp;
         this.id = id;
-        this.imgName = imp.getTitle();//.getOriginalFileInfo().fileName;
+        this.imgName = imp.getTitle();
         this.imgNameWithoutExtension = getNameWithoutExtension(this.imgName);
         parseImageName(this.imgName);
     }
@@ -49,23 +52,19 @@ public class ImageFile {
     public void addTags(String... tags){
         this.tags.addAll(Arrays.asList(tags));
     }
-
     public void addKeyValue(String key, String value){
         this.keyValues.put(key, value);
     }
-
-    public List<ImageChannel> getChannels(){
-        return this.channels;
-    }
+    public int getNChannels(){ return this.channels.size(); }
     public String getImgNameWithoutExtension() { return this.imgNameWithoutExtension; }
     public Map<String,String> getKeyValues(){ return this.keyValues; }
-
     public int getId(){
         return this.id;
     }
     public List<String> getTags(){
         return this.tags;
     }
+    public List<List<Double>> getPCC(){ return this.pccValues; }
 
     public ImageChannel getChannel(int id){
         if(id >= this.channels.size()) {
@@ -145,6 +144,26 @@ public class ImageFile {
         finalMap.put(headers,summaryChannelsList);
 
         return finalMap;
+    }
+
+    public void computePCC(){
+        // compute PCC if there is more than 1 channel
+        if(this.channels.size() > 1){
+
+            List<Roi> rois = this.channels.get(0).getGridRings();
+            for(int i = 0; i < this.channels.size()-1; i++){
+                for(int j = i+1; j < this.channels.size(); j++){
+                    // get the two images
+                    this.image.setPosition(i+1,1,1);
+                    ImagePlus ch1 = new ImagePlus("ch"+i, this.image.getProcessor());
+                    this.image.setPosition(j+1,1,1);
+                    ImagePlus ch2 = new ImagePlus("ch"+j, this.image.getProcessor());
+
+                    // compute Pearson Correlation Coefficient
+                    pccValues.add(Tools.computePCC(ch1, ch2, rois));
+                }
+            }
+        } else IJLogger.warn("PCC computation", "Only one channel for image "+this.imgName +". Cannot compute PCC.");
     }
 
 }

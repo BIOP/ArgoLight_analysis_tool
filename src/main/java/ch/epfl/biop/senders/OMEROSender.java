@@ -3,9 +3,6 @@ package ch.epfl.biop.senders;
 import ch.epfl.biop.IJLogger;
 import ch.epfl.biop.ImageChannel;
 import ch.epfl.biop.ImageFile;
-import ch.epfl.biop.OMERORetriever;
-import ch.epfl.biop.Retriever;
-import com.google.common.primitives.Ints;
 import fr.igred.omero.Client;
 import fr.igred.omero.annotations.MapAnnotationWrapper;
 import fr.igred.omero.annotations.TableWrapper;
@@ -16,27 +13,16 @@ import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.GenericRepositoryObjectWrapper;
 import fr.igred.omero.repository.ImageWrapper;
-import fr.igred.omero.roi.EllipseWrapper;
-import fr.igred.omero.roi.GenericShapeWrapper;
-import fr.igred.omero.roi.LineWrapper;
-import fr.igred.omero.roi.PolygonWrapper;
-import fr.igred.omero.roi.PolylineWrapper;
 import fr.igred.omero.roi.ROIWrapper;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.Prefs;
-import ij.gui.Line;
-import ij.gui.OvalRoi;
 import ij.gui.Roi;
 import ij.io.FileSaver;
-import ij.io.RoiEncoder;
 import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
-import omero.gateway.facility.ROIFacility;
 import omero.gateway.model.EllipseData;
 import omero.gateway.model.ImageData;
-import omero.gateway.model.PolygonData;
-import omero.gateway.model.PolylineData;
 import omero.gateway.model.ROIData;
 import omero.gateway.model.RectangleData;
 import omero.gateway.model.ShapeData;
@@ -46,31 +32,18 @@ import omero.gateway.model.TagAnnotationData;
 import omero.model.NamedValue;
 import org.apache.commons.io.FileUtils;
 
-import java.awt.geom.Point2D;
-import java.io.BufferedOutputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.LongStream;
-import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 public class OMEROSender implements Sender{
     final Client client;
@@ -83,13 +56,15 @@ public class OMEROSender implements Sender{
 
     @Override
     public void sendResults(ImageFile imageFile, ImageWrapper imageWrapper, String target, boolean savingHeatMaps) {
-        List<ImageChannel> channels = imageFile.getChannels();
         this.imageWrapper = imageWrapper;
 
        // sendKeyValues(imageFile.getKeyValues());
         sendTags(imageFile.getTags(), this.imageWrapper);
+        if(imageFile.getNChannels() > 1)
+            sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
 
-        for(ImageChannel channel : channels){
+        for(int i = 0; i < imageFile.getNChannels(); i++){
+            ImageChannel channel = imageFile.getChannel(i);
             //sendGridPoints(channel.getGridRings(), channel.getIdealGridRings(), channel.getId()); // working
            // sendKeyValues(channel.getKeyValues()); //working
             sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
@@ -244,6 +219,37 @@ public class OMEROSender implements Sender{
     }
 
     @Override
+    public void sendPCCTable(List<List<Double>> pccValues, int nChannels){
+        List<TableDataColumn> columns = new ArrayList<>();
+        List<List<Object>> measurements = new ArrayList<>();
+
+        List<Integer> chs1 = new ArrayList<>();
+        List<Integer> chs2 = new ArrayList<>();
+
+        for(int i = 0; i < nChannels-1; i++)
+            for(int j = i+1; j < nChannels; j++){
+                chs1.add(i);
+                chs2.add(j);
+            }
+
+        int i = 0;
+        for(List<Double> channelPair : pccValues){
+            columns.add(new TableDataColumn("ch"+chs1.get(i)+"_ch"+chs2.get(i), i++, Double.class));
+            measurements.add(new ArrayList<>(channelPair));
+        }
+
+        // send the omero Table
+        try {
+            TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
+            tableWrapper.setName("PCC_table");
+            this.imageWrapper.addTable(client, tableWrapper);
+            IJLogger.info("Results table for image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId()+" has been uploaded");
+        }catch(DSAccessException | ServiceException | ExecutionException e){
+            IJLogger.error("Cannot add the results table to image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId());
+        }
+    }
+
+    @Override
     public void sendResultsTable(List<Double> fieldDistortion, List<Double> fieldUniformity, List<Double> fwhm, int channelId) {
         List<TableDataColumn> columns = new ArrayList<>();
         List<List<Object>> measurements = new ArrayList<>();
@@ -328,10 +334,10 @@ public class OMEROSender implements Sender{
 
                 // apply the adding/replacement policy
                 if(tableWrapper == null)
-                    addNewTable(fullRows, headers, dataset, date);
-                else replaceExistingTable(fullRows, dataset, tableWrapper, date);
+                    addNewParentTable(fullRows, headers, dataset, date);
+                else replaceExistingParentTable(fullRows, dataset, tableWrapper, date);
             } else
-                addNewTable(fullRows, headers, dataset, date);
+                addNewParentTable(fullRows, headers, dataset, date);
 
             IJLogger.info("Results table for dataset " + dataset.getName() + " : " + dataset.getId() + " has been uploaded");
         } catch (DSAccessException | ServiceException | ExecutionException e) {
@@ -340,7 +346,7 @@ public class OMEROSender implements Sender{
 
     }
 
-    private void addNewTable(List<Object[]> fullRows, List<String> headers, GenericRepositoryObjectWrapper<?> repo, String date) {
+    private void addNewParentTable(List<Object[]> fullRows, List<String> headers, GenericRepositoryObjectWrapper<?> repo, String date) {
 
         try {
             // create a new table
@@ -369,7 +375,7 @@ public class OMEROSender implements Sender{
         }
     }
 
-    private void replaceExistingTable(List<Object[]> fullRows, GenericRepositoryObjectWrapper<?> repoWrapper, TableWrapper tableWrapper, String date){
+    private void replaceExistingParentTable(List<Object[]> fullRows, GenericRepositoryObjectWrapper<?> repoWrapper, TableWrapper tableWrapper, String date){
         try {
             // get the table size
             int nExistingRows = tableWrapper.getRowCount();
@@ -459,7 +465,7 @@ public class OMEROSender implements Sender{
      * @param repoWrapper
      * @return
      */
-    public static TableWrapper getLastOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper) {
+    private static TableWrapper getLastOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper) {
         try {
             // Prepare a Table
             List<TableWrapper> repoTables = repoWrapper.getTables(client);

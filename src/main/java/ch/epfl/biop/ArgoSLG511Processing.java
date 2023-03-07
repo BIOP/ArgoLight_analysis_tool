@@ -143,6 +143,9 @@ public class ArgoSLG511Processing {
             roiManager.reset();
             roiManager.close();
 
+            if(NChannels > 1)
+                imageFile.computePCC();
+
             // send image results (metrics, rings, tags, key-values)
             sender.sendResults(imageFile, retriever.getImageWrapper(i), retriever.getTarget(), savingHeatMaps);
 
