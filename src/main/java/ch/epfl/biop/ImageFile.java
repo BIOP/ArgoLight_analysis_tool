@@ -34,11 +34,11 @@ public class ImageFile {
     private final ImagePlus image;
     private List<String> tags = new ArrayList<>();
     private Map<String, String> keyValues = new HashMap<>();
-    private final int id;
+    private final long id;
     private List<List<Double>> pccValues = new ArrayList<>();
     public List<ImageChannel> channels = new ArrayList<>();
 
-    public ImageFile(ImagePlus imp, int id){
+    public ImageFile(ImagePlus imp, long id){
         this.image = imp;
         this.id = id;
         this.imgName = imp.getTitle();
@@ -58,7 +58,7 @@ public class ImageFile {
     public int getNChannels(){ return this.channels.size(); }
     public String getImgNameWithoutExtension() { return this.imgNameWithoutExtension; }
     public Map<String,String> getKeyValues(){ return this.keyValues; }
-    public int getId(){
+    public long getId(){
         return this.id;
     }
     public List<String> getTags(){

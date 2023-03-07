@@ -40,7 +40,7 @@ public class ArgoSLG511Processing {
             // get the image
             ImagePlus imp = retriever.getImage(i);
             // create a new ImageFile object
-            ImageFile imageFile = new ImageFile(imp, i);
+            ImageFile imageFile = new ImageFile(imp, retriever.getImageWrapper(i).getId());
 
             // pixel size of the image
             final double pixelSizeImage = imp.getCalibration().pixelWidth;

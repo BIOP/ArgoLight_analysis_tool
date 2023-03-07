@@ -69,26 +69,40 @@ public class LocalSender implements Sender{
 
     @Override
     public void sendResults(ImageFile imageFile, ImageWrapper imageWrapper, boolean savingHeatMaps) {
+        // create the image folder
         this.imageFolder = this.parentFolder + File.separator + imageFile.getImgNameWithoutExtension();
         File imageFileFolder = new File(this.imageFolder);
+
         if(imageFileFolder.exists() || imageFileFolder.mkdir()) {
-            sendKeyValues(imageFile.getKeyValues());
+            // get image keyValues
+            Map<String, String> keyValues = imageFile.getKeyValues();
+
+            // send PCC table
             if (imageFile.getNChannels() > 1)
                 sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
 
             for (int i = 0; i < imageFile.getNChannels(); i++) {
                 ImageChannel channel = imageFile.getChannel(i);
-                sendGridPoints(channel.getGridRings(), channel.getId(), "measuredGrid"); // working
-                sendGridPoints(channel.getIdealGridRings(), channel.getId(), "idealGrid"); // working
-                // sendKeyValues(channel.getKeyValues()); //working
+                // get channel keyValues
+                keyValues.putAll(channel.getKeyValues());
+                // send Rois
+                sendGridPoints(channel.getGridRings(), channel.getId(), "measuredGrid");
+                sendGridPoints(channel.getIdealGridRings(), channel.getId(), "idealGrid");
+                // send Results table
                 sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
 
+                // send heat maps
                 if (savingHeatMaps) {
                     sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()), this.imageFolder);
                     sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()), this.imageFolder);
                     sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()), this.imageFolder);
                 }
             }
+
+            // send key values
+            keyValues.put("Image_ID",""+imageFile.getId());
+            sendKeyValues(keyValues);
+
         } else IJLogger.error("Cannot create image folder "+this.imageFolder);
     }
 
