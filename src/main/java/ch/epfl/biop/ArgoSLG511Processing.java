@@ -32,8 +32,7 @@ public class ArgoSLG511Processing {
     final private static int argoNPoints = 21; // on each row/column
     final private static String thresholdingMethod = "Huang dark";
 
-    public static void run(OMERORetriever retriever, boolean savingHeatMaps){
-        Sender sender = retriever.createSender();
+    public static void run(OMERORetriever retriever, boolean savingHeatMaps, Sender sender){
         Map<ImageWrapper, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
 
@@ -147,7 +146,7 @@ public class ArgoSLG511Processing {
                 imageFile.computePCC();
 
             // send image results (metrics, rings, tags, key-values)
-            sender.sendResults(imageFile, retriever.getImageWrapper(i), retriever.getTarget(), savingHeatMaps);
+            sender.sendResults(imageFile, retriever.getImageWrapper(i), savingHeatMaps);
 
             // metrics summary to populate parent table
             Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
@@ -156,7 +155,7 @@ public class ArgoSLG511Processing {
                 summaryMap.put(retriever.getImageWrapper(i), allChannelMetrics.values().iterator().next());
         }
 
-        sender.populateParentTable(summaryMap, headers, retriever.getTarget(), !retriever.isProcessingAllRawImages());
+        sender.populateParentTable(summaryMap, headers, !retriever.isProcessingAllRawImages());
     }
 
 

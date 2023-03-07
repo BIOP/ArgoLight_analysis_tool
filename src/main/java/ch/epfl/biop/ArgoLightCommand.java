@@ -1,5 +1,8 @@
 package ch.epfl.biop;
 
+import ch.epfl.biop.senders.LocalSender;
+import ch.epfl.biop.senders.OMEROSender;
+import ch.epfl.biop.senders.Sender;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
 import net.imagej.ImageJ;
@@ -62,9 +65,16 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
 
             boolean savingHeatMaps = !savingOption.equals("No heat maps saving");
 
+
+            Sender sender;
+            if(saveLocally)
+                sender = new LocalSender(this.folder.getAbsolutePath());
+            else
+                sender = new OMEROSender(client, omeroRetriever.getParentDataset());
+
             // run analysis
             if(nImages > 0)
-                ArgoSLG511Processing.run(omeroRetriever, savingHeatMaps);
+                ArgoSLG511Processing.run(omeroRetriever, savingHeatMaps, sender);
 
             else IJLogger.error("No images are available for project "+argoLightProjectId+", dataset "+microscope);
 

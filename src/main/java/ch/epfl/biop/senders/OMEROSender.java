@@ -49,13 +49,15 @@ public class OMEROSender implements Sender{
     final Client client;
     private ImageWrapper imageWrapper;
     final private static String PROCESSED_FEATURE = "feature";
+    private final String target;
 
-    public OMEROSender(Client client){
+    public OMEROSender(Client client, String datasetTarget){
         this.client = client;
+        this.target = datasetTarget;
     } //TODO ajouter le boolean "local heat map saving"
 
     @Override
-    public void sendResults(ImageFile imageFile, ImageWrapper imageWrapper, String target, boolean savingHeatMaps) {
+    public void sendResults(ImageFile imageFile, ImageWrapper imageWrapper, boolean savingHeatMaps) {
         this.imageWrapper = imageWrapper;
 
        // sendKeyValues(imageFile.getKeyValues());
@@ -65,12 +67,13 @@ public class OMEROSender implements Sender{
 
         for(int i = 0; i < imageFile.getNChannels(); i++){
             ImageChannel channel = imageFile.getChannel(i);
-            //sendGridPoints(channel.getGridRings(), channel.getIdealGridRings(), channel.getId()); // working
+            //sendGridPoints(channel.getGridRings(), channel.getId(), "measuredGrid"); // working
+            //sendGridPoints(channel.getIdealGridRings(), channel.getId(),"idealGrid"); // working
            // sendKeyValues(channel.getKeyValues()); //working
             sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
 
             if(savingHeatMaps)
-                sendHeatMaps(channel, imageFile.getImgNameWithoutExtension(), target);
+                sendHeatMaps(channel, imageFile.getImgNameWithoutExtension(), this.target);
         }
 
     }
@@ -165,21 +168,15 @@ public class OMEROSender implements Sender{
     }
 
     @Override
-    public void sendGridPoints(List<Roi> grid, List<Roi> ideal, int channelId) {
+    public void sendGridPoints(List<Roi> rois, int channelId, String roiTitle) {
         // import ROIs on OMERO
-        if (!(grid.isEmpty()) && !(ideal.isEmpty())) {
-            String currentGrid = "measuredGrid";
-            List<ShapeData> gridShapes = convertIJRoisToShapeData(grid, channelId, currentGrid);
-            currentGrid = "idealGrid";
-            List<ShapeData> idealGridShapes = convertIJRoisToShapeData(ideal, channelId, currentGrid);
+        if (!(rois.isEmpty())) {
+            List<ShapeData> gridShapes = convertIJRoisToShapeData(rois, channelId, roiTitle);
 
             ROIData roiGrid = new ROIData();
             gridShapes.forEach(roiGrid::addShapeData);
 
-            ROIData roiIdealGrid = new ROIData();
-            idealGridShapes.forEach(roiIdealGrid::addShapeData);
-
-            List<ROIWrapper> omeroRois = new ArrayList<ROIWrapper>(){{add(new ROIWrapper(roiGrid)); add(new ROIWrapper(roiIdealGrid));}};
+            List<ROIWrapper> omeroRois = new ArrayList<ROIWrapper>(){{add(new ROIWrapper(roiGrid));}};
             try {
                 // save ROIs
                 this.imageWrapper.saveROIs(this.client, omeroRois);
@@ -189,33 +186,6 @@ public class OMEROSender implements Sender{
         } else {
             IJLogger.info("Upload annotations","There is no Annotations to upload on OMERO");
         }
-
-        // pour le local sender ==> code du ROI manager
-       /* try {
-            ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path)));
-            out = new DataOutputStream(new BufferedOutputStream(zos));
-            RoiEncoder re = new RoiEncoder(out);
-            for (int i=0; i<indexes.length; i++) {
-                IJ.showProgress(i, indexes.length);
-                String label = getUniqueName(names, indexes[i]);
-                Roi roi = (Roi)rois.get(indexes[i]);
-                if (IJ.debugMode) IJ.log("saveMultiple: "+i+"  "+label+"  "+roi);
-                if (roi==null) continue;
-                if (!label.endsWith(".roi")) label += ".roi";
-                zos.putNextEntry(new ZipEntry(label));
-                re.write(roi);
-                out.flush();
-            }
-            out.close();
-        } catch (IOException e) {
-            errorMessage = ""+e;
-            error(errorMessage);
-            return false;
-        } finally {
-            if (out!=null)
-                try {out.close();} catch (IOException e) {}
-        }*/
-
     }
 
     @Override
@@ -295,7 +265,7 @@ public class OMEROSender implements Sender{
 
 
     @Override
-    public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, String target, boolean populateExistingTable) {
+    public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
         // get the current date
         LocalDateTime localDateTime = LocalDateTime.now();
         LocalTime localTime = localDateTime.toLocalTime();
@@ -326,7 +296,7 @@ public class OMEROSender implements Sender{
 
         try {
             // get the current dataset
-            DatasetWrapper dataset = this.client.getDataset(Long.parseLong(target));
+            DatasetWrapper dataset = this.client.getDataset(Long.parseLong(this.target));
 
             if(populateExistingTable) {
                 // get existing table
@@ -341,7 +311,7 @@ public class OMEROSender implements Sender{
 
             IJLogger.info("Results table for dataset " + dataset.getName() + " : " + dataset.getId() + " has been uploaded");
         } catch (DSAccessException | ServiceException | ExecutionException e) {
-            IJLogger.error("Cannot add the results table to dataset " + target);
+            IJLogger.error("Cannot add the results table to dataset " + this.target);
         }
 
     }

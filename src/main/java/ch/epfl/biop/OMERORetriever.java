@@ -1,5 +1,6 @@
 package ch.epfl.biop;
 
+import ch.epfl.biop.senders.LocalSender;
 import ch.epfl.biop.senders.OMEROSender;
 import ch.epfl.biop.senders.Sender;
 import fr.igred.omero.Client;
@@ -20,7 +21,6 @@ public class OMERORetriever implements Retriever {
     final private Client client;
     private List<ImageWrapper> images = new ArrayList<>();
     private long datasetId = -1;
-
     private boolean processAllRawImages = false;
 
     public OMERORetriever(Client client){
@@ -127,13 +127,9 @@ public class OMERORetriever implements Retriever {
         return this.images.size();
     }
 
-    @Override
-    public Sender createSender() {
-        return new OMEROSender(this.client);
-    }
 
     @Override
-    public String getTarget() {
+    public String getParentDataset() {
         return ""+this.datasetId;
     }
 
@@ -142,7 +138,4 @@ public class OMERORetriever implements Retriever {
         return this.processAllRawImages;
     }
 
-    public Sender createLocalSender() {
-        return null;
-    }
 }
