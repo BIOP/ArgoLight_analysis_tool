@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -118,11 +119,32 @@ public class LocalSender implements Sender{
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
 
+
     }
 
     @Override
     public void sendPCCTable(List<List<Double>> pccValues, int nChannels) {
+        List<Integer> chs1 = new ArrayList<>();
+        List<Integer> chs2 = new ArrayList<>();
 
+        for(int i = 0; i < nChannels-1; i++)
+            for(int j = i+1; j < nChannels; j++){
+                chs1.add(i);
+                chs2.add(j);
+            }
+        String text = "";
+        for (int i = 0; i < chs1.size(); i++) {
+            text += "ch"+chs1.get(i)+"_ch"+chs2.get(i)+",";
+        }
+        text += "\n";
+
+        for (List<Double> channelPCCValue : pccValues) {
+            for (Double ringPCCValue : channelPCCValue) text += ringPCCValue + ",";
+            text += "\n";
+        }
+
+        File file = new File(this.parentFolder + File.separator + "PCC_table.csv");
+        saveCsvFile(file, text);
     }
 
     private void saveCsvFile(File file, String text){
