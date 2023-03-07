@@ -65,18 +65,20 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
 
             boolean savingHeatMaps = !savingOption.equals("No heat maps saving");
 
+            if(this.folder.exists()){
+                Sender sender;
+                if(saveLocally)
+                    sender = new LocalSender(this.folder, microscope);
+                else
+                    sender = new OMEROSender(client, omeroRetriever.getParentDataset());
 
-            Sender sender;
-            if(saveLocally)
-                sender = new LocalSender(this.folder.getAbsolutePath());
-            else
-                sender = new OMEROSender(client, omeroRetriever.getParentDataset());
+                // run analysis
+                if(nImages > 0)
+                    ArgoSLG511Processing.run(omeroRetriever, savingHeatMaps, sender);
+                else IJLogger.error("No images are available for project "+argoLightProjectId+", dataset "+microscope);
 
-            // run analysis
-            if(nImages > 0)
-                ArgoSLG511Processing.run(omeroRetriever, savingHeatMaps, sender);
+            } else IJLogger.error("Directory "+this.folder.getAbsolutePath()+" doesn't exists");
 
-            else IJLogger.error("No images are available for project "+argoLightProjectId+", dataset "+microscope);
 
         } finally {
             client.disconnect();

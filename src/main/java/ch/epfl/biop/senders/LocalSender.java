@@ -8,7 +8,6 @@ import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.io.FileSaver;
 import ij.io.RoiEncoder;
-import mdbtools.libmdb.file;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
@@ -18,37 +17,79 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class LocalSender implements Sender{
+    private final String parentFolder;
+    private String imageFolder;
 
-    private String parentFolder;
+    public LocalSender(File target, String microscopeName){
+        //Check if the selected folder is the microscope folder
+        if(!target.getName().contains(microscopeName)){
+            // list files in the folder
+            File[] files = target.listFiles();
+            if(files != null) {
+                // find the one with the microscope name
+                List<File> microscopeList = Arrays.stream(files)
+                        .filter(e -> e.isDirectory() && e.getName().contains(microscopeName))
+                        .collect(Collectors.toList());
 
-    public LocalSender(String target){
-        this.parentFolder = target;
+                if (microscopeList.isEmpty()){
+                    // create the microscope folder if it doesn't exist
+                    String microscopeFolderPath = target.getAbsolutePath() + File.separator + microscopeName;
+                    if(new File(microscopeFolderPath).mkdir())
+                        this.parentFolder = microscopeFolderPath;
+                    else{
+                        IJLogger.error("Cannot create folder "+microscopeFolderPath+ ". Use this folder instead "+target.getAbsolutePath());
+                        this.parentFolder = target.getAbsolutePath();
+                    }
+                }else{
+                    // select the existing microscope folder
+                    File microscopeFolder = microscopeList.get(0);
+                    this.parentFolder = microscopeFolder.getAbsolutePath();
+                }
+            }else{
+                // create the microscope folder if it doesn't exist
+                String microscopeFolderPath = target.getAbsolutePath() + File.separator + microscopeName;
+                if(new File(microscopeFolderPath).mkdir())
+                    this.parentFolder = microscopeFolderPath;
+                else{
+                    IJLogger.error("Cannot create folder "+microscopeFolderPath+ ". Use this folder instead "+target.getAbsolutePath());
+                    this.parentFolder = target.getAbsolutePath();
+                }
+            }
+        }else this.parentFolder = target.getAbsolutePath();
     }
+
     @Override
     public void sendResults(ImageFile imageFile, ImageWrapper imageWrapper, boolean savingHeatMaps) {
-        sendKeyValues(imageFile.getKeyValues());
-        if(imageFile.getNChannels() > 1)
-            sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
+        this.imageFolder = this.parentFolder + File.separator + imageFile.getImgNameWithoutExtension();
+        File imageFileFolder = new File(this.imageFolder);
+        if(imageFileFolder.exists() || imageFileFolder.mkdir()) {
+            sendKeyValues(imageFile.getKeyValues());
+            if (imageFile.getNChannels() > 1)
+                sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
 
-        for(int i = 0; i < imageFile.getNChannels(); i++){
-            ImageChannel channel = imageFile.getChannel(i);
-            sendGridPoints(channel.getGridRings(), channel.getId(), "measuredGrid"); // working
-            sendGridPoints(channel.getIdealGridRings(), channel.getId(),"idealGrid"); // working
-            // sendKeyValues(channel.getKeyValues()); //working
-            sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
+            for (int i = 0; i < imageFile.getNChannels(); i++) {
+                ImageChannel channel = imageFile.getChannel(i);
+                sendGridPoints(channel.getGridRings(), channel.getId(), "measuredGrid"); // working
+                sendGridPoints(channel.getIdealGridRings(), channel.getId(), "idealGrid"); // working
+                // sendKeyValues(channel.getKeyValues()); //working
+                sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
 
-            if(savingHeatMaps) {
-                sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()), this.parentFolder);
-                sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()), this.parentFolder);
-                sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()), this.parentFolder);
+                if (savingHeatMaps) {
+                    sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()), this.imageFolder);
+                    sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()), this.imageFolder);
+                    sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()), this.imageFolder);
+                }
             }
-        }
+        } else IJLogger.error("Cannot create image folder "+this.imageFolder);
     }
 
     @Override
@@ -72,13 +113,13 @@ public class LocalSender implements Sender{
             text += keyValue.getKey() + "," + keyValue.getValue()+"\n";
         }
 
-        File file = new File(this.parentFolder + File.separator + "keyValues.csv");
+        File file = new File(this.imageFolder + File.separator + "keyValues.csv");
         saveCsvFile(file, text);
     }
 
     @Override
     public void sendGridPoints(List<Roi> rois,  int channelId, String roiTitle) {
-        String path = this.parentFolder + File.separator + roiTitle + "_ch" + channelId + ".zip";
+        String path = this.imageFolder + File.separator + roiTitle + "_ch" + channelId + ".zip";
         DataOutputStream out  = null;
         try {
             ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path)));
@@ -111,7 +152,7 @@ public class LocalSender implements Sender{
                 text += fieldDistortion.get(i) + "," + fieldUniformity.get(i) + "," + fwhm.get(i) + "\n";
             }
 
-            File file = new File(this.parentFolder + File.separator + "Results_table_ch"+channelId+".csv");
+            File file = new File(this.imageFolder + File.separator + "Results_table_ch"+channelId+".csv");
             saveCsvFile(file, text);
         }
     }
@@ -143,7 +184,7 @@ public class LocalSender implements Sender{
             text += "\n";
         }
 
-        File file = new File(this.parentFolder + File.separator + "PCC_table.csv");
+        File file = new File(this.imageFolder + File.separator + "PCC_table.csv");
         saveCsvFile(file, text);
     }
 
@@ -156,4 +197,50 @@ public class LocalSender implements Sender{
             IJLogger.error("Saving KeyValues", "Error when saving key values as csv in "+file.getAbsolutePath());
         }
     }
+
+    /**
+     * get the last table in the specified folder that correspond to the current microscope
+     *
+     * @param folder
+     * @param testedMicroscope
+     * @return
+     */
+    public static File getLastLocalTable(File folder, String testedMicroscope){
+        // list all files within the folder
+        File[] childfiles = folder.listFiles();
+
+        if(childfiles == null)
+            return null;
+
+        // get all names of csv files
+        List<String> names = Arrays.stream(childfiles)
+                .filter(e -> e.isFile() && e.getName().contains("."))
+                .filter(f -> f.getName().substring(f.getName().lastIndexOf(".") + 1).equals("csv"))
+                .map(File::getName)
+                .collect(Collectors.toList());
+
+        if(names.isEmpty())
+            return null;
+
+        // filter only argoLight related csv files
+        names = names.stream().filter(e->e.contains(testedMicroscope)).collect(Collectors.toList());
+
+        // get dates
+        List<String> orderedDate = new ArrayList<>();
+        names.forEach(name-> orderedDate.add(name.split("_")[0]));
+
+        // sort dates in reverse order (larger to smaller date)
+        orderedDate.sort(Comparator.reverseOrder());
+
+        if(orderedDate.isEmpty())
+            return null;
+
+        // get the name of the latest csv file
+        String lastTable = names.stream().filter(e -> e.contains(orderedDate.get(0))).collect(Collectors.toList()).get(0);
+
+        // return the csv file
+        return new File(folder + File.separator + lastTable);
+    }
+
+
 }
