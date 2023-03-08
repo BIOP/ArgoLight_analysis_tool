@@ -215,12 +215,11 @@ public class LocalSender implements Sender{
             }
 
         String microscopeName = new File(this.parentFolder).getName();
+        File file = new File(this.parentFolder + File.separator + date + "_" + microscopeName + "_Table.csv");
 
         if(!populateExistingTable || lastTable == null) {
-            File file = new File(this.parentFolder + File.separator + date + "_" + microscopeName + "_Table");
             saveCsvFile(file, text);
         } else {
-            File file = new File(this.parentFolder + File.separator + date + "_" + microscopeName + "_Table.csv");
             boolean success = appendCsvFile(lastTable, text);
             if(success)
                 if(!lastTable.renameTo(file)) IJLogger.warn("Cannot rename "+lastTable.getName() + " to " +file.getName());
