@@ -9,6 +9,7 @@ import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.ImageWrapper;
+import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.io.FileSaver;
@@ -22,6 +23,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -180,8 +184,47 @@ public class LocalSender implements Sender{
 
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
+        // get the current date
+        LocalDateTime localDateTime = LocalDateTime.now();
+        LocalTime localTime = localDateTime.toLocalTime();
+        LocalDate localDate = localDateTime.toLocalDate();
+        String date = ""+localDate.getYear()+
+                (localDate.getMonthValue() < 10 ? "0"+localDate.getMonthValue():localDate.getMonthValue()) +
+                (localDate.getDayOfMonth() < 10 ? "0"+localDate.getDayOfMonth():localDate.getDayOfMonth())+"-"+
+                (localTime.getHour() < 10 ? "0"+localTime.getHour():localTime.getHour())+"h"+
+                (localTime.getMinute() < 10 ? "0"+localTime.getMinute():localTime.getMinute())+"m"+
+                (localTime.getSecond() < 10 ? "0"+localTime.getSecond():localTime.getSecond());
 
+        File lastTable = getLastLocalTable(this.parentFolder);
+        String text = "";
 
+        if(!populateExistingTable || lastTable == null) {
+            text = "Image ID,Label";
+            for (String header : headers) {
+                text += "," + header;
+            }
+            text += "\n";
+        }
+
+        List<ImageWrapper> imageWrapperList = new ArrayList<>(summary.keySet());
+        for (ImageWrapper imageWrapper : imageWrapperList)
+            for (List<Double> metricsList : summary.get(imageWrapper)) {
+                text += "" + imageWrapper.getId() + "," + imageWrapper.getName();
+                for (Double metric : metricsList) text += "," + metric;
+                text += "\n";
+            }
+
+        String microscopeName = new File(this.parentFolder).getName();
+
+        if(!populateExistingTable || lastTable == null) {
+            File file = new File(this.parentFolder + File.separator + date + "_" + microscopeName + "_Table");
+            saveCsvFile(file, text);
+        } else {
+            File file = new File(this.parentFolder + File.separator + date + "_" + microscopeName + "_Table.csv");
+            boolean success = appendCsvFile(lastTable, text);
+            if(success)
+                if(!lastTable.renameTo(file)) IJLogger.warn("Cannot rename "+lastTable.getName() + " to " +file.getName());
+        }
     }
 
     @Override
@@ -241,32 +284,48 @@ public class LocalSender implements Sender{
         }
     }
 
-    private void saveCsvFile(File file, String text){
+    private boolean saveCsvFile(File file, String text){
         try {
             try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
                 bw.write(text);
+                return true;
             }
         }catch (IOException e){
-            IJLogger.error("Saving KeyValues", "Error when saving key values as csv in "+file.getAbsolutePath());
+            IJLogger.error("Saving csv file", "Error when saving csv in "+file.getAbsolutePath());
+            return false;
+        }
+    }
+
+
+    private boolean appendCsvFile(File file, String text){
+        try {
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
+                bw.write(text);
+                return true;
+            }
+        }catch (IOException e){
+            IJLogger.error("Updating csv File", "Error when trying to update csv file in "+file.getAbsolutePath());
+            return false;
         }
     }
 
     /**
      * get the last table in the specified folder that correspond to the current microscope
      *
-     * @param folder
-     * @param testedMicroscope
+     * @param folderPath
      * @return
      */
-    public static File getLastLocalTable(File folder, String testedMicroscope){
+    public static File getLastLocalTable(String folderPath){
         // list all files within the folder
-        File[] childfiles = folder.listFiles();
+        File folder = new File(folderPath);
+        File[] childFiles = folder.listFiles();
+        String testedMicroscope = folder.getName();
 
-        if(childfiles == null)
+        if(childFiles == null)
             return null;
 
         // get all names of csv files
-        List<String> names = Arrays.stream(childfiles)
+        List<String> names = Arrays.stream(childFiles)
                 .filter(e -> e.isFile() && e.getName().contains("."))
                 .filter(f -> f.getName().substring(f.getName().lastIndexOf(".") + 1).equals("csv"))
                 .map(File::getName)
