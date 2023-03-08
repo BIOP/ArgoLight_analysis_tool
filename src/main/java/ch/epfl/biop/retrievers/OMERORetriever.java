@@ -101,6 +101,7 @@ public class OMERORetriever implements Retriever {
         return this.images.get(index);
     }
 
+    public Client getClient(){ return this.client; }
 
     @Override
     public ImagePlus getImage(int index) {
@@ -126,7 +127,7 @@ public class OMERORetriever implements Retriever {
 
 
     @Override
-    public String getParentDataset() {
+    public String getParentTarget() {
         return ""+this.datasetId;
     }
 

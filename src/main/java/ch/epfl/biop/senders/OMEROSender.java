@@ -59,7 +59,7 @@ public class OMEROSender implements Sender{
         this.imageWrapper = imageWrapper;
 
        // sendKeyValues(imageFile.getKeyValues());
-        sendTags(imageFile.getTags(), this.imageWrapper);
+        //sendTags(imageFile.getTags(), this.imageWrapper, this.client);
         if(imageFile.getNChannels() > 1)
             sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
 
@@ -79,20 +79,21 @@ public class OMEROSender implements Sender{
 
     }
 
-    public void sendTags(List<String> tags, ImageWrapper imageWrapper) {
+    @Override
+    public void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client) {
         for(String tag : tags) {
             try {
                 // get the corresponding tag in the list of available tags if exists
-                List<TagAnnotationWrapper> rawTag = this.client.getTags().stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
+                List<TagAnnotationWrapper> rawTag = client.getTags().stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
 
                 // check if the tag is already applied to the current image
-                boolean isTagAlreadyExists = imageWrapper.getTags(this.client)
+                boolean isTagAlreadyExists = imageWrapper.getTags(client)
                         .stream()
                         .anyMatch(t -> t.getName().equals(tag));
 
                 // add the tag to the current image if it is not already the case
                 if (!isTagAlreadyExists) {
-                    imageWrapper.addTag(this.client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
+                    imageWrapper.addTag(client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
                     IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + imageWrapper.getId());
                 } else
                     IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());
@@ -119,8 +120,8 @@ public class OMEROSender implements Sender{
 
         try {
             // Import image on OMERO
-            List<Long> analysisImage_omeroID = client.getDataset(Long.parseLong(target)).importImage(client, localImageFile.toString());
-            ImageWrapper analysisImage_wpr = client.getImage(analysisImage_omeroID.get(0));
+            List<Long> analysisImage_omeroID = this.client.getDataset(Long.parseLong(target)).importImage(this.client, localImageFile.toString());
+            ImageWrapper analysisImage_wpr = this.client.getImage(analysisImage_omeroID.get(0));
             IJLogger.info("Upload heatMap", imp.getTitle() + ".tif" + " was uploaded to OMERO with ID : " + analysisImage_omeroID);
 
             List<String> tags = new ArrayList<String>(){{
@@ -128,7 +129,7 @@ public class OMEROSender implements Sender{
                 add("argolight");
                 add((String)imp.getProperty(PROCESSED_FEATURE));
             }};
-            sendTags(tags, analysisImage_wpr);
+            sendTags(tags, analysisImage_wpr, this.client);
 
         } catch (ServiceException | AccessException | ExecutionException | OMEROServerError e) {
             IJLogger.error("Upload heatMap", "Cannot upload heat maps on OMERO");

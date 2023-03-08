@@ -15,6 +15,8 @@ import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
 public class ArgoLightCommand extends DynamicCommand implements Command {
@@ -73,7 +75,7 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
                 if(saveLocally)
                     sender = new LocalSender(this.folder, microscope);
                 else
-                    sender = new OMEROSender(client, omeroRetriever.getParentDataset());
+                    sender = new OMEROSender(client, omeroRetriever.getParentTarget());
 
                 // run analysis
                 if(nImages > 0)

@@ -1,6 +1,7 @@
 package ch.epfl.biop.senders;
 
 import ch.epfl.biop.image.ImageFile;
+import fr.igred.omero.Client;
 import fr.igred.omero.repository.ImageWrapper;
 import ij.ImagePlus;
 import ij.gui.Roi;
@@ -17,4 +18,5 @@ public interface Sender {
     void sendResultsTable(List<Double> fieldDistortion, List<Double> fieldUniformity, List<Double> fwhm, int channelId);
     void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable);
     void sendPCCTable(List<List<Double>> pccValues, int nChannels);
+    void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client);
 }

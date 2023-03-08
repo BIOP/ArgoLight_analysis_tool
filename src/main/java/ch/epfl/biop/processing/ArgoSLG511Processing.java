@@ -150,6 +150,7 @@ public class ArgoSLG511Processing {
                 imageFile.computePCC();
 
             // send image results (metrics, rings, tags, key-values)
+            sender.sendTags(imageFile.getTags(), retriever.getImageWrapper(i), retriever.getClient());
             sender.sendResults(imageFile, retriever.getImageWrapper(i), savingHeatMaps);
 
             // metrics summary to populate parent table

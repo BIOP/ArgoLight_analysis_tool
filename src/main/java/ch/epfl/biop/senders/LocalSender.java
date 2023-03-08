@@ -3,11 +3,17 @@ package ch.epfl.biop.senders;
 import ch.epfl.biop.utils.IJLogger;
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
+import fr.igred.omero.Client;
+import fr.igred.omero.annotations.TagAnnotationWrapper;
+import fr.igred.omero.exception.AccessException;
+import fr.igred.omero.exception.OMEROServerError;
+import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.ImageWrapper;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.io.FileSaver;
 import ij.io.RoiEncoder;
+import omero.gateway.model.TagAnnotationData;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
@@ -21,6 +27,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -200,6 +207,38 @@ public class LocalSender implements Sender{
 
         File file = new File(this.imageFolder + File.separator + "PCC_table.csv");
         saveCsvFile(file, text);
+    }
+
+
+    /**
+     * To add tags on OMERO to the processed image
+     * @param tags
+     * @param imageWrapper
+     * @param client
+     */
+    @Override
+    public void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client) {
+        for(String tag : tags) {
+            try {
+                // get the corresponding tag in the list of available tags if exists
+                List<TagAnnotationWrapper> rawTag = client.getTags().stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
+
+                // check if the tag is already applied to the current image
+                boolean isTagAlreadyExists = imageWrapper.getTags(client)
+                        .stream()
+                        .anyMatch(t -> t.getName().equals(tag));
+
+                // add the tag to the current image if it is not already the case
+                if (!isTagAlreadyExists) {
+                    imageWrapper.addTag(client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
+                    IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + imageWrapper.getId());
+                } else
+                    IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());
+
+            } catch (ServiceException | OMEROServerError | AccessException | ExecutionException e) {
+                IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + imageWrapper.getId());
+            }
+        }
     }
 
     private void saveCsvFile(File file, String text){
