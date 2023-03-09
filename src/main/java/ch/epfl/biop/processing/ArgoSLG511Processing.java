@@ -36,131 +36,111 @@ public class ArgoSLG511Processing {
     final private static int argoNPoints = 21; // on each row/column
     final private static String thresholdingMethod = "Huang dark";
 
-    public static void run(OMERORetriever retriever, boolean savingHeatMaps, Sender sender){
-        Map<ImageWrapper, List<List<Double>>> summaryMap = new HashMap<>();
-        List<String> headers = new ArrayList<>();
+    public static void run(ImageFile imageFile){
+        ImagePlus imp = imageFile.getImage();
+        // pixel size of the image
+        final double pixelSizeImage = imp.getCalibration().pixelWidth;
+        // spot radius to compute the FWHM
+        final double lineLength = (int)(1.25 / pixelSizeImage);
+        // spot radius to compute other metrics
+        final double ovalRadius = (int)(1.25 / pixelSizeImage);
+        // Number of channels
+        final int NChannels = imp.getNChannels();
 
-        for(int i = 0; i < retriever.getNImages(); i++){
-            // get the image
-            ImagePlus imp = retriever.getImage(i);
-            // create a new ImageFile object
-            ImageFile imageFile = new ImageFile(imp, retriever.getImageWrapper(i).getId());
+        // add tags
+        imageFile.addTags("raw", "argolight");
 
-            // pixel size of the image
-            final double pixelSizeImage = imp.getCalibration().pixelWidth;
-            // spot radius to compute the FWHM
-            final double lineLength = (int)(1.25 / pixelSizeImage);
-            // spot radius to compute other metrics
-            final double ovalRadius = (int)(1.25 / pixelSizeImage);
-            // Number of channels
-            final int NChannels = imp.getNChannels();
+        // add key-values common to all channels
+        imageFile.addKeyValue("Pixel_size_(um)",""+pixelSizeImage);
+        imageFile.addKeyValue("Profile_length_for_FWHM_(pix)",""+lineLength);
+        imageFile.addKeyValue("Oval_radius_(pix)",""+ovalRadius);
+        imageFile.addKeyValue("thresholding_method", thresholdingMethod);
 
-            // add tags
-            imageFile.addTags("raw", "argolight");
+        RoiManager roiManager = new RoiManager();
 
-            // add key-values common to all channels
-            imageFile.addKeyValue("Pixel_size_(um)",""+pixelSizeImage);
-            imageFile.addKeyValue("Profile_length_for_FWHM_(pix)",""+lineLength);
-            imageFile.addKeyValue("Oval_radius_(pix)",""+ovalRadius);
-            imageFile.addKeyValue("thresholding_method", thresholdingMethod);
-
-            RoiManager roiManager = new RoiManager();
-
-            for(int c = 0; c < NChannels; c++){
-                // reset all windows
-                IJ.run("Close All", "");
-                roiManager.reset();
-
-                ImageChannel imageChannel = new ImageChannel(c, imp.getWidth(), imp.getHeight());
-
-                // extract the current channel
-                ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + c, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
-                imp.setPosition(c+1,1,1);
-                channel.setProcessor(imp.getProcessor());
-                channel.show();
-
-                // get the central cross
-                Roi crossRoi = getCentralCross(channel, roiManager, pixelSizeImage);
-                imageChannel.setCenterCross(crossRoi);
-                IJLogger.info("Channel "+c,"Cross = " +crossRoi);
-
-                // add the cross ROI on the image
-                roiManager.addRoi(crossRoi);
-                channel.setRoi(crossRoi);
-
-                double sigma = 0.14 * argoSpacing / (pixelSizeImage * Math.sqrt(2));
-                List<Point2D> gridPoints = getGridPoint2(channel, crossRoi, pixelSizeImage, sigma);
-
-                // reduced grid to compute average step
-                List<Point2D> smallerGrid = gridPoints.stream()
-                        .filter(e -> (Math.abs(e.getX() - crossRoi.getStatistics().xCentroid) < 12.5 / pixelSizeImage && Math.abs(e.getY() - crossRoi.getStatistics().yCentroid) < 12.5 / pixelSizeImage))
-                        .collect(Collectors.toList());
-
-                // get the average x step
-                double xStepAvg = getAverageStep(smallerGrid.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage);
-                imageChannel.addKeyValue("ch"+c+"_xStepAvg_(pix)",""+xStepAvg);
-                IJLogger.info("Channel "+c,"xStepAvg = " +xStepAvg + " pix");
-
-                // get the average y step
-                double yStepAvg = getAverageStep(smallerGrid.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage);
-                imageChannel.addKeyValue("ch"+c+"_yStepAvg_(pix)",""+yStepAvg);
-                IJLogger.info("Channel "+c,"yStepAvg = " +yStepAvg + " pix");
-
-                // get the rotation angle
-                double rotationAngle = getRotationAngle(gridPoints, crossRoi);
-                imageChannel.setRotationAngle(rotationAngle*180/Math.PI);
-                IJLogger.info("Channel "+c,"Rotation angle theta = "+rotationAngle*180/Math.PI + "°");
-
-                // get the ideal grid
-                List<Point2D> idealGridPoints = getIdealGridPoints(crossRoi, (int)Math.sqrt(gridPoints.size() + 1), xStepAvg, yStepAvg, rotationAngle);
-                // display all grid points
-                gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-1.2*ovalRadius, pR.getY()-1.2*ovalRadius, 2.4*ovalRadius, 2.4*ovalRadius));});
-
-                // sort the computed grid points according to ideal grid order
-                gridPoints = sortFromReference(Arrays.asList(roiManager.getRoisAsArray()), idealGridPoints);
-
-                // display all points (grid and ideal)
-                roiManager.reset();
-                // create grid point ROIs
-                gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi((pR.getX()-ovalRadius+0.5), pR.getY()-ovalRadius+0.5, 2*ovalRadius, 2*ovalRadius));});
-                // save ROIs
-                imageChannel.addGridRings(Arrays.asList(roiManager.getRoisAsArray()));
-                // add grid point centers
-                gridPoints.forEach(pR-> {roiManager.addRoi(new PointRoi(pR.getX(), pR.getY()));});
-                // create and add ideal grid points
-                List<Roi> idealGridPointsRoi = new ArrayList<>();
-                idealGridPoints.forEach(pR-> {idealGridPointsRoi.add(new OvalRoi(pR.getX()-ovalRadius/2 +0.5, pR.getY()-ovalRadius/2 +0.5, ovalRadius, ovalRadius));});
-                idealGridPointsRoi.forEach(roiManager::addRoi);
-                imageChannel.addIdealRings(idealGridPointsRoi);
-
-                roiManager.runCommand(channel,"Show All without labels");
-
-                // compute metrics
-                imageChannel.addFieldDistortion(computeFieldDistortion(gridPoints, idealGridPoints, pixelSizeImage));
-                imageChannel.addFieldUniformity(computeFieldUniformity(gridPoints,channel,ovalRadius));
-                imageChannel.addFWHM(computeFWHM(gridPoints,channel, lineLength, roiManager, pixelSizeImage));
-
-                imageFile.addChannel(imageChannel);
-            }
-
+        for(int c = 0; c < NChannels; c++){
+            // reset all windows
+            IJ.run("Close All", "");
             roiManager.reset();
-            roiManager.close();
 
-            if(NChannels > 1)
-                imageFile.computePCC();
+            ImageChannel imageChannel = new ImageChannel(c, imp.getWidth(), imp.getHeight());
 
-            // send image results (metrics, rings, tags, key-values)
-            sender.sendTags(imageFile.getTags(), retriever.getImageWrapper(i), retriever.getClient());
-            sender.sendResults(imageFile, retriever.getImageWrapper(i), savingHeatMaps);
+            // extract the current channel
+            ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + c, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
+            imp.setPosition(c+1,1,1);
+            channel.setProcessor(imp.getProcessor());
+            channel.show();
 
-            // metrics summary to populate parent table
-            Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
-            headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
-            if(!allChannelMetrics.values().isEmpty())
-                summaryMap.put(retriever.getImageWrapper(i), allChannelMetrics.values().iterator().next());
+            // get the central cross
+            Roi crossRoi = getCentralCross(channel, roiManager, pixelSizeImage);
+            imageChannel.setCenterCross(crossRoi);
+            IJLogger.info("Channel "+c,"Cross = " +crossRoi);
+
+            // add the cross ROI on the image
+            roiManager.addRoi(crossRoi);
+            channel.setRoi(crossRoi);
+
+            double sigma = 0.14 * argoSpacing / (pixelSizeImage * Math.sqrt(2));
+            List<Point2D> gridPoints = getGridPoint2(channel, crossRoi, pixelSizeImage, sigma);
+
+            // reduced grid to compute average step
+            List<Point2D> smallerGrid = gridPoints.stream()
+                    .filter(e -> (Math.abs(e.getX() - crossRoi.getStatistics().xCentroid) < 12.5 / pixelSizeImage && Math.abs(e.getY() - crossRoi.getStatistics().yCentroid) < 12.5 / pixelSizeImage))
+                    .collect(Collectors.toList());
+
+            // get the average x step
+            double xStepAvg = getAverageStep(smallerGrid.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage);
+            imageChannel.addKeyValue("ch"+c+"_xStepAvg_(pix)",""+xStepAvg);
+            IJLogger.info("Channel "+c,"xStepAvg = " +xStepAvg + " pix");
+
+            // get the average y step
+            double yStepAvg = getAverageStep(smallerGrid.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage);
+            imageChannel.addKeyValue("ch"+c+"_yStepAvg_(pix)",""+yStepAvg);
+            IJLogger.info("Channel "+c,"yStepAvg = " +yStepAvg + " pix");
+
+            // get the rotation angle
+            double rotationAngle = getRotationAngle(gridPoints, crossRoi);
+            imageChannel.setRotationAngle(rotationAngle*180/Math.PI);
+            IJLogger.info("Channel "+c,"Rotation angle theta = "+rotationAngle*180/Math.PI + "°");
+
+            // get the ideal grid
+            List<Point2D> idealGridPoints = getIdealGridPoints(crossRoi, (int)Math.sqrt(gridPoints.size() + 1), xStepAvg, yStepAvg, rotationAngle);
+            // display all grid points
+            gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi(pR.getX()-1.2*ovalRadius, pR.getY()-1.2*ovalRadius, 2.4*ovalRadius, 2.4*ovalRadius));});
+
+            // sort the computed grid points according to ideal grid order
+            gridPoints = sortFromReference(Arrays.asList(roiManager.getRoisAsArray()), idealGridPoints);
+
+            // display all points (grid and ideal)
+            roiManager.reset();
+            // create grid point ROIs
+            gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi((pR.getX()-ovalRadius+0.5), pR.getY()-ovalRadius+0.5, 2*ovalRadius, 2*ovalRadius));});
+            // save ROIs
+            imageChannel.addGridRings(Arrays.asList(roiManager.getRoisAsArray()));
+            // add grid point centers
+            gridPoints.forEach(pR-> {roiManager.addRoi(new PointRoi(pR.getX(), pR.getY()));});
+            // create and add ideal grid points
+            List<Roi> idealGridPointsRoi = new ArrayList<>();
+            idealGridPoints.forEach(pR-> {idealGridPointsRoi.add(new OvalRoi(pR.getX()-ovalRadius/2 +0.5, pR.getY()-ovalRadius/2 +0.5, ovalRadius, ovalRadius));});
+            idealGridPointsRoi.forEach(roiManager::addRoi);
+            imageChannel.addIdealRings(idealGridPointsRoi);
+
+            roiManager.runCommand(channel,"Show All without labels");
+
+            // compute metrics
+            imageChannel.addFieldDistortion(computeFieldDistortion(gridPoints, idealGridPoints, pixelSizeImage));
+            imageChannel.addFieldUniformity(computeFieldUniformity(gridPoints,channel,ovalRadius));
+            imageChannel.addFWHM(computeFWHM(gridPoints,channel, lineLength, roiManager, pixelSizeImage));
+
+            imageFile.addChannel(imageChannel);
         }
 
-        sender.populateParentTable(summaryMap, headers, !retriever.isProcessingAllRawImages());
+        roiManager.reset();
+        roiManager.close();
+        IJ.run("Close All", "");
+
+        if(NChannels > 1)
+            imageFile.computePCC();
     }
 
 

@@ -22,7 +22,6 @@ public class ImageChannel {
     private List<Roi> gridRings = new ArrayList<>();
     private List<Roi> idealGridRings = new ArrayList<>();
     private double rotationAngle;
-
     private Map<String, String> keyValues = new TreeMap<>();
     private Roi centerCross;
 
@@ -102,7 +101,7 @@ public class ImageChannel {
     public Map<String, Double> channelSummary(){
         Map<String, Double> channelSummaryMap = new TreeMap<>();
         channelSummaryMap.put("Channel",(double)this.channelId);
-        channelSummaryMap.put("Rotation_angle__°", this.rotationAngle);
+        channelSummaryMap.put("Rotation_angle__deg", this.rotationAngle);
         IJLogger.info("Channel "+this.channelId, "Rotation angle :"+this.rotationAngle);
 
         ImageStatistics crossStats = this.centerCross.getStatistics();

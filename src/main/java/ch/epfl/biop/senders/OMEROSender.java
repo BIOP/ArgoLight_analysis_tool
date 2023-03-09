@@ -157,7 +157,7 @@ public class OMEROSender implements Sender{
             } catch (ServiceException | AccessException | ExecutionException e) {
                 IJLogger.error("Adding Key-Values", "KeyValues could not be added on the image " + this.imageWrapper.getId());
             }
-        } else IJLogger.warn("Send Key-Values", "There is no key-values to send to OMERO");
+        } else IJLogger.warn("Sending Key-Values", "There is no key-values to send to OMERO");
     }
 
     @Override
@@ -176,9 +176,8 @@ public class OMEROSender implements Sender{
             } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
                 IJLogger.error("ROI Saving","Error during saving ROIs on OMERO.");
             }
-        } else {
-            IJLogger.info("Upload annotations","There is no Annotations to upload on OMERO");
-        }
+        } else IJLogger.info("Upload annotations","There is no Annotations to upload on OMERO");
+
     }
 
     @Override
@@ -201,15 +200,17 @@ public class OMEROSender implements Sender{
             measurements.add(new ArrayList<>(channelPair));
         }
 
-        // send the omero Table
-        try {
-            TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
-            tableWrapper.setName("PCC_table");
-            this.imageWrapper.addTable(client, tableWrapper);
-            IJLogger.info("Results table for image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId()+" has been uploaded");
-        }catch(DSAccessException | ServiceException | ExecutionException e){
-            IJLogger.error("Cannot add the results table to image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId());
-        }
+        if(!columns.isEmpty()) {
+            // send the omero Table
+            try {
+                TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
+                tableWrapper.setName("PCC_table");
+                this.imageWrapper.addTable(client, tableWrapper);
+                IJLogger.info("Results table for image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId() + " has been uploaded");
+            } catch (DSAccessException | ServiceException | ExecutionException e) {
+                IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
+            }
+        } else IJLogger.warn("Saving PCC table","No results to save");
     }
 
     @Override

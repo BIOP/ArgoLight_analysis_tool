@@ -1,6 +1,7 @@
 package ch.epfl.biop.command;
 
 import ch.epfl.biop.processing.ArgoSLG511Processing;
+import ch.epfl.biop.processing.Processing;
 import ch.epfl.biop.retrievers.OMERORetriever;
 import ch.epfl.biop.senders.LocalSender;
 import ch.epfl.biop.senders.OMEROSender;
@@ -79,7 +80,7 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
 
                 // run analysis
                 if(nImages > 0)
-                    ArgoSLG511Processing.run(omeroRetriever, savingHeatMaps, sender);
+                    Processing.run(omeroRetriever, savingHeatMaps, sender);
                 else IJLogger.error("No images are available for project "+argoLightProjectId+", dataset "+microscope);
 
             } else IJLogger.error("Directory "+this.folder.getAbsolutePath()+" doesn't exists");

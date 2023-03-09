@@ -14,7 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ImageFile {
-    private final Pattern pattern = Pattern.compile("(?<microscope>.*)_o(?<objective>.*)_z(?<zoom>.*)_(?<immersion>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_?(?<series>.*)?\\.(?<extension>.*)");
+    private final Pattern pattern482 = Pattern.compile("(?<microscope>.*)_o(?<objective>.*)_z(?<zoom>.*)_(?<immersion>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_?(?<series>.*)?\\.(?<extension>.*)");
     private final String imgName;
     private final String imgNameWithoutExtension;
     private String microscope;
@@ -54,10 +54,12 @@ public class ImageFile {
     public long getId(){
         return this.id;
     }
+    public ImagePlus getImage(){ return this.image; }
     public List<String> getTags(){
         return this.tags;
     }
     public List<List<Double>> getPCC(){ return this.pccValues; }
+    public String getArgoSlideName(){ return this.argoSlideName; }
 
     public ImageChannel getChannel(int id){
         if(id >= this.channels.size()) {
@@ -68,7 +70,7 @@ public class ImageFile {
     }
 
     private void parseImageName(String imgName){
-        Matcher matcher = pattern.matcher(imgName);
+        Matcher matcher = pattern482.matcher(imgName);
 
         if(matcher.find()) {
             this.microscope = matcher.group("microscope");

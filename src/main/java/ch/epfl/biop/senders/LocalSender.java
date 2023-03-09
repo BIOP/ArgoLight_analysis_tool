@@ -114,7 +114,7 @@ public class LocalSender implements Sender{
             keyValues.put("Image_ID",""+imageFile.getId());
             sendKeyValues(keyValues);
 
-        } else IJLogger.error("Cannot create image folder "+this.imageFolder);
+        } else IJLogger.error("Cannot create image folder "+this.imageFolder + ". Results won't be saved");
     }
 
     @Override
@@ -127,46 +127,53 @@ public class LocalSender implements Sender{
         boolean hasBeenSaved = fs.saveAsTiff(analysisImage_output_path.toString());
 
          //check if the image was correctly saved
-        if(hasBeenSaved) IJLogger.info("Saving heatmaps locally"+imp.getTitle()+".tif"+" was saved in : "+ target);
-        else IJLogger.error("Saving heatmaps locally","Cannot save "+imp.getTitle()+ " in "+target);
+        if(hasBeenSaved) IJLogger.info("Saving heatmaps locally",imp.getTitle()+".tif"+" was saved in : "+ target);
+        else IJLogger.error("Saving heatmaps locally","Cannot save "+imp.getTitle()+ " in " + target);
     }
 
     @Override
     public void sendKeyValues(Map<String, String> keyValues) {
-        String text = "key,value\n";
-        for(Map.Entry<String, String> keyValue : keyValues.entrySet()){
-            text += keyValue.getKey() + "," + keyValue.getValue()+"\n";
-        }
+        if(!keyValues.isEmpty()) {
+            String text = "key,value\n";
+            for (Map.Entry<String, String> keyValue : keyValues.entrySet()) {
+                text += keyValue.getKey() + "," + keyValue.getValue() + "\n";
+            }
 
-        File file = new File(this.imageFolder + File.separator + "keyValues.csv");
-        saveCsvFile(file, text);
+            File file = new File(this.imageFolder + File.separator + "keyValues.csv");
+            saveCsvFile(file, text);
+        }else IJLogger.warn("Sending Key-Values", "There is no key-values to send !");
     }
 
     @Override
     public void sendGridPoints(List<Roi> rois,  int channelId, String roiTitle) {
-        String path = this.imageFolder + File.separator + roiTitle + "_ch" + channelId + ".zip";
-        DataOutputStream out  = null;
-        try {
-            ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path)));
-            out = new DataOutputStream(new BufferedOutputStream(zos));
-            RoiEncoder re = new RoiEncoder(out);
-            for (int i = 0; i < rois.size(); i++) {
-                String label = roiTitle + ":" + i + ":child";
-                Roi roi = rois.get(i);
-                IJLogger.info("Saving ROIs","saveMultiple: "+i+"  "+label+"  "+roi);
-                if (roi == null) continue;
-                if (!label.endsWith(".roi")) label += ".roi";
-                zos.putNextEntry(new ZipEntry(label));
-                re.write(roi);
-                out.flush();
+        if(!rois.isEmpty()) {
+            String path = this.imageFolder + File.separator + roiTitle + "_ch" + channelId + ".zip";
+            DataOutputStream out = null;
+            try {
+                ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path)));
+                out = new DataOutputStream(new BufferedOutputStream(zos));
+                RoiEncoder re = new RoiEncoder(out);
+                for (int i = 0; i < rois.size(); i++) {
+                    String label = roiTitle + ":" + i + ":child";
+                    Roi roi = rois.get(i);
+                    IJLogger.info("Saving ROIs", "saveMultiple: " + i + "  " + label + "  " + roi);
+                    if (roi == null) continue;
+                    if (!label.endsWith(".roi")) label += ".roi";
+                    zos.putNextEntry(new ZipEntry(label));
+                    re.write(roi);
+                    out.flush();
+                }
+                out.close();
+            } catch (IOException e) {
+                IJLogger.error("Saving ROIs", "An error occurs during saving process");
+            } finally {
+                if (out != null)
+                    try {
+                        out.close();
+                    } catch (IOException e) {
+                    }
             }
-            out.close();
-        } catch (IOException e) {
-            IJLogger.error("Saving ROIs", "An error occurs during saving process");
-        } finally {
-            if (out!=null)
-                try {out.close();} catch (IOException e) {}
-        }
+        } else IJLogger.warn("Saving annotations","There is no annotations to save");
     }
 
     @Override
@@ -198,7 +205,7 @@ public class LocalSender implements Sender{
         File lastTable = getLastLocalTable(this.parentFolder);
         String text = "";
 
-        if(!populateExistingTable || lastTable == null) {
+        if(!populateExistingTable || lastTable == null || !lastTable.exists()) {
             text = "Image ID,Label";
             for (String header : headers) {
                 text += "," + header;
@@ -217,7 +224,7 @@ public class LocalSender implements Sender{
         String microscopeName = new File(this.parentFolder).getName();
         File file = new File(this.parentFolder + File.separator + date + "_" + microscopeName + "_Table.csv");
 
-        if(!populateExistingTable || lastTable == null) {
+        if(!populateExistingTable || lastTable == null || !lastTable.exists()) {
             saveCsvFile(file, text);
         } else {
             boolean success = appendCsvFile(lastTable, text);
