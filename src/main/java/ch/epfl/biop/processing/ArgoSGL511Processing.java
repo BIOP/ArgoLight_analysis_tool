@@ -2,10 +2,7 @@ package ch.epfl.biop.processing;
 
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
-import ch.epfl.biop.retrievers.OMERORetriever;
-import ch.epfl.biop.senders.Sender;
 import ch.epfl.biop.utils.IJLogger;
-import fr.igred.omero.repository.ImageWrapper;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Line;
@@ -24,13 +21,11 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class ArgoSLG511Processing {
+public class ArgoSGL511Processing {
     final private static int argoSpacing = 5; // um
     final private static int argoFOV = 100; // um
     final private static int argoNPoints = 21; // on each row/column

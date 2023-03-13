@@ -26,10 +26,10 @@ public class Processing {
             ImageFile imageFile = new ImageFile(imp, imageWrapper.getId());
 
             // choose the right ArgoLight processing
-            if(imageFile.getArgoSlideName().contains("SLG482")){
-                ArgoSLG482Processing.run(imageFile);
+            if(imageFile.getArgoSlideName().contains("SGL482")){
+                ArgoSGL482Processing.run(imageFile);
             }else{
-                ArgoSLG511Processing.run(imageFile);
+                ArgoSGL511Processing.run(imageFile);
             }
 
             // send image results (metrics, rings, tags, key-values)

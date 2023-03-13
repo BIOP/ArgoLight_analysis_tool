@@ -111,39 +111,50 @@ public class ImageChannel {
         IJLogger.info("Channel "+this.channelId, "Horizontal cross shit :"+(crossStats.xCentroid - this.imageWidth/2));
         IJLogger.info("Channel "+this.channelId, "Vertical cross shit :"+(crossStats.yCentroid - this.imageHeight/2));
 
-        double[] fieldDistortionStats = Tools.computeStatistics(this.ringsFieldDistortion);
-        channelSummaryMap.put("Field_Distortion_avg__um", fieldDistortionStats[0]);
-        channelSummaryMap.put("Field_Distortion_std__um", fieldDistortionStats[1]);
-        channelSummaryMap.put("Field_Distortion_min__um", fieldDistortionStats[2]);
-        channelSummaryMap.put("Field_Distortion_max__um", fieldDistortionStats[3]);
+        if(!this.ringsFieldDistortion.isEmpty()) {
+            double[] fieldDistortionStats = Tools.computeStatistics(this.ringsFieldDistortion);
+            channelSummaryMap.put("Field_Distortion_avg__um", fieldDistortionStats[0]);
+            channelSummaryMap.put("Field_Distortion_std__um", fieldDistortionStats[1]);
+            channelSummaryMap.put("Field_Distortion_min__um", fieldDistortionStats[2]);
+            channelSummaryMap.put("Field_Distortion_max__um", fieldDistortionStats[3]);
 
-        double[] fieldUniformityStats = Tools.computeStatistics(this.ringsFieldUniformity);
-        channelSummaryMap.put("Field_Uniformity_avg", fieldUniformityStats[0]);
-        channelSummaryMap.put("Field_Uniformity_std", fieldUniformityStats[1]);
-        channelSummaryMap.put("Field_Uniformity_min", fieldUniformityStats[2]);
-        channelSummaryMap.put("Field_Uniformity_max", fieldUniformityStats[3]);
+            IJLogger.info("Channel "+this.channelId, "Field distortion (avg, std, min, max) um :"
+                    +fieldDistortionStats[0] +", "
+                    +fieldDistortionStats[1] +", "
+                    +fieldDistortionStats[2] +", "
+                    +fieldDistortionStats[3] +", ");
+        }
 
-        double[] fwhmStats = Tools.computeStatistics(this.ringsFWHM);
-        channelSummaryMap.put("Field_FWHM_avg__um", fwhmStats[0]);
-        channelSummaryMap.put("Field_FWHM_std__um", fwhmStats[1]);
-        channelSummaryMap.put("Field_FWHM_min__um", fwhmStats[2]);
-        channelSummaryMap.put("Field_FWHM_max__um", fwhmStats[3]);
+        if(!this.ringsFieldUniformity.isEmpty()) {
+            double[] fieldUniformityStats = Tools.computeStatistics(this.ringsFieldUniformity);
+            channelSummaryMap.put("Field_Uniformity_avg", fieldUniformityStats[0]);
+            channelSummaryMap.put("Field_Uniformity_std", fieldUniformityStats[1]);
+            channelSummaryMap.put("Field_Uniformity_min", fieldUniformityStats[2]);
+            channelSummaryMap.put("Field_Uniformity_max", fieldUniformityStats[3]);
 
-        IJLogger.info("Channel "+this.channelId, "Field distortion (avg, std, min, max) um :"
-                +fieldDistortionStats[0] +", "
-                +fieldDistortionStats[1] +", "
-                +fieldDistortionStats[2] +", "
-                +fieldDistortionStats[3] +", ");
-        IJLogger.info("Channel "+this.channelId, "Field uniformity (avg, std, min, max) um :"
-                +fieldUniformityStats[0] +", "
-                +fieldUniformityStats[1] +", "
-                +fieldUniformityStats[2] +", "
-                +fieldUniformityStats[3] +", ");
-        IJLogger.info("Channel "+this.channelId, "FWHM (avg, std, min, max) um :"
-                +fwhmStats[0] +", "
-                +fwhmStats[1] +", "
-                +fwhmStats[2] +", "
-                +fwhmStats[3] +", ");
+            IJLogger.info("Channel "+this.channelId, "Field uniformity (avg, std, min, max) um :"
+                    +fieldUniformityStats[0] +", "
+                    +fieldUniformityStats[1] +", "
+                    +fieldUniformityStats[2] +", "
+                    +fieldUniformityStats[3] +", ");
+        }
+
+        if(!this.ringsFWHM.isEmpty()) {
+            double[] fwhmStats = Tools.computeStatistics(this.ringsFWHM);
+            channelSummaryMap.put("Field_FWHM_avg__um", fwhmStats[0]);
+            channelSummaryMap.put("Field_FWHM_std__um", fwhmStats[1]);
+            channelSummaryMap.put("Field_FWHM_min__um", fwhmStats[2]);
+            channelSummaryMap.put("Field_FWHM_max__um", fwhmStats[3]);
+
+            IJLogger.info("Channel "+this.channelId, "FWHM (avg, std, min, max) um :"
+                    +fwhmStats[0] +", "
+                    +fwhmStats[1] +", "
+                    +fwhmStats[2] +", "
+                    +fwhmStats[3] +", ");
+        }
+
+
+
 
         return channelSummaryMap;
     }

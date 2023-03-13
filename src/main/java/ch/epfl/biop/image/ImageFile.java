@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,7 +27,7 @@ public class ImageFile {
     private String argoSlidePattern;
     private final ImagePlus image;
     private List<String> tags = new ArrayList<>();
-    private Map<String, String> keyValues = new HashMap<>();
+    private Map<String, String> keyValues = new TreeMap<>();
     private final long id;
     private List<List<Double>> pccValues = new ArrayList<>();
     public List<ImageChannel> channels = new ArrayList<>();
@@ -55,6 +56,7 @@ public class ImageFile {
         return this.id;
     }
     public ImagePlus getImage(){ return this.image; }
+    public double getZoomFactor(){ return Double.parseDouble(this.zoomFactor); }
     public List<String> getTags(){
         return this.tags;
     }

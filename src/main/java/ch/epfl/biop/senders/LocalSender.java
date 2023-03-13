@@ -187,6 +187,15 @@ public class LocalSender implements Sender{
             File file = new File(this.imageFolder + File.separator + "Results_table_ch"+channelId+".csv");
             saveCsvFile(file, text);
         }
+        else{
+            String text = "FWHM\n";
+            for (int i = 0; i < fwhm.size(); i++) {
+                text += fwhm.get(i) + "\n";
+            }
+
+            File file = new File(this.imageFolder + File.separator + "Results_table_ch"+channelId+".csv");
+            saveCsvFile(file, text);
+        }
     }
 
     @Override

@@ -1,6 +1,5 @@
 package ch.epfl.biop.command;
 
-import ch.epfl.biop.processing.ArgoSLG511Processing;
 import ch.epfl.biop.processing.Processing;
 import ch.epfl.biop.retrievers.OMERORetriever;
 import ch.epfl.biop.senders.LocalSender;
@@ -16,8 +15,6 @@ import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
 public class ArgoLightCommand extends DynamicCommand implements Command {
