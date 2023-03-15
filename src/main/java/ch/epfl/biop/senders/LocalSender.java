@@ -3,24 +3,25 @@ package ch.epfl.biop.senders;
 import ch.epfl.biop.utils.IJLogger;
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
+import ch.epfl.biop.utils.Tools;
 import fr.igred.omero.Client;
 import fr.igred.omero.annotations.TagAnnotationWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.ImageWrapper;
-import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.io.FileSaver;
 import ij.io.RoiEncoder;
-import omero.gateway.model.TagAnnotationData;
 
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDate;
@@ -28,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -92,6 +94,11 @@ public class LocalSender implements Sender{
             if (imageFile.getNChannels() > 1)
                 sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
 
+            List<List<Double>> distortionValues = new ArrayList<>();
+            List<List<Double>> uniformityValues = new ArrayList<>();
+            List<List<Double>> fwhmValues = new ArrayList<>();
+            List<Integer> chIds = new ArrayList<>();
+
             for (int i = 0; i < imageFile.getNChannels(); i++) {
                 ImageChannel channel = imageFile.getChannel(i);
                 // get channel keyValues
@@ -99,8 +106,11 @@ public class LocalSender implements Sender{
                 // send Rois
                 sendGridPoints(channel.getGridRings(), channel.getId(), "measuredGrid");
                 sendGridPoints(channel.getIdealGridRings(), channel.getId(), "idealGrid");
-                // send Results table
-                sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
+                // collect metrics for each channel
+                distortionValues.add(channel.getFieldDistortion());
+                uniformityValues.add(channel.getFieldUniformity());
+                fwhmValues.add(channel.getFWHM());
+                chIds.add(channel.getId());
 
                 // send heat maps
                 if (savingHeatMaps) {
@@ -109,6 +119,11 @@ public class LocalSender implements Sender{
                     sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()), this.imageFolder);
                 }
             }
+
+            // send results table
+            sendResultsTable(distortionValues, chIds, false, "Field_distortion");
+            sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
+            sendResultsTable(fwhmValues, chIds, false, "FWHM");
 
             // send key values
             keyValues.put("Image_ID",""+imageFile.getId());
@@ -139,8 +154,8 @@ public class LocalSender implements Sender{
                 text += keyValue.getKey() + "," + keyValue.getValue() + "\n";
             }
 
-            File file = new File(this.imageFolder + File.separator + "keyValues.csv");
-            saveCsvFile(file, text);
+            File file = new File(this.imageFolder + File.separator + "Key_values.csv");
+            Tools.saveCsvFile(file, text);
         }else IJLogger.warn("Sending Key-Values", "There is no key-values to send !");
     }
 
@@ -156,7 +171,7 @@ public class LocalSender implements Sender{
                 for (int i = 0; i < rois.size(); i++) {
                     String label = roiTitle + ":" + i + ":child";
                     Roi roi = rois.get(i);
-                    IJLogger.info("Saving ROIs", "saveMultiple: " + i + "  " + label + "  " + roi);
+                    IJLogger.info("Saving ROIs", "save Multiple: " + i + "  " + label + "  " + roi);
                     if (roi == null) continue;
                     if (!label.endsWith(".roi")) label += ".roi";
                     zos.putNextEntry(new ZipEntry(label));
@@ -177,41 +192,28 @@ public class LocalSender implements Sender{
     }
 
     @Override
-    public void sendResultsTable(List<Double> fieldDistortion, List<Double> fieldUniformity, List<Double> fwhm, int channelId) {
-        if(fieldDistortion.size() == fieldUniformity.size() && fieldUniformity.size() == fwhm.size()) {
-            String text = "field_distortion,field_uniformity,FWHM\n";
-            for (int i = 0; i < fieldDistortion.size(); i++) {
-                text += fieldDistortion.get(i) + "," + fieldUniformity.get(i) + "," + fwhm.get(i) + "\n";
-            }
+    public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean replaceExistingTable, String tableName){
+        String date = Tools.getCurrentDateAndHour();
+        String text;
 
-            File file = new File(this.imageFolder + File.separator + "Results_table_ch"+channelId+".csv");
-            saveCsvFile(file, text);
-        }
-        else{
-            String text = "FWHM\n";
-            for (int i = 0; i < fwhm.size(); i++) {
-                text += fwhm.get(i) + "\n";
+        if(!replaceExistingTable){
+            File csvTable = new File(this.imageFolder + File.separator + tableName+"_table.csv");
+            if(csvTable.exists()) {
+                List<String> rows = Tools.readCsvFile(csvTable);
+                text = addNewColumnsToTable(rows, values, channelIdList, date);
             }
+            else text = createNewTable(values, channelIdList, date);
+        } else text = createNewTable(values, channelIdList, date);
 
-            File file = new File(this.imageFolder + File.separator + "Results_table_ch"+channelId+".csv");
-            saveCsvFile(file, text);
-        }
+        File file = new File(this.imageFolder + File.separator + tableName+"_table.csv");
+        Tools.saveCsvFile(file, text);
     }
 
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
         // get the current date
-        LocalDateTime localDateTime = LocalDateTime.now();
-        LocalTime localTime = localDateTime.toLocalTime();
-        LocalDate localDate = localDateTime.toLocalDate();
-        String date = ""+localDate.getYear()+
-                (localDate.getMonthValue() < 10 ? "0"+localDate.getMonthValue():localDate.getMonthValue()) +
-                (localDate.getDayOfMonth() < 10 ? "0"+localDate.getDayOfMonth():localDate.getDayOfMonth())+"-"+
-                (localTime.getHour() < 10 ? "0"+localTime.getHour():localTime.getHour())+"h"+
-                (localTime.getMinute() < 10 ? "0"+localTime.getMinute():localTime.getMinute())+"m"+
-                (localTime.getSecond() < 10 ? "0"+localTime.getSecond():localTime.getSecond());
-
-        File lastTable = getLastLocalTable(this.parentFolder);
+        String date = Tools.getCurrentDateAndHour();
+        File lastTable = getLastLocalParentTable(this.parentFolder);
         String text = "";
 
         if(!populateExistingTable || lastTable == null || !lastTable.exists()) {
@@ -231,12 +233,12 @@ public class LocalSender implements Sender{
             }
 
         String microscopeName = new File(this.parentFolder).getName();
-        File file = new File(this.parentFolder + File.separator + date + "_" + microscopeName + "_Table.csv");
+        File file = new File(this.parentFolder + File.separator + date + "_" + microscopeName + "_table.csv");
 
         if(!populateExistingTable || lastTable == null || !lastTable.exists()) {
-            saveCsvFile(file, text);
+            Tools.saveCsvFile(file, text);
         } else {
-            boolean success = appendCsvFile(lastTable, text);
+            boolean success = Tools.appendCsvFile(lastTable, text);
             if(success)
                 if(!lastTable.renameTo(file)) IJLogger.warn("Cannot rename "+lastTable.getName() + " to " +file.getName());
         }
@@ -264,7 +266,7 @@ public class LocalSender implements Sender{
         }
 
         File file = new File(this.imageFolder + File.separator + "PCC_table.csv");
-        saveCsvFile(file, text);
+        Tools.saveCsvFile(file, text);
     }
 
 
@@ -288,7 +290,7 @@ public class LocalSender implements Sender{
 
                 // add the tag to the current image if it is not already the case
                 if (!isTagAlreadyExists) {
-                    imageWrapper.addTag(client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
+                    imageWrapper.addTag(client, rawTag.isEmpty() ? tag : rawTag.get(0).getName(),"");
                     IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + imageWrapper.getId());
                 } else
                     IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());
@@ -299,30 +301,84 @@ public class LocalSender implements Sender{
         }
     }
 
-    private boolean saveCsvFile(File file, String text){
-        try {
-            try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
-                bw.write(text);
-                return true;
+
+    private String createNewTable(List<List<Double>> values, List<Integer> channelIdList, String date) {
+        String text = "Ring ID";
+
+        // add headers
+        for (Integer ignored : channelIdList) text += "," + date;
+        text += "\n";
+        for (Integer channelId : channelIdList) text += ",ch_" + channelId ;
+        text += "\n";
+
+        if (values.size() > 0) {
+            int nRings = values.get(0).size();
+
+            // check if all channels have the same number of detected rings
+            for (int i = 0; i < values.size() - 1; i++)
+                if (values.get(i).size() != values.get(i + 1).size()) {
+                    IJLogger.error("Cannot save Uniformity table because the size of detected rings is not the same for each channel");
+                    return "";
+                }
+
+            // add metrics to new columns
+            for (int i = 0; i < nRings; i++) {
+                text += ""+i;
+                for (List<Double> doubles : values) text += "," + doubles.get(i);
+                text += "\n";
             }
-        }catch (IOException e){
-            IJLogger.error("Saving csv file", "Error when saving csv in "+file.getAbsolutePath());
-            return false;
         }
+        return text;
     }
 
+    private String addNewColumnsToTable(List<String> rows, List<List<Double>> values, List<Integer> channelIdList, String date){
+        String text = "";
 
-    private boolean appendCsvFile(File file, String text){
-        try {
-            try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
-                bw.write(text);
-                return true;
+        // add headers
+        text += rows.get(0) + ",";
+        for (Integer ignored : channelIdList) text += date + ",";
+        text = text.substring(0, text.length()-1) + "\n" + rows.get(1) + ",";
+        for (Integer channelId : channelIdList) text += "ch_" + channelId + ",";
+        text = text.substring(0, text.length()-1) + "\n";
+
+        if (values.size() > 0) {
+            int nRings = Math.min(values.get(0).size(), rows.size()-2);
+
+            // check if all channels have the same number of detected rings
+            for (int i = 0; i < values.size() - 1; i++)
+                if (values.get(i).size() != values.get(i + 1).size()) {
+                    IJLogger.error("Cannot save Uniformity table because the size of detected rings is not the same for each channel");
+                    return "";
+                }
+
+            // add metrics to new columns (i.e. at the end of each row)
+            for (int i = 0; i < nRings; i++) {
+                text += rows.get(i+2) + ",";
+                for (List<Double> doubles : values) text += doubles.get(i) + ",";
+                text = text.substring(0, text.length()-1) + "\n";
             }
-        }catch (IOException e){
-            IJLogger.error("Updating csv File", "Error when trying to update csv file in "+file.getAbsolutePath());
-            return false;
+
+            // if there is more values than existing rows
+            if(values.get(0).size() > rows.size()-2){
+                int nVal = rows.get(0).split(",").length;
+                for(int i = rows.size()-2; i < values.get(0).size(); i++) {
+                    for (int j = 0; j < nVal-1; j++) text += ",";
+                    for (List<Double> doubles : values) text += doubles.get(i) + ",";
+                    text = text.substring(0, text.length()-1) + "\n";
+                }
+            }
+            // if there is more existing rows than values
+            else if(values.get(0).size() < rows.size()-2){
+                for(int i = values.get(0).size(); i < rows.size()-2; i++) {
+                    text += rows.get(i) + ",";
+                    for (int j = 0; j < channelIdList.size()-1; j++) text += ",";
+                    text += "\n";
+                }
+            }
         }
+        return text;
     }
+
 
     /**
      * get the last table in the specified folder that correspond to the current microscope
@@ -330,7 +386,7 @@ public class LocalSender implements Sender{
      * @param folderPath
      * @return
      */
-    public static File getLastLocalTable(String folderPath){
+    public static File getLastLocalParentTable(String folderPath){
         // list all files within the folder
         File folder = new File(folderPath);
         File[] childFiles = folder.listFiles();
@@ -368,6 +424,5 @@ public class LocalSender implements Sender{
         // return the csv file
         return new File(folder + File.separator + lastTable);
     }
-
 
 }

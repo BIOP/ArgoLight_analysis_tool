@@ -3,6 +3,7 @@ package ch.epfl.biop.senders;
 import ch.epfl.biop.utils.IJLogger;
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
+import ch.epfl.biop.utils.Tools;
 import fr.igred.omero.Client;
 import fr.igred.omero.annotations.MapAnnotationWrapper;
 import fr.igred.omero.annotations.TableWrapper;
@@ -36,6 +37,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -59,16 +62,28 @@ public class OMEROSender implements Sender{
         this.imageWrapper = imageWrapper;
 
        // sendKeyValues(imageFile.getKeyValues());
-        //sendTags(imageFile.getTags(), this.imageWrapper, this.client);
+       // sendTags(imageFile.getTags(), this.imageWrapper, this.client);
         if(imageFile.getNChannels() > 1)
             sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
 
+        List<List<Double>> distortionValues = new ArrayList<>();
+        List<List<Double>> uniformityValues = new ArrayList<>();
+        List<List<Double>> fwhmValues = new ArrayList<>();
+        List<Integer> chIds = new ArrayList<>();
+
         for(int i = 0; i < imageFile.getNChannels(); i++){
             ImageChannel channel = imageFile.getChannel(i);
-            //sendGridPoints(channel.getGridRings(), channel.getId(), "measuredGrid"); // working
-            //sendGridPoints(channel.getIdealGridRings(), channel.getId(),"idealGrid"); // working
-           // sendKeyValues(channel.getKeyValues()); //working
-            sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
+            //sendGridPoints(channel.getGridRings(), channel.getId(), "measuredGrid");
+            //sendGridPoints(channel.getIdealGridRings(), channel.getId(),"idealGrid");
+            //sendKeyValues(channel.getKeyValues());
+
+            // collect metrics for each channel
+            distortionValues.add(channel.getFieldDistortion());
+            uniformityValues.add(channel.getFieldUniformity());
+            fwhmValues.add(channel.getFWHM());
+            chIds.add(channel.getId());
+
+            //sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
 
             if(savingHeatMaps) {
                 sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()), this.datasetId);
@@ -76,6 +91,11 @@ public class OMEROSender implements Sender{
                 sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()), this.datasetId);
             }
         }
+
+        // send results table
+        sendResultsTable(distortionValues, chIds, false, "Field_distortion");
+        sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
+        sendResultsTable(fwhmValues, chIds, false, "FWHM");
 
     }
 
@@ -214,62 +234,31 @@ public class OMEROSender implements Sender{
     }
 
     @Override
-    public void sendResultsTable(List<Double> fieldDistortion, List<Double> fieldUniformity, List<Double> fwhm, int channelId) {
-        List<TableDataColumn> columns = new ArrayList<>();
-        List<List<Object>> measurements = new ArrayList<>();
-        int i = 0;
+    public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean replaceExistingTable, String tableName){
+        String date = Tools.getCurrentDateAndHour();
+        TableWrapper tableWrapper;
 
-        // add the first column with the image data (linkable on OMERO)
-        columns.add(new TableDataColumn("Image ID",i++, ImageData.class));
-        List<Object> imageData = new ArrayList<>();
+        if(!replaceExistingTable){
+            List<TableWrapper> tables = getOmeroTable(this.client, this.imageWrapper, tableName);
+            if(!tables.isEmpty())
+                tableWrapper = addNewColumnsToTable(tables.get(0), values, channelIdList, date);
+            else tableWrapper = createNewTable(values, channelIdList, date);
+        } else tableWrapper = createNewTable(values, channelIdList, date);
 
-        for (Double ignored : fieldDistortion) {
-            imageData.add(this.imageWrapper.asImageData());
-        }
-        measurements.add(imageData);
-
-        // add the second column with the ring id (from top-left to bottom-right)
-        columns.add(new TableDataColumn("Ring ID",i++, Long.class));
-        List<Object> ids = new ArrayList<>();
-        LongStream.range(0, fieldDistortion.size()).forEach(ids::add);
-        measurements.add(ids);
-
-        // add columns with computed parameters
-        List<Object> fieldDistortionObject = new ArrayList<>(fieldDistortion);
-        List<Object> fieldUniformityObject = new ArrayList<>(fieldUniformity);
-        List<Object> fwhmObject = new ArrayList<>(fwhm);
-
-        columns.add(new TableDataColumn("Field Distortion", i++, Double.class));
-        measurements.add(fieldDistortionObject);
-        columns.add(new TableDataColumn("Field Uniformity", i++, Double.class));
-        measurements.add(fieldUniformityObject);
-        columns.add(new TableDataColumn("FWHM", i, Double.class));
-        measurements.add(fwhmObject);
-
-        // send the omero Table
+        // send table to OMERO
         try {
-            TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
-            tableWrapper.setName("Results_table_ch"+channelId);
+            tableWrapper.setName(tableName);
             this.imageWrapper.addTable(client, tableWrapper);
-            IJLogger.info("Results table for image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId()+" has been uploaded");
-        }catch(DSAccessException | ServiceException | ExecutionException e){
-            IJLogger.error("Cannot add the results table to image "+this.imageWrapper.getName() + " : "+this.imageWrapper.getId());
+            IJLogger.info("Results table for image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId() + " has been uploaded");
+        } catch (DSAccessException | ServiceException | ExecutionException e) {
+            IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
         }
     }
-
 
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
         // get the current date
-        LocalDateTime localDateTime = LocalDateTime.now();
-        LocalTime localTime = localDateTime.toLocalTime();
-        LocalDate localDate = localDateTime.toLocalDate();
-        String date = ""+localDate.getYear()+
-                (localDate.getMonthValue() < 10 ? "0"+localDate.getMonthValue():localDate.getMonthValue()) +
-                (localDate.getDayOfMonth() < 10 ? "0"+localDate.getDayOfMonth():localDate.getDayOfMonth())+"-"+
-                (localTime.getHour() < 10 ? "0"+localTime.getHour():localTime.getHour())+"h"+
-                (localTime.getMinute() < 10 ? "0"+localTime.getMinute():localTime.getMinute())+"m"+
-                (localTime.getSecond() < 10 ? "0"+localTime.getSecond():localTime.getSecond());
+        String date = Tools.getCurrentDateAndHour();
 
         // format data
         List<Object[]> fullRows = new ArrayList<>();
@@ -310,8 +299,57 @@ public class OMEROSender implements Sender{
 
     }
 
-    private void addNewParentTable(List<Object[]> fullRows, List<String> headers, GenericRepositoryObjectWrapper<?> repo, String date) {
 
+    private TableWrapper createNewTable(List<List<Double>> values, List<Integer> channelIdList, String date) {
+        List<TableDataColumn> columns = new ArrayList<>();
+        List<List<Object>> measurements = new ArrayList<>();
+        int i = 0;
+
+        if(values.size() > 0) {
+            // add the first column with the image data (linkable on OMERO)
+            columns.add(new TableDataColumn("Image ID", i++, ImageData.class));
+            List<Object> imageData = new ArrayList<>();
+
+            for (Double ignored : values.get(0)) {
+                imageData.add(this.imageWrapper.asImageData());
+            }
+            measurements.add(imageData);
+
+            // add the second column with the ring id (from top-left to bottom-right)
+            columns.add(new TableDataColumn("Ring ID", i++, Long.class));
+            List<Object> ids = new ArrayList<>();
+            LongStream.range(0, values.get(0).size()).forEach(ids::add);
+            measurements.add(ids);
+
+            for (int j = 0; j < values.size(); j++) {
+                columns.add(new TableDataColumn("ch" + channelIdList.get(j) + "_" + date, i++, Double.class));
+                measurements.add(new ArrayList<>(values.get(j)));
+            }
+        }
+        return new TableWrapper(new TableData(columns, measurements));
+    }
+
+
+    private TableWrapper addNewColumnsToTable(TableWrapper tableToPopulate, List<List<Double>> values, List<Integer> channelIdList, String date){
+        TableData tableData = tableToPopulate.createTable();
+        List<TableDataColumn> columns = new ArrayList<>(Arrays.asList(tableData.getColumns()));
+        List<List<Object>> measurements = new ArrayList<>();
+
+        Object[][] data = tableData.getData();
+        for (Object[] datum : data) measurements.add(Arrays.asList(datum));
+        int i = data.length;
+
+        if(values.size() > 0) {
+            for (int j = 0; j < values.size(); j++) {
+                columns.add(new TableDataColumn("ch" + channelIdList.get(j) + "_" + date, i++, Double.class));
+                measurements.add(new ArrayList<>(values.get(j)));
+            }
+        }
+        return new TableWrapper(new TableData(columns, measurements));
+    }
+
+
+    private void addNewParentTable(List<Object[]> fullRows, List<String> headers, GenericRepositoryObjectWrapper<?> repo, String date) {
         try {
             // create a new table
             TableWrapper tableWrapper = new TableWrapper(headers.size() + 2, date + "_" + repo.getName() + "_Table");
@@ -449,8 +487,17 @@ public class OMEROSender implements Sender{
             } else
                 return null;
         }catch(ServiceException | AccessException | ExecutionException e){
-            IJ.log("[ERROR] [DataManagement][getTable] -- Could not get table attached to " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
+            IJLogger.error("Could not get tables attached to " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
             return null;
+        }
+    }
+
+    private static List<TableWrapper> getOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper, String tableName){
+        try {
+           return repoWrapper.getTables(client).stream().filter(e -> e.getName().contains(tableName)).collect(Collectors.toList());
+        }catch(ServiceException | AccessException | ExecutionException e){
+            IJLogger.error("Could not get table "+tableName+" attached to " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
+            return Collections.emptyList();
         }
     }
 }

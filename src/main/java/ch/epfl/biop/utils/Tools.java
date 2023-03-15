@@ -6,13 +6,76 @@ import ij.gui.Roi;
 import ij.process.FloatProcessor;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
 public class Tools {
     final private static int HEAT_MAP_SIZE = 256;
     final private static String HEAT_MAP_BIT_DEPTH = "32-bit black";
+
+    public static String getCurrentDateAndHour(){
+        LocalDateTime localDateTime = LocalDateTime.now();
+        LocalTime localTime = localDateTime.toLocalTime();
+        LocalDate localDate = localDateTime.toLocalDate();
+        return ""+localDate.getYear()+
+                (localDate.getMonthValue() < 10 ? "0"+localDate.getMonthValue():localDate.getMonthValue()) +
+                (localDate.getDayOfMonth() < 10 ? "0"+localDate.getDayOfMonth():localDate.getDayOfMonth())+"-"+
+                (localTime.getHour() < 10 ? "0"+localTime.getHour():localTime.getHour())+"h"+
+                (localTime.getMinute() < 10 ? "0"+localTime.getMinute():localTime.getMinute())+"m"+
+                (localTime.getSecond() < 10 ? "0"+localTime.getSecond():localTime.getSecond());
+
+    }
+
+    public static boolean saveCsvFile(File file, String text){
+        try {
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
+                bw.write(text);
+                return true;
+            }
+        }catch (IOException e){
+            IJLogger.error("Saving csv file", "Error when saving csv in "+file.getAbsolutePath());
+            return false;
+        }
+    }
+
+    public static List<String> readCsvFile(File table){
+        try{
+            List<String> rows = new ArrayList<>();
+            try (BufferedReader br = new BufferedReader(new FileReader(table))) {
+                String line = "";
+                while ((line = br.readLine()) != null)
+                    rows.add(line);
+            }
+            return rows;
+        }catch (IOException e){
+            IJLogger.error("Reading csv file", "Error when reading csv "+table.getAbsolutePath());
+            return Collections.emptyList();
+        }
+    }
+
+
+    public static boolean appendCsvFile(File file, String text){
+        try {
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
+                bw.write(text);
+                return true;
+            }
+        }catch (IOException e){
+            IJLogger.error("Updating csv File", "Error when trying to update csv file in "+file.getAbsolutePath());
+            return false;
+        }
+    }
 
     public static double[] computeStatistics(List<Double> values){
         // average value
