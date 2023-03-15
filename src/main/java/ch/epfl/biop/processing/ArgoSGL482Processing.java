@@ -28,7 +28,8 @@ public class ArgoSGL482Processing {
     final private static int argoSpacing = 15; // um
     final private static int argoFOV = 570; // um
     final private static int argoNPoints = 39; // on each row/column
-    final private static String thresholdingMethod = "Huang dark";
+    final private static String thresholdingMethodCentralCross = "Huang dark";
+    final private static String thresholdingMethodRings = "Li dark";
     public static void run(ImageFile imageFile){
 
         ImagePlus imp = imageFile.getImage();
@@ -48,7 +49,8 @@ public class ArgoSGL482Processing {
         imageFile.addKeyValue("Pixel_size_(um)",""+pixelSizeImage);
         imageFile.addKeyValue("Profile_length_for_FWHM_(pix)",""+lineLength);
         imageFile.addKeyValue("Oval_radius_(pix)",""+ovalRadius);
-        imageFile.addKeyValue("thresholding_method", thresholdingMethod);
+        imageFile.addKeyValue("thresholding_method_central_cross", thresholdingMethodCentralCross);
+        imageFile.addKeyValue("thresholding_method_rings", thresholdingMethodRings);
 
         RoiManager roiManager = new RoiManager();
 
@@ -163,7 +165,7 @@ public class ArgoSGL482Processing {
 
         // Detect Cross in the center of the FOV
         ImagePlus mask_imp = imp.duplicate();
-        IJ.setAutoThreshold(mask_imp, thresholdingMethod);
+        IJ.setAutoThreshold(mask_imp, thresholdingMethodCentralCross);
         IJ.run(mask_imp, "Convert to Mask", "");
         IJ.run(mask_imp, "Analyze Particles...", "size="+(2.5/imagePixelSize)+"-Infinity add");
 
@@ -223,7 +225,7 @@ public class ArgoSGL482Processing {
         // threshold the image
         //double medianValue = imp2.getStatistics().median;
         //IJ.setThreshold(imp2, medianValue+1, 255);
-        IJ.setAutoThreshold(imp2, "Li dark");
+        IJ.setAutoThreshold(imp2, thresholdingMethodRings);
         IJ.run(imp2, "Convert to Mask", "");
 
         // make measurements
