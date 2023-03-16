@@ -14,6 +14,7 @@ import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.io.FileSaver;
 import ij.io.RoiEncoder;
+import omero.gateway.model.TagAnnotationData;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -290,7 +291,7 @@ public class LocalSender implements Sender{
 
                 // add the tag to the current image if it is not already the case
                 if (!isTagAlreadyExists) {
-                    imageWrapper.addTag(client, rawTag.isEmpty() ? tag : rawTag.get(0).getName(),"");
+                    imageWrapper.link(client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
                     IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + imageWrapper.getId());
                 } else
                     IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());

@@ -22,6 +22,7 @@ import ij.gui.Roi;
 import ij.io.FileSaver;
 import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
+import omero.gateway.facility.TablesFacility;
 import omero.gateway.model.EllipseData;
 import omero.gateway.model.ImageData;
 import omero.gateway.model.ROIData;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 public class OMEROSender implements Sender{
@@ -113,7 +115,7 @@ public class OMEROSender implements Sender{
 
                 // add the tag to the current image if it is not already the case
                 if (!isTagAlreadyExists) {
-                    imageWrapper.addTag(client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
+                    imageWrapper.link(client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
                     IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + imageWrapper.getId());
                 } else
                     IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());
@@ -239,9 +241,9 @@ public class OMEROSender implements Sender{
         TableWrapper tableWrapper;
 
         if(!replaceExistingTable){
-            List<TableWrapper> tables = getOmeroTable(this.client, this.imageWrapper, tableName);
-            if(!tables.isEmpty())
-                tableWrapper = addNewColumnsToTable(tables.get(0), values, channelIdList, date);
+            TableWrapper table = getOmeroTable(this.client, this.imageWrapper, tableName);
+            if(table != null)
+                tableWrapper = addNewColumnsToTable(table, values, channelIdList, date);
             else tableWrapper = createNewTable(values, channelIdList, date);
         } else tableWrapper = createNewTable(values, channelIdList, date);
 
@@ -492,12 +494,19 @@ public class OMEROSender implements Sender{
         }
     }
 
-    private static List<TableWrapper> getOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper, String tableName){
+    private static TableWrapper getOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper, String tableName){
         try {
-           return repoWrapper.getTables(client).stream().filter(e -> e.getName().contains(tableName)).collect(Collectors.toList());
-        }catch(ServiceException | AccessException | ExecutionException e){
+            List<TableWrapper> tables = repoWrapper.getTables(client).stream().filter(e -> e.getName().contains(tableName)).collect(Collectors.toList());
+            if(!tables.isEmpty()) {
+                TableWrapper table = tables.get(0);
+                TableData tableData = client.getGateway().getFacility(TablesFacility.class).getTable(client.getCtx(), table.getFileId(), 0, table.getRowCount(),
+                        IntStream.range(0, table.getColumnCount()).toArray());
+                return new TableWrapper(tableData);
+            }
+           return null;
+        }catch(ExecutionException | DSOutOfServiceException | DSAccessException e){
             IJLogger.error("Could not get table "+tableName+" attached to " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
-            return Collections.emptyList();
+            return null;
         }
     }
 }
