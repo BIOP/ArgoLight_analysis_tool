@@ -60,45 +60,8 @@ public class OMEROSender implements Sender{
     } //TODO ajouter le boolean "local heat map saving"
 
     @Override
-    public void sendResults(ImageFile imageFile, ImageWrapper imageWrapper, boolean savingHeatMaps) {
-        this.imageWrapper = imageWrapper;
-
-       // sendKeyValues(imageFile.getKeyValues());
-       // sendTags(imageFile.getTags(), this.imageWrapper, this.client);
-        if(imageFile.getNChannels() > 1)
-            sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
-
-        List<List<Double>> distortionValues = new ArrayList<>();
-        List<List<Double>> uniformityValues = new ArrayList<>();
-        List<List<Double>> fwhmValues = new ArrayList<>();
-        List<Integer> chIds = new ArrayList<>();
-
-        for(int i = 0; i < imageFile.getNChannels(); i++){
-            ImageChannel channel = imageFile.getChannel(i);
-            //sendGridPoints(channel.getGridRings(), channel.getId(), "measuredGrid");
-            //sendGridPoints(channel.getIdealGridRings(), channel.getId(),"idealGrid");
-            //sendKeyValues(channel.getKeyValues());
-
-            // collect metrics for each channel
-            distortionValues.add(channel.getFieldDistortion());
-            uniformityValues.add(channel.getFieldUniformity());
-            fwhmValues.add(channel.getFWHM());
-            chIds.add(channel.getId());
-
-            //sendResultsTable(channel.getFieldDistortion(), channel.getFieldUniformity(), channel.getFWHM(), channel.getId());
-
-            if(savingHeatMaps) {
-                sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()), this.datasetId);
-                sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()), this.datasetId);
-                sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()), this.datasetId);
-            }
-        }
-
-        // send results table
-        sendResultsTable(distortionValues, chIds, false, "Field_distortion");
-        sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
-        sendResultsTable(fwhmValues, chIds, false, "FWHM");
-
+    public void initialize(ImageFile imageFile, ImageWrapper imageWrapper) {
+     this.imageWrapper = imageWrapper;
     }
 
     @Override
@@ -130,7 +93,7 @@ public class OMEROSender implements Sender{
     /**
      * target : dataset ID
      */
-    public void sendHeatMaps(ImagePlus imp, String target) {
+    public void sendHeatMaps(ImagePlus imp) {
         String home = Prefs.getHomeDir();
 
         // save the image on the computer first and get the generate file
@@ -142,7 +105,7 @@ public class OMEROSender implements Sender{
 
         try {
             // Import image on OMERO
-            List<Long> analysisImage_omeroID = this.client.getDataset(Long.parseLong(target)).importImage(this.client, localImageFile.toString());
+            List<Long> analysisImage_omeroID = this.client.getDataset(Long.parseLong(this.datasetId)).importImage(this.client, localImageFile.toString());
             ImageWrapper analysisImage_wpr = this.client.getImage(analysisImage_omeroID.get(0));
             IJLogger.info("Upload heatMap", imp.getTitle() + ".tif" + " was uploaded to OMERO with ID : " + analysisImage_omeroID);
 
@@ -298,9 +261,7 @@ public class OMEROSender implements Sender{
         } catch (DSAccessException | ServiceException | ExecutionException e) {
             IJLogger.error("Cannot add the results table to dataset " + this.datasetId);
         }
-
     }
-
 
     private TableWrapper createNewTable(List<List<Double>> values, List<Integer> channelIdList, String date) {
         List<TableDataColumn> columns = new ArrayList<>();

@@ -82,69 +82,28 @@ public class LocalSender implements Sender{
     }
 
     @Override
-    public void sendResults(ImageFile imageFile, ImageWrapper imageWrapper, boolean savingHeatMaps) {
+    public void initialize(ImageFile imageFile, ImageWrapper imageWrapper) {
         // create the image folder
         this.imageFolder = this.parentFolder + File.separator + imageFile.getImgNameWithoutExtension();
         File imageFileFolder = new File(this.imageFolder);
 
-        if(imageFileFolder.exists() || imageFileFolder.mkdir()) {
-            // get image keyValues
-            Map<String, String> keyValues = imageFile.getKeyValues();
-
-            // send PCC table
-            if (imageFile.getNChannels() > 1)
-                sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
-
-            List<List<Double>> distortionValues = new ArrayList<>();
-            List<List<Double>> uniformityValues = new ArrayList<>();
-            List<List<Double>> fwhmValues = new ArrayList<>();
-            List<Integer> chIds = new ArrayList<>();
-
-            for (int i = 0; i < imageFile.getNChannels(); i++) {
-                ImageChannel channel = imageFile.getChannel(i);
-                // get channel keyValues
-                keyValues.putAll(channel.getKeyValues());
-                // send Rois
-                sendGridPoints(channel.getGridRings(), channel.getId(), "measuredGrid");
-                sendGridPoints(channel.getIdealGridRings(), channel.getId(), "idealGrid");
-                // collect metrics for each channel
-                distortionValues.add(channel.getFieldDistortion());
-                uniformityValues.add(channel.getFieldUniformity());
-                fwhmValues.add(channel.getFWHM());
-                chIds.add(channel.getId());
-
-                // send heat maps
-                if (savingHeatMaps) {
-                    sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()), this.imageFolder);
-                    sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()), this.imageFolder);
-                    sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()), this.imageFolder);
-                }
-            }
-
-            // send results table
-            sendResultsTable(distortionValues, chIds, false, "Field_distortion");
-            sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
-            sendResultsTable(fwhmValues, chIds, false, "FWHM");
-
-            // send key values
-            keyValues.put("Image_ID",""+imageFile.getId());
-            sendKeyValues(keyValues);
-
-        } else IJLogger.error("Cannot create image folder "+this.imageFolder + ". Results won't be saved");
+        if(!imageFileFolder.exists())
+            if(!imageFileFolder.mkdir())
+                this.imageFolder = this.parentFolder;
     }
 
     @Override
-    public void sendHeatMaps(ImagePlus imp, String target) {
+    public void sendHeatMaps(ImagePlus imp) {
         FileSaver fs = new FileSaver(imp);
         // create an image file in the given folder, with the given imageName
-        File analysisImage_output_path = new File(target,imp.getTitle() + ".tif");
+        File analysisImage_output_path = new File(this.imageFolder,imp.getTitle() + ".tif");
 
         // save the image
         boolean hasBeenSaved = fs.saveAsTiff(analysisImage_output_path.toString());
 
          //check if the image was correctly saved
-        if(hasBeenSaved) IJLogger.info("Saving heatmaps locally",imp.getTitle()+".tif"+" was saved in : "+ target);
-        else IJLogger.error("Saving heatmaps locally","Cannot save "+imp.getTitle()+ " in " + target);
+        if(hasBeenSaved) IJLogger.info("Saving heatmaps locally",imp.getTitle()+".tif"+" was saved in : "+ this.imageFolder);
+        else IJLogger.error("Saving heatmaps locally","Cannot save "+imp.getTitle()+ " in " + this.imageFolder);
     }
 
     @Override

@@ -78,6 +78,8 @@ public class Tools {
     }
 
     public static double[] computeStatistics(List<Double> values){
+        if(values.isEmpty())
+            return new double[]{0, 0, 0, 0};
         // average value
         double average = values.stream().reduce(0.0, Double::sum) / values.size();
 
@@ -101,6 +103,7 @@ public class Tools {
         // set to each pixel the value for one ring
         values.add((int)Math.floor(values.size()/2.0), Double.NaN); // here we have a O in the center, because we didn't measure anything there
         FloatProcessor fp = new FloatProcessor(nPoints, nPoints, values.stream().mapToDouble(Double::doubleValue).toArray());
+        values.remove((int)Math.floor(values.size()/2.0)); // remove that value
         imp.getProcessor().setPixels(1, fp);
 
         // enlarged the heat map to have a decent image size at the end

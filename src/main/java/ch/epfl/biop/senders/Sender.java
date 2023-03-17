@@ -11,8 +11,8 @@ import java.util.Map;
 
 public interface Sender {
 
-    void sendResults(ImageFile imageFile, ImageWrapper imageWrapper, boolean savingHeatMaps);
-    void sendHeatMaps(ImagePlus imp, String target);
+    void initialize(ImageFile imageFile, ImageWrapper imageWrapper);
+    void sendHeatMaps(ImagePlus imp);
     void sendKeyValues(Map<String, String> keyValues);
     void sendGridPoints(List<Roi> rois, int channelId, String roiTitle);
     void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean replaceExistingTable, String tableName);
