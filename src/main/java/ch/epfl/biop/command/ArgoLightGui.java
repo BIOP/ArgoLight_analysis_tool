@@ -6,6 +6,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -21,14 +22,20 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.text.Font;
 import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import net.imagej.ImageJ;
 import org.scijava.command.Command;
 import org.scijava.plugin.Plugin;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight gui")
 public class ArgoLightGui implements Command{
@@ -128,15 +135,17 @@ public class ArgoLightGui implements Command{
             rbOmeroSender.setDisable(rbLocalRetriever.isSelected());
         });
 
-        int omeroRow = 0;
-        int localRow = 0;
-        int retrieverRow = 0;
-        int microscopeRow = 0;
+        // button to choose root folder
+        Button bSettings = new Button("GUI Settings");
+        bSettings.setOnAction(e->{
+            createSettingsPane();
+        });
 
         ColumnConstraints colFourth = new ColumnConstraints();
         colFourth.setPercentWidth(0);
 
         // create omero retriever pane
+        int omeroRow = 0;
         GridPane omeroPane = new GridPane();
         omeroPane.add(rbOmeroRetriever, 0, omeroRow++);
         omeroPane.add(labHost, 0, omeroRow++, 2, 1);
@@ -148,6 +157,7 @@ public class ArgoLightGui implements Command{
         omeroPane.setVgap(5);
 
         // create local retriever pane
+        int localRow = 0;
         GridPane localPane = new GridPane();
         localPane.add(rbLocalRetriever, 0, localRow++);
         localPane.add(labRootFolder, 0, localRow);
@@ -157,6 +167,7 @@ public class ArgoLightGui implements Command{
         localPane.setVgap(5);
 
         // Create Retriever pane
+        int retrieverRow = 0;
         GridPane retrieverPane = new GridPane();
         retrieverPane.add(omeroPane, 0, retrieverRow);
         retrieverPane.add(localPane, 1, retrieverRow);
@@ -164,6 +175,7 @@ public class ArgoLightGui implements Command{
         retrieverPane.setVgap(5);
 
         // Create Retriever pane
+        int microscopeRow = 0;
         GridPane microscopePane = new GridPane();
         microscopePane.getColumnConstraints().addAll(colFourth, colFourth, colFourth, colFourth);
         microscopePane.add(labMicroscope, 1, microscopeRow);
@@ -203,7 +215,13 @@ public class ArgoLightGui implements Command{
         Label savingHeader = new Label("Where to save results");
         savingHeader.setFont(new Font(MAX_FONT_SIZE)); // set to Label
         generalPane.add(savingHeader, 0, generalRow++, 2, 1);
-        generalPane.add(savingPane, 0, generalRow);
+        generalPane.add(savingPane, 0, generalRow++);
+        generalPane.add(new Separator(), 0, generalRow++, 4, 1);
+
+        Label settingsHeader = new Label("Setup your project");
+        settingsHeader.setFont(new Font(MAX_FONT_SIZE)); // set to Label
+        generalPane.add(settingsHeader, 0, generalRow++, 2, 1);
+        generalPane.add(bSettings, 0, generalRow);
 
         generalPane.setHgap(10);
         generalPane.setVgap(10);
@@ -215,6 +233,59 @@ public class ArgoLightGui implements Command{
 
     }
 
+
+    private static void createSettingsPane(){
+        // label and text field for OMERO credentials and host
+        Label labHost = new Label("OMERO host");
+        TextField tfUsername = new TextField();
+        labHost.setLabelFor(tfUsername);
+
+        Label labPort = new Label("OMERO port");
+        TextField tfPort = new TextField();
+        labPort.setLabelFor(tfPort);
+
+        Label labMicroscope = new Label("Microscopes");
+        TextField tfMicroscope = new TextField();
+        labMicroscope.setLabelFor(tfMicroscope);
+
+        // button to choose root folder
+        Button bChooseMicroscope = new Button("Open file");
+        bChooseMicroscope.setOnAction(e->{
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Choose the microscopes' csv file");
+            File rootFolder = fileChooser.showOpenDialog(null);
+
+            if(rootFolder == null || !rootFolder.exists()){
+                Label labError = new Label("The file you selected does not exist. Please check your path / file");
+                buildErrorMessage("No files", labError);
+            } else if(!rootFolder.getAbsolutePath().endsWith(".csv")){
+                Label labError = new Label("The file you selected is not a .csv file. Please select a .csv file");
+                buildErrorMessage("Wrong file type", labError);
+            } else {
+                List<String> microscopes = parseCSV(rootFolder);
+                String microscopesList = String.join(",", microscopes);
+                tfMicroscope.setText(microscopesList);
+            }
+
+        });
+
+        int row = 0;
+        GridPane settingsPane = new GridPane();
+        settingsPane.add(labHost, 0, row);
+        settingsPane.add(tfUsername, 1, row++, 2, 1);
+        settingsPane.add(labPort, 0, row);
+        settingsPane.add(tfPort, 1, row++);
+        settingsPane.add(labMicroscope, 0, row);
+        settingsPane.add(tfMicroscope, 1, row);
+        settingsPane.add(bChooseMicroscope, 2, row);
+        settingsPane.setHgap(5);
+        settingsPane.setVgap(5);
+
+        if (!buildDialog("Setup your default settings", settingsPane))
+            return;
+
+        System.out.println("Press OK!");
+    }
 
     private static boolean buildDialog(String title, Node content){
         List<ButtonType> buttons = new ArrayList<>();
@@ -236,6 +307,35 @@ public class ArgoLightGui implements Command{
         return dialog.showAndWait().orElse(ButtonType.NO) == ButtonType.OK;
     }
 
+    private static void buildErrorMessage(String title, Node content){
+        Dialog<ButtonType> dialog = new Alert(Alert.AlertType.ERROR);
+        if(title != null)
+            dialog.setTitle(title);
+        else
+            dialog.setTitle("");
+
+        dialog.getDialogPane().setContent(content);
+
+        dialog.setResizable(false);
+        dialog.initModality(Modality.APPLICATION_MODAL);
+
+        dialog.show();
+    }
+
+    private static List<String> parseCSV(File file){
+        List<String> items = new ArrayList<>();
+        try {
+            //parsing a CSV file into BufferedReader class constructor
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = br.readLine()) != null){   //returns a Boolean value
+                items.add(line);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return items;
+    }
 
     public static void main(String... args){
         final ImageJ ij = new ImageJ();
