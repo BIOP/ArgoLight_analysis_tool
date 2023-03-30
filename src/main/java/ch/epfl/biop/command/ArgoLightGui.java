@@ -1,14 +1,15 @@
 package ch.epfl.biop.command;
 
 import com.sun.javafx.application.PlatformImpl;
-import ij.plugin.Grid;
 import javafx.application.Platform;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.fxml.JavaFXBuilderFactory;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -16,12 +17,8 @@ import javafx.scene.control.RadioButton;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.layout.Border;
-import javafx.scene.layout.BorderStroke;
-import javafx.scene.layout.BorderStrokeStyle;
-import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
@@ -29,11 +26,6 @@ import net.imagej.ImageJ;
 import org.scijava.command.Command;
 import org.scijava.plugin.Plugin;
 
-import javax.swing.*;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Paint;
-import java.awt.Toolkit;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,9 +34,10 @@ import java.util.List;
 public class ArgoLightGui implements Command{
 
     public static void createGui(){
-
         String title = "Metrology with ArgoLight plugin";
         String host = "omero-poc.epfl.ch:4064";
+        ObservableList<String> microscopesList = FXCollections.observableArrayList(
+                "SP8UP2", "SP8UP1", "SP8INT1");
 
 
         // label and text field for OMERO credentials and host
@@ -76,6 +69,29 @@ public class ArgoLightGui implements Command{
         bRootFolder.setDisable(true);
 
 
+        Label labMicroscope = new Label("Microscope");
+        ComboBox cbMicroscope = new ComboBox(microscopesList);
+
+        final ToggleGroup senderChoice = new ToggleGroup();
+
+        // Radio button to choose OMERO retriever
+        RadioButton rbOmeroSender = new RadioButton("OMERO");
+        rbOmeroSender.setToggleGroup(senderChoice);
+        rbOmeroSender.setSelected(true);
+
+        // Radio button to choose local retriever
+        RadioButton rbLocalSender = new RadioButton("Local");
+        rbLocalSender.setToggleGroup(senderChoice);
+        rbLocalSender.setSelected(false);
+
+        CheckBox chkSaveHeatMap = new CheckBox("Save heat maps");
+        chkSaveHeatMap.setMinWidth(CheckBox.USE_PREF_SIZE);
+        chkSaveHeatMap.setSelected(false);
+
+        CheckBox chkAllImages = new CheckBox("Process again existing images");
+        chkAllImages.setMinWidth(CheckBox.USE_PREF_SIZE);
+        chkAllImages.setSelected(false);
+
         final ToggleGroup retrieverChoice = new ToggleGroup();
         // Radio button to choose OMERO retriever
         RadioButton rbOmeroRetriever = new RadioButton("OMERO");
@@ -90,6 +106,8 @@ public class ArgoLightGui implements Command{
             labHost.setDisable(!rbOmeroRetriever.isSelected());
             labUsername.setDisable(!rbOmeroRetriever.isSelected());
             labPassword.setDisable(!rbOmeroRetriever.isSelected());
+            rbOmeroSender.setDisable(!rbOmeroRetriever.isSelected());
+
         });
 
         // Radio button to choose local retriever
@@ -105,17 +123,21 @@ public class ArgoLightGui implements Command{
             bRootFolder.setDisable(!rbLocalRetriever.isSelected());
             tfRootFolder.setDisable(!rbLocalRetriever.isSelected());
             labRootFolder.setDisable(!rbLocalRetriever.isSelected());
+            rbOmeroSender.setSelected(!rbLocalRetriever.isSelected());
+            rbLocalSender.setSelected(rbLocalRetriever.isSelected());
+            rbOmeroSender.setDisable(rbLocalRetriever.isSelected());
         });
-
-        GridPane retrieverPane = new GridPane();
-        GridPane omeroPane = new GridPane();
-        GridPane localPane = new GridPane();
 
         int omeroRow = 0;
         int localRow = 0;
         int retrieverRow = 0;
+        int microscopeRow = 0;
+
+        ColumnConstraints colFourth = new ColumnConstraints();
+        colFourth.setPercentWidth(0);
 
         // create omero retriever pane
+        GridPane omeroPane = new GridPane();
         omeroPane.add(rbOmeroRetriever, 0, omeroRow++);
         omeroPane.add(labHost, 0, omeroRow++, 2, 1);
         omeroPane.add(labUsername, 0, omeroRow);
@@ -126,6 +148,7 @@ public class ArgoLightGui implements Command{
         omeroPane.setVgap(5);
 
         // create local retriever pane
+        GridPane localPane = new GridPane();
         localPane.add(rbLocalRetriever, 0, localRow++);
         localPane.add(labRootFolder, 0, localRow);
         localPane.add(tfRootFolder, 1, localRow++);
@@ -134,22 +157,56 @@ public class ArgoLightGui implements Command{
         localPane.setVgap(5);
 
         // Create Retriever pane
-        Label retrieverHeader = new Label("Get images from");
-        final double MAX_FONT_SIZE = 20.0; // define max font size you need
-        retrieverHeader.setFont(new Font(MAX_FONT_SIZE)); // set to Label
-
-        retrieverPane.add(retrieverHeader, 0, retrieverRow++, 2, 1);
-        retrieverPane.add(new Separator(), 0, retrieverRow++, 2, 1);
+        GridPane retrieverPane = new GridPane();
         retrieverPane.add(omeroPane, 0, retrieverRow);
         retrieverPane.add(localPane, 1, retrieverRow);
-
-        retrieverPane.setHgap(5);
+        retrieverPane.setHgap(10);
         retrieverPane.setVgap(5);
 
-        // create general pane
-        GridPane generalPane = new GridPane();
-        generalPane.add(retrieverPane, 0,0);
+        // Create Retriever pane
+        GridPane microscopePane = new GridPane();
+        microscopePane.getColumnConstraints().addAll(colFourth, colFourth, colFourth, colFourth);
+        microscopePane.add(labMicroscope, 1, microscopeRow);
+        microscopePane.add(cbMicroscope, 2, microscopeRow);
+        microscopePane.setHgap(5);
+        microscopePane.setVgap(5);
 
+        // Create saving pane
+        GridPane savingPane = new GridPane();
+        savingPane.getColumnConstraints().addAll(colFourth, colFourth, colFourth, colFourth);
+        savingPane.add(rbOmeroSender, 1, localRow);
+        savingPane.add(rbLocalSender, 2, localRow++);
+        savingPane.add(chkSaveHeatMap, 0, localRow++);
+        savingPane.add(chkAllImages, 0, localRow, 2,1);
+        savingPane.setHgap(5);
+        savingPane.setVgap(5);
+
+        // create general pane
+        int generalRow = 0;
+        final double MAX_FONT_SIZE = 20.0; // define max font size you need
+
+        GridPane generalPane = new GridPane();
+
+        Label retrieverHeader = new Label("Get images from");
+        retrieverHeader.setFont(new Font(MAX_FONT_SIZE)); // set to Label
+        generalPane.add(retrieverHeader, 0, generalRow++, 2, 1);
+        generalPane.add(retrieverPane, 0, generalRow++);
+        generalPane.add(new Separator(), 0, generalRow++, 2, 1);
+
+
+        Label microscopeHeader = new Label("Choose your microscope");
+        microscopeHeader.setFont(new Font(MAX_FONT_SIZE)); // set to Label
+        generalPane.add(microscopeHeader, 0, generalRow++, 2, 1);
+        generalPane.add(microscopePane, 0, generalRow++);
+        generalPane.add(new Separator(), 0, generalRow++, 4, 1);
+
+        Label savingHeader = new Label("Where to save results");
+        savingHeader.setFont(new Font(MAX_FONT_SIZE)); // set to Label
+        generalPane.add(savingHeader, 0, generalRow++, 2, 1);
+        generalPane.add(savingPane, 0, generalRow);
+
+        generalPane.setHgap(10);
+        generalPane.setVgap(10);
         // build the dialog box
         if (!buildDialog(title, generalPane)){
             System.out.println("Press cancel");
@@ -157,6 +214,7 @@ public class ArgoLightGui implements Command{
         System.out.println("Press OK!");
 
     }
+
 
     private static boolean buildDialog(String title, Node content){
         List<ButtonType> buttons = new ArrayList<>();
@@ -179,32 +237,7 @@ public class ArgoLightGui implements Command{
     }
 
 
-    private static GridPane buildCredentialPane(String host){
-        GridPane pane = new GridPane();
-        Label labHost = new Label(host);
-        Label labUsername = new Label("Username");
-        TextField tfUsername = new TextField();
-        labUsername.setLabelFor(tfUsername);
-
-        Label labPassword = new Label("Password");
-        PasswordField tfPassword = new PasswordField();
-        labPassword.setLabelFor(tfPassword);
-
-        int row = 0;
-        pane.add(labHost, 0, row++, 2, 1);
-        pane.add(labUsername, 0, row);
-        pane.add(tfUsername, 1, row++);
-        pane.add(labPassword, 0, row);
-        pane.add(tfPassword, 1, row++);
-
-        pane.setHgap(5);
-        pane.setVgap(5);
-
-        return pane;
-    }
-
     public static void main(String... args){
-
         final ImageJ ij = new ImageJ();
         ij.ui().showUI();
     }
