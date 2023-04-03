@@ -131,7 +131,6 @@ public class LocalSender implements Sender{
                 for (int i = 0; i < rois.size(); i++) {
                     String label = roiTitle + ":" + i + ":child";
                     Roi roi = rois.get(i);
-                    IJLogger.info("Saving ROIs", "save Multiple: " + i + "  " + label + "  " + roi);
                     if (roi == null) continue;
                     if (!label.endsWith(".roi")) label += ".roi";
                     zos.putNextEntry(new ZipEntry(label));

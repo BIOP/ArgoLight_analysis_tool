@@ -253,6 +253,9 @@ public class ArgoSGL482Processing {
             }
         }
 
+        IJ.selectWindow("Results");
+        IJ.run("Close");
+
         return gridPoints;
     }
 

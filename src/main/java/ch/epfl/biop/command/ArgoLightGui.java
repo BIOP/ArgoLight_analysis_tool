@@ -9,6 +9,7 @@ import ch.epfl.biop.utils.IJLogger;
 import com.sun.javafx.application.PlatformImpl;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
+import ij.IJ;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -327,12 +328,13 @@ public class ArgoLightGui implements Command{
     private static void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
                                       String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps, boolean allImages){
 
+        boolean finalPopupMessage = true;
         if(!isOmeroRetriever && !new File(rootFolderPath).exists()){
-            buildWarningMessage("Root folder not accessible", "The root folder "+rootFolderPath+" does not exist");
+            showWarningMessage("Root folder not accessible", "The root folder "+rootFolderPath+" does not exist");
             return;
         }
         if(!isOmeroSender && !new File(savingFolderPath).exists()){
-            buildWarningMessage("Saving folder not accessible", "The saving folder "+savingFolderPath+" does not exist");
+            showWarningMessage("Saving folder not accessible", "The saving folder "+savingFolderPath+" does not exist");
             return;
         }
 
@@ -347,26 +349,32 @@ public class ArgoLightGui implements Command{
             throw new RuntimeException(e);
         }
 
-        try{
+        try {
             OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(Long.parseLong(defaultProjectID), microscope, allImages);
             int nImages = omeroRetriever.getNImages();
 
             Sender sender;
-            if(!isOmeroSender) {
+            if (!isOmeroSender) {
                 File savingFolder = new File(savingFolderPath);
                 sender = new LocalSender(savingFolder, microscope);
-            }
-            else
+            } else
                 sender = new OMEROSender(client, omeroRetriever.getParentTarget());
 
             // run analysis
-            if(nImages > 0)
+            if (nImages > 0)
                 Processing.run(omeroRetriever, saveHeatMaps, sender);
-            else IJLogger.error("No images are available for project "+defaultProjectID+", dataset "+microscope);
+            else IJLogger.error("No images are available for project " + defaultProjectID + ", dataset " + microscope);
 
+        } catch (Exception e){
+            finalPopupMessage = false;
         } finally {
             client.disconnect();
             IJLogger.info("Disconnected from OMERO ");
+        }
+
+        if(finalPopupMessage) {
+            IJ.run("Close All");
+            showInfoMessage("Processing Done", "All images have been analyzed and results saved");
         }
     }
 
@@ -413,13 +421,11 @@ public class ArgoLightGui implements Command{
             fileChooser.setTitle("Choose the microscopes' csv file");
             File rootFolder = fileChooser.showOpenDialog(null);
 
-            if(rootFolder == null || !rootFolder.exists()){
-                Label labError = new Label("The file you selected does not exist. Please check your path / file");
-                buildErrorMessage("No files", labError);
-            } else if(!rootFolder.getAbsolutePath().endsWith(".csv")){
-                Label labError = new Label("The file you selected is not a .csv file. Please select a .csv file");
-                buildErrorMessage("Wrong file type", labError);
-            } else {
+            if(rootFolder == null || !rootFolder.exists())
+                showErrorMessage("No files", "The file you selected does not exist. Please check your path / file");
+            else if(!rootFolder.getAbsolutePath().endsWith(".csv"))
+                showErrorMessage("Wrong file type", "The file you selected is not a .csv file. Please select a .csv file");
+            else {
                 List<String> microscopes = parseMicroscopesCSV(rootFolder);
                 String microscopesList = String.join(",", microscopes);
                 tfMicroscope.setText(microscopesList);
@@ -491,14 +497,15 @@ public class ArgoLightGui implements Command{
 
     }
 
-    private static void buildErrorMessage(String title, Node content){
-        Dialog<ButtonType> dialog = new Alert(Alert.AlertType.ERROR);
+
+    private static void showInfoMessage(String title, String content){
+        Dialog<ButtonType> dialog = new Alert(Alert.AlertType.INFORMATION);
         if(title != null)
             dialog.setTitle(title);
         else
             dialog.setTitle("");
 
-        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setContent(new Label(content));
 
         dialog.setResizable(false);
         dialog.initModality(Modality.APPLICATION_MODAL);
@@ -506,7 +513,22 @@ public class ArgoLightGui implements Command{
         dialog.show();
     }
 
-    private static void buildWarningMessage(String title, String content){
+    private static void showErrorMessage(String title, String content){
+        Dialog<ButtonType> dialog = new Alert(Alert.AlertType.ERROR);
+        if(title != null)
+            dialog.setTitle(title);
+        else
+            dialog.setTitle("");
+
+        dialog.getDialogPane().setContent(new Label(content));
+
+        dialog.setResizable(false);
+        dialog.initModality(Modality.APPLICATION_MODAL);
+
+        dialog.show();
+    }
+
+    private static void showWarningMessage(String title, String content){
         Dialog<ButtonType> dialog = new Alert(Alert.AlertType.WARNING);
         if(title != null)
             dialog.setTitle(title);
@@ -533,7 +555,7 @@ public class ArgoLightGui implements Command{
             br.close();
             return items;
         } catch (IOException e) {
-            buildWarningMessage("CSV parsing","Couldn't parse the csv file. No default microscopes to add");
+            showWarningMessage("CSV parsing","Couldn't parse the csv file. No default microscopes to add");
             return Collections.emptyList();
         }
     }
@@ -557,7 +579,7 @@ public class ArgoLightGui implements Command{
             buffer.close();
 
         } catch (IOException e) {
-            buildWarningMessage("CSV writing","Couldn't write the csv for default parameters.");
+            showWarningMessage("CSV writing","Couldn't write the csv for default parameters.");
         }
     }
 
