@@ -59,10 +59,14 @@ public class ArgoLightGui implements Command{
     private static String defaultPort = "";
     private static String defaultProjectID = "-1";
     private ObservableList<String> defaultMicroscopes = FXCollections.observableArrayList();
+    private static String defaultRootFolder = "";
+    private static String defaultSaveFolder = "";
     final private String hostKey = "OMERO Host";
     final private String portKey = "OMERO Port";
-    final private String projectIdKey = "";
+    final private String projectIdKey = "Project ID";
     final private String microscopeKey = "Microscopes";
+    final private String saveFolderKey = "Saving folder";
+    final private String rootFolderKey = "Root folder";
     final static private String folderName = "." + File.separator + "plugins" + File.separator + "BIOP";
     final static private String fileName = "ArgoLight_default_params.csv";
 
@@ -87,7 +91,7 @@ public class ArgoLightGui implements Command{
 
         // label and textField to choose root folder in case of local retriever
         Label labRootFolder  = new Label("Root Folder");
-        TextField tfRootFolder = new TextField();
+        TextField tfRootFolder = new TextField(defaultRootFolder);
         labRootFolder.setLabelFor(tfRootFolder);
         labRootFolder.setDisable(true);
         tfRootFolder.setDisable(true);
@@ -111,7 +115,7 @@ public class ArgoLightGui implements Command{
 
         // label and textField to choose root folder in case of local retriever
         Label labSavingFolder  = new Label("Saving Folder");
-        TextField tfSavingFolder = new TextField();
+        TextField tfSavingFolder = new TextField(defaultSaveFolder);
         labSavingFolder.setLabelFor(tfSavingFolder);
         labSavingFolder.setDisable(true);
         tfSavingFolder.setDisable(true);
@@ -210,6 +214,8 @@ public class ArgoLightGui implements Command{
             labHost.setText(defaultHost+":"+defaultPort);
             cbMicroscope.setItems(defaultMicroscopes);
             tfProjectID.setText(defaultProjectID);
+            tfRootFolder.setText(defaultRootFolder);
+            tfSavingFolder.setText(defaultSaveFolder);
         });
 
         ColumnConstraints colFourth = new ColumnConstraints();
@@ -302,17 +308,15 @@ public class ArgoLightGui implements Command{
         generalPane.setVgap(10);
 
         // build the dialog box
-        if (!buildDialog(title, generalPane)){
-            Platform.setImplicitExit(false);
+        if (!buildDialog(title, generalPane))
             return;
-        }
 
-        Platform.setImplicitExit(false);
         int passLength = tfPassword.getCharacters().length();
         char[] password = new char[passLength];
         for (int i = 0; i < passLength; i++) {
             password[i] = tfPassword.getCharacters().charAt(i);
         }
+
         runProcessing(rbOmeroRetriever.isSelected(),
                 tfUsername.getText(),
                 password,
@@ -346,7 +350,8 @@ public class ArgoLightGui implements Command{
             IJLogger.info("Successful connection to OMERO");
         } catch (ServiceException e) {
             IJLogger.error("Cannot connect to OMERO");
-            throw new RuntimeException(e);
+            showErrorMessage("OMERO connections", "OMERO connection fails. Please check host, port and credentials");
+            return;
         }
 
         try {
@@ -393,6 +398,10 @@ public class ArgoLightGui implements Command{
         defaultProjectID = defaultParams.containsKey(projectIdKey) ?
                 (defaultParams.get(projectIdKey).isEmpty() ? "-1" : defaultParams.get(projectIdKey).get(0)) :
                 "-1";
+        defaultRootFolder = defaultParams.containsKey(rootFolderKey) ?
+                (defaultParams.get(rootFolderKey).isEmpty() ? "" : defaultParams.get(rootFolderKey).get(0)) : "";
+        defaultSaveFolder = defaultParams.containsKey(saveFolderKey) ?
+                (defaultParams.get(saveFolderKey).isEmpty() ? "" : defaultParams.get(saveFolderKey).get(0)) : "";
     }
 
 
@@ -430,7 +439,34 @@ public class ArgoLightGui implements Command{
                 String microscopesList = String.join(",", microscopes);
                 tfMicroscope.setText(microscopesList);
             }
+        });
 
+        Label labRootFolder = new Label("Root folder");
+        TextField tfRootFolder = new TextField(defaultRootFolder);
+        labRootFolder.setLabelFor(tfRootFolder);
+
+        Label labSaveFolder = new Label("Saving folder");
+        TextField tfSaveFolder = new TextField(defaultSaveFolder);
+        labSaveFolder.setLabelFor(tfSaveFolder);
+
+        // button to choose root folder
+        Button bChooseRootFolder = new Button("Open folder");
+        bChooseRootFolder.setOnAction(e->{
+            DirectoryChooser dirChooser = new DirectoryChooser();
+            dirChooser.setTitle("Choose the root folder where to get local image");
+            File rootFolder = dirChooser.showDialog(null);
+            if(rootFolder != null)
+                tfRootFolder.setText(rootFolder.getAbsolutePath());
+        });
+
+        // button to choose root folder
+        Button bChooseSaveFolder = new Button("Open folder");
+        bChooseSaveFolder.setOnAction(e->{
+            DirectoryChooser dirChooser = new DirectoryChooser();
+            dirChooser.setTitle("Choose the folder where to results");
+            File rootFolder = dirChooser.showDialog(null);
+            if(rootFolder != null)
+                tfSaveFolder.setText(rootFolder.getAbsolutePath());
         });
 
         int row = 0;
@@ -443,14 +479,25 @@ public class ArgoLightGui implements Command{
         settingsPane.add(tfProject, 1, row++);
         settingsPane.add(labMicroscope, 0, row);
         settingsPane.add(tfMicroscope, 1, row);
-        settingsPane.add(bChooseMicroscope, 2, row);
+        settingsPane.add(bChooseMicroscope, 2, row++);
+        settingsPane.add(labRootFolder, 0, row);
+        settingsPane.add(tfRootFolder, 1, row);
+        settingsPane.add(bChooseRootFolder, 2, row++);
+        settingsPane.add(labSaveFolder, 0, row);
+        settingsPane.add(tfSaveFolder, 1, row);
+        settingsPane.add(bChooseSaveFolder, 2, row);
         settingsPane.setHgap(5);
         settingsPane.setVgap(5);
 
         if (!buildDialog("Setup your default settings", settingsPane))
             return;
 
-        buildCSVFile(tfHost.getText(), tfPort.getText(), tfProject.getText(), tfMicroscope.getText());
+        buildCSVFile(tfHost.getText(),
+                tfPort.getText(),
+                tfProject.getText(),
+                tfMicroscope.getText(),
+                tfRootFolder.getText(),
+                tfSaveFolder.getText());
     }
 
     private static boolean buildDialog(String title, Node content){
@@ -499,37 +546,19 @@ public class ArgoLightGui implements Command{
 
 
     private static void showInfoMessage(String title, String content){
-        Dialog<ButtonType> dialog = new Alert(Alert.AlertType.INFORMATION);
-        if(title != null)
-            dialog.setTitle(title);
-        else
-            dialog.setTitle("");
-
-        dialog.getDialogPane().setContent(new Label(content));
-
-        dialog.setResizable(false);
-        dialog.initModality(Modality.APPLICATION_MODAL);
-
-        dialog.show();
+        showMessage(title, content, Alert.AlertType.INFORMATION);
     }
 
     private static void showErrorMessage(String title, String content){
-        Dialog<ButtonType> dialog = new Alert(Alert.AlertType.ERROR);
-        if(title != null)
-            dialog.setTitle(title);
-        else
-            dialog.setTitle("");
-
-        dialog.getDialogPane().setContent(new Label(content));
-
-        dialog.setResizable(false);
-        dialog.initModality(Modality.APPLICATION_MODAL);
-
-        dialog.show();
+        showMessage(title, content, Alert.AlertType.ERROR);
     }
 
     private static void showWarningMessage(String title, String content){
-        Dialog<ButtonType> dialog = new Alert(Alert.AlertType.WARNING);
+        showMessage(title, content, Alert.AlertType.WARNING);
+    }
+
+    private static void showMessage(String title, String content, Alert.AlertType alert){
+        Dialog<ButtonType> dialog = new Alert(alert);
         if(title != null)
             dialog.setTitle(title);
         else
@@ -560,7 +589,7 @@ public class ArgoLightGui implements Command{
         }
     }
 
-    private void buildCSVFile(String host, String port, String projectID, String microscopes) {
+    private void buildCSVFile(String host, String port, String projectID, String microscopes, String rootFolder, String savingFolder) {
         File directory = new File(folderName);
 
         if(!directory.exists())
@@ -574,6 +603,8 @@ public class ArgoLightGui implements Command{
             buffer.write(portKey+","+port + "\n");
             buffer.write(projectIdKey+","+projectID + "\n");
             buffer.write(microscopeKey+","+microscopes + "\n");
+            buffer.write(rootFolderKey+","+rootFolder + "\n");
+            buffer.write(saveFolderKey+","+savingFolder + "\n");
 
             // close the file
             buffer.close();
@@ -592,6 +623,8 @@ public class ArgoLightGui implements Command{
     public void run() {
         if(!PlatformImpl.isFxApplicationThread())
             PlatformImpl.startup(()->{});
+
+        Platform.setImplicitExit(false);
         Platform.runLater(()->{
             createGui();
         });
