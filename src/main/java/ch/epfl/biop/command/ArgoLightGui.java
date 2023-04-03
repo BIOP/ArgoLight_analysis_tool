@@ -29,26 +29,41 @@ import org.scijava.command.Command;
 import org.scijava.plugin.Plugin;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight gui")
 public class ArgoLightGui implements Command{
 
-    public static void createGui(){
-        String title = "Metrology with ArgoLight plugin";
-        String host = "omero-poc.epfl.ch:4064";
-        ObservableList<String> microscopesList = FXCollections.observableArrayList(
-                "SP8UP2", "SP8UP1", "SP8INT1");
+    private String defaultHost = "";
+    private String defaultPort = "";
+    private ObservableList<String> defaultMicroscopes = FXCollections.observableArrayList();
+    final private String hostKey = "OMERO Host";
+    final private String portKey = "OMERO Port";
+    final private String microscopeKey = "Microscopes";
+    final static private String folderName = "." + File.separator + "plugins" + File.separator + "BIOP";
+    final static private String fileName = "ArgoLight_default_params.csv";
 
+
+
+    public void createGui(){
+        String title = "Metrology with ArgoLight plugin";
+
+        setDefaultParams();
 
         // label and text field for OMERO credentials and host
-        Label labHost = new Label(host);
+        Label labHost = new Label(defaultHost+":"+defaultPort);
         Label labUsername = new Label("Username");
         TextField tfUsername = new TextField();
         labUsername.setLabelFor(tfUsername);
@@ -77,7 +92,7 @@ public class ArgoLightGui implements Command{
 
 
         Label labMicroscope = new Label("Microscope");
-        ComboBox cbMicroscope = new ComboBox(microscopesList);
+        ComboBox<String> cbMicroscope = new ComboBox<>(defaultMicroscopes);
 
         final ToggleGroup senderChoice = new ToggleGroup();
 
@@ -136,9 +151,12 @@ public class ArgoLightGui implements Command{
         });
 
         // button to choose root folder
-        Button bSettings = new Button("GUI Settings");
+        Button bSettings = new Button("Settings");
         bSettings.setOnAction(e->{
             createSettingsPane();
+            setDefaultParams();
+            labHost.setText(defaultHost+":"+defaultPort);
+            cbMicroscope.setItems(defaultMicroscopes);
         });
 
         ColumnConstraints colFourth = new ColumnConstraints();
@@ -174,7 +192,7 @@ public class ArgoLightGui implements Command{
         retrieverPane.setHgap(10);
         retrieverPane.setVgap(5);
 
-        // Create Retriever pane
+        // Create Microscope pane
         int microscopeRow = 0;
         GridPane microscopePane = new GridPane();
         microscopePane.getColumnConstraints().addAll(colFourth, colFourth, colFourth, colFourth);
@@ -205,7 +223,6 @@ public class ArgoLightGui implements Command{
         generalPane.add(retrieverPane, 0, generalRow++);
         generalPane.add(new Separator(), 0, generalRow++, 2, 1);
 
-
         Label microscopeHeader = new Label("Choose your microscope");
         microscopeHeader.setFont(new Font(MAX_FONT_SIZE)); // set to Label
         generalPane.add(microscopeHeader, 0, generalRow++, 2, 1);
@@ -228,24 +245,39 @@ public class ArgoLightGui implements Command{
         // build the dialog box
         if (!buildDialog(title, generalPane)){
             System.out.println("Press cancel");
+            Platform.setImplicitExit(false);
         }
         System.out.println("Press OK!");
+        Platform.setImplicitExit(false);
 
     }
 
+    private void setDefaultParams(){
+        Map<String, List<String>> defaultParams = getDefaultParams();
+        defaultHost = defaultParams.containsKey(hostKey) ?
+                (defaultParams.get(hostKey).isEmpty() ? "localhost" : defaultParams.get(hostKey).get(0)) :
+                "localhost";
+        defaultPort = defaultParams.containsKey(portKey) ?
+                (defaultParams.get(portKey).isEmpty() ? "4064" : defaultParams.get(portKey).get(0)) :
+                "4064";
+        defaultMicroscopes = defaultParams.containsKey(microscopeKey) ?
+                FXCollections.observableArrayList(defaultParams.get(microscopeKey)) :
+                FXCollections.observableArrayList();
+    }
 
-    private static void createSettingsPane(){
+
+    private void createSettingsPane(){
         // label and text field for OMERO credentials and host
         Label labHost = new Label("OMERO host");
-        TextField tfUsername = new TextField();
-        labHost.setLabelFor(tfUsername);
+        TextField tfHost = new TextField(defaultHost);
+        labHost.setLabelFor(tfHost);
 
         Label labPort = new Label("OMERO port");
-        TextField tfPort = new TextField();
+        TextField tfPort = new TextField(defaultPort);
         labPort.setLabelFor(tfPort);
 
         Label labMicroscope = new Label("Microscopes");
-        TextField tfMicroscope = new TextField();
+        TextField tfMicroscope = new TextField(String.join(",",defaultMicroscopes));
         labMicroscope.setLabelFor(tfMicroscope);
 
         // button to choose root folder
@@ -272,7 +304,7 @@ public class ArgoLightGui implements Command{
         int row = 0;
         GridPane settingsPane = new GridPane();
         settingsPane.add(labHost, 0, row);
-        settingsPane.add(tfUsername, 1, row++, 2, 1);
+        settingsPane.add(tfHost, 1, row++, 2, 1);
         settingsPane.add(labPort, 0, row);
         settingsPane.add(tfPort, 1, row++);
         settingsPane.add(labMicroscope, 0, row);
@@ -284,7 +316,8 @@ public class ArgoLightGui implements Command{
         if (!buildDialog("Setup your default settings", settingsPane))
             return;
 
-        System.out.println("Press OK!");
+        buildCSVFile(tfHost.getText(), tfPort.getText(), tfMicroscope.getText());
+
     }
 
     private static boolean buildDialog(String title, Node content){
@@ -307,8 +340,47 @@ public class ArgoLightGui implements Command{
         return dialog.showAndWait().orElse(ButtonType.NO) == ButtonType.OK;
     }
 
+    private static Map<String, List<String>> getDefaultParams(){
+        File file = new File(folderName + File.separator + fileName);
+        Map<String, List<String>> default_params = new HashMap<>();
+
+        if(!file.exists())
+            return Collections.emptyMap();
+
+        try {
+            //parsing a CSV file into BufferedReader class constructor
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = br.readLine()) != null){   //returns a Boolean value
+                String[] items = line.split(",");
+                List<String> values = new ArrayList<>(Arrays.asList(items).subList(1, items.length));
+                default_params.put(items[0],values);
+            }
+            br.close();
+           return default_params;
+        } catch (IOException e) {
+            return Collections.emptyMap();
+        }
+
+    }
+
     private static void buildErrorMessage(String title, Node content){
         Dialog<ButtonType> dialog = new Alert(Alert.AlertType.ERROR);
+        if(title != null)
+            dialog.setTitle(title);
+        else
+            dialog.setTitle("");
+
+        dialog.getDialogPane().setContent(content);
+
+        dialog.setResizable(false);
+        dialog.initModality(Modality.APPLICATION_MODAL);
+
+        dialog.show();
+    }
+
+    private static void buildWarningMessage(String title, Node content){
+        Dialog<ButtonType> dialog = new Alert(Alert.AlertType.WARNING);
         if(title != null)
             dialog.setTitle(title);
         else
@@ -329,12 +401,36 @@ public class ArgoLightGui implements Command{
             BufferedReader br = new BufferedReader(new FileReader(file));
             String line;
             while ((line = br.readLine()) != null){   //returns a Boolean value
-                items.add(line);
+                items.add(line.replace("\ufeff", ""));
             }
+            br.close();
+            return items;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            buildWarningMessage("CSV parsing",new Label("Couldn't parse the csv file. No default microscopes to add"));
+            return Collections.emptyList();
         }
-        return items;
+    }
+
+    private void buildCSVFile(String host, String port, String microscopes) {
+        File directory = new File(folderName);
+
+        if(!directory.exists())
+            directory.mkdir();
+
+        try {
+            File file = new File(directory.getAbsoluteFile() + File.separator + fileName);
+            // write the file
+            BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
+            buffer.write(hostKey+","+host + "\n");
+            buffer.write(portKey+","+port + "\n");
+            buffer.write(microscopeKey+","+microscopes + "\n");
+
+            // close the file
+            buffer.close();
+
+        } catch (IOException e) {
+            buildWarningMessage("CSV writing",new Label("Couldn't write the csv for default parameters."));
+        }
     }
 
     public static void main(String... args){
@@ -344,7 +440,8 @@ public class ArgoLightGui implements Command{
 
     @Override
     public void run() {
-        PlatformImpl.startup(()->{});
+        if(!PlatformImpl.isFxApplicationThread())
+            PlatformImpl.startup(()->{});
         Platform.runLater(()->{
             createGui();
         });
