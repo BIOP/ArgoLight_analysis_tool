@@ -1,3 +1,4 @@
 OMERO Host,omero-poc.epfl.ch
 OMERO Port,4064
-Microscopes,sp8up1,sp8up2,sp8int1
+,2004
+Microscopes,SP8_UP1,SP8_UP2,SP8_INT1

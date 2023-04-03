@@ -1,6 +1,14 @@
 package ch.epfl.biop.command;
 
+import ch.epfl.biop.processing.Processing;
+import ch.epfl.biop.retrievers.OMERORetriever;
+import ch.epfl.biop.senders.LocalSender;
+import ch.epfl.biop.senders.OMEROSender;
+import ch.epfl.biop.senders.Sender;
+import ch.epfl.biop.utils.IJLogger;
 import com.sun.javafx.application.PlatformImpl;
+import fr.igred.omero.Client;
+import fr.igred.omero.exception.ServiceException;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -46,11 +54,13 @@ import java.util.Map;
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight gui")
 public class ArgoLightGui implements Command{
 
-    private String defaultHost = "";
-    private String defaultPort = "";
+    private static String defaultHost = "";
+    private static String defaultPort = "";
+    private static String defaultProjectID = "-1";
     private ObservableList<String> defaultMicroscopes = FXCollections.observableArrayList();
     final private String hostKey = "OMERO Host";
     final private String portKey = "OMERO Port";
+    final private String projectIdKey = "";
     final private String microscopeKey = "Microscopes";
     final static private String folderName = "." + File.separator + "plugins" + File.separator + "BIOP";
     final static private String fileName = "ArgoLight_default_params.csv";
@@ -70,6 +80,9 @@ public class ArgoLightGui implements Command{
         Label labPassword = new Label("Password");
         PasswordField tfPassword = new PasswordField();
         labPassword.setLabelFor(tfPassword);
+        Label labProjectID = new Label("Project ID");
+        TextField tfProjectID = new TextField(defaultProjectID);
+        labProjectID.setLabelFor(tfProjectID);
 
         // label and textField to choose root folder in case of local retriever
         Label labRootFolder  = new Label("Root Folder");
@@ -90,21 +103,29 @@ public class ArgoLightGui implements Command{
         });
         bRootFolder.setDisable(true);
 
-
         Label labMicroscope = new Label("Microscope");
         ComboBox<String> cbMicroscope = new ComboBox<>(defaultMicroscopes);
 
         final ToggleGroup senderChoice = new ToggleGroup();
 
-        // Radio button to choose OMERO retriever
-        RadioButton rbOmeroSender = new RadioButton("OMERO");
-        rbOmeroSender.setToggleGroup(senderChoice);
-        rbOmeroSender.setSelected(true);
+        // label and textField to choose root folder in case of local retriever
+        Label labSavingFolder  = new Label("Saving Folder");
+        TextField tfSavingFolder = new TextField();
+        labSavingFolder.setLabelFor(tfSavingFolder);
+        labSavingFolder.setDisable(true);
+        tfSavingFolder.setDisable(true);
 
-        // Radio button to choose local retriever
-        RadioButton rbLocalSender = new RadioButton("Local");
-        rbLocalSender.setToggleGroup(senderChoice);
-        rbLocalSender.setSelected(false);
+        // button to choose root folder
+        Button bSavingFolder = new Button("Choose folder");
+        bSavingFolder.setOnAction(e->{
+            DirectoryChooser directoryChooser = new DirectoryChooser();
+            // directoryChooser.setInitialDirectory();
+            directoryChooser.setTitle("Choose the microscopes' root folder");
+            File rootFolder = directoryChooser.showDialog(null);
+            if(rootFolder != null)
+                tfSavingFolder.setText(rootFolder.getAbsolutePath());
+        });
+        bSavingFolder.setDisable(true);
 
         CheckBox chkSaveHeatMap = new CheckBox("Save heat maps");
         chkSaveHeatMap.setMinWidth(CheckBox.USE_PREF_SIZE);
@@ -113,6 +134,26 @@ public class ArgoLightGui implements Command{
         CheckBox chkAllImages = new CheckBox("Process again existing images");
         chkAllImages.setMinWidth(CheckBox.USE_PREF_SIZE);
         chkAllImages.setSelected(false);
+
+        // Radio button to choose local retriever
+        RadioButton rbLocalSender = new RadioButton("Local");
+        rbLocalSender.setToggleGroup(senderChoice);
+        rbLocalSender.selectedProperty().addListener((v, o, n) -> {
+            tfSavingFolder.setDisable(!rbLocalSender.isSelected());
+            labSavingFolder.setDisable(!rbLocalSender.isSelected());
+            bSavingFolder.setDisable(!rbLocalSender.isSelected());
+        });
+        rbLocalSender.setSelected(false);
+
+        // Radio button to choose OMERO retriever
+        RadioButton rbOmeroSender = new RadioButton("OMERO");
+        rbOmeroSender.setToggleGroup(senderChoice);
+        rbOmeroSender.selectedProperty().addListener((v, o, n) -> {
+            tfSavingFolder.setDisable(rbOmeroSender.isSelected());
+            labSavingFolder.setDisable(rbOmeroSender.isSelected());
+            bSavingFolder.setDisable(rbOmeroSender.isSelected());
+        });
+        rbOmeroSender.setSelected(true);
 
         final ToggleGroup retrieverChoice = new ToggleGroup();
         // Radio button to choose OMERO retriever
@@ -129,6 +170,11 @@ public class ArgoLightGui implements Command{
             labUsername.setDisable(!rbOmeroRetriever.isSelected());
             labPassword.setDisable(!rbOmeroRetriever.isSelected());
             rbOmeroSender.setDisable(!rbOmeroRetriever.isSelected());
+            labProjectID.setDisable(!rbOmeroRetriever.isSelected());
+            tfProjectID.setDisable(!rbOmeroRetriever.isSelected());
+            tfSavingFolder.setDisable(rbOmeroRetriever.isSelected());
+            labSavingFolder.setDisable(rbOmeroRetriever.isSelected());
+            bSavingFolder.setDisable(rbOmeroRetriever.isSelected());
 
         });
 
@@ -142,12 +188,17 @@ public class ArgoLightGui implements Command{
             labHost.setDisable(rbLocalRetriever.isSelected());
             labUsername.setDisable(rbLocalRetriever.isSelected());
             labPassword.setDisable(rbLocalRetriever.isSelected());
+            labProjectID.setDisable(rbLocalRetriever.isSelected());
+            tfProjectID.setDisable(rbLocalRetriever.isSelected());
             bRootFolder.setDisable(!rbLocalRetriever.isSelected());
             tfRootFolder.setDisable(!rbLocalRetriever.isSelected());
             labRootFolder.setDisable(!rbLocalRetriever.isSelected());
             rbOmeroSender.setSelected(!rbLocalRetriever.isSelected());
             rbLocalSender.setSelected(rbLocalRetriever.isSelected());
             rbOmeroSender.setDisable(rbLocalRetriever.isSelected());
+            tfSavingFolder.setDisable(rbLocalRetriever.isSelected());
+            labSavingFolder.setDisable(rbLocalRetriever.isSelected());
+            bSavingFolder.setDisable(rbLocalRetriever.isSelected());
         });
 
         // button to choose root folder
@@ -157,6 +208,7 @@ public class ArgoLightGui implements Command{
             setDefaultParams();
             labHost.setText(defaultHost+":"+defaultPort);
             cbMicroscope.setItems(defaultMicroscopes);
+            tfProjectID.setText(defaultProjectID);
         });
 
         ColumnConstraints colFourth = new ColumnConstraints();
@@ -170,7 +222,9 @@ public class ArgoLightGui implements Command{
         omeroPane.add(labUsername, 0, omeroRow);
         omeroPane.add(tfUsername, 1, omeroRow++);
         omeroPane.add(labPassword, 0, omeroRow);
-        omeroPane.add(tfPassword, 1, omeroRow);
+        omeroPane.add(tfPassword, 1, omeroRow++);
+        omeroPane.add(labProjectID, 0, omeroRow);
+        omeroPane.add(tfProjectID, 1, omeroRow);
         omeroPane.setHgap(5);
         omeroPane.setVgap(5);
 
@@ -206,9 +260,12 @@ public class ArgoLightGui implements Command{
         savingPane.getColumnConstraints().addAll(colFourth, colFourth, colFourth, colFourth);
         savingPane.add(rbOmeroSender, 1, localRow);
         savingPane.add(rbLocalSender, 2, localRow++);
-        savingPane.add(chkSaveHeatMap, 0, localRow++);
+        savingPane.add(chkSaveHeatMap, 0, localRow);
+        savingPane.add(labSavingFolder, 2, localRow);
+        savingPane.add(tfSavingFolder, 3, localRow++);
         savingPane.add(chkAllImages, 0, localRow, 2,1);
-        savingPane.setHgap(5);
+        savingPane.add(bSavingFolder, 3, localRow);
+        savingPane.setHgap(10);
         savingPane.setVgap(5);
 
         // create general pane
@@ -242,15 +299,77 @@ public class ArgoLightGui implements Command{
 
         generalPane.setHgap(10);
         generalPane.setVgap(10);
+
         // build the dialog box
         if (!buildDialog(title, generalPane)){
-            System.out.println("Press cancel");
             Platform.setImplicitExit(false);
+            return;
         }
-        System.out.println("Press OK!");
+
         Platform.setImplicitExit(false);
+        int passLength = tfPassword.getCharacters().length();
+        char[] password = new char[passLength];
+        for (int i = 0; i < passLength; i++) {
+            password[i] = tfPassword.getCharacters().charAt(i);
+        }
+        runProcessing(rbOmeroRetriever.isSelected(),
+                tfUsername.getText(),
+                password,
+                tfRootFolder.getText(),
+                cbMicroscope.getSelectionModel().getSelectedItem(),
+                rbOmeroSender.isSelected(),
+                tfSavingFolder.getText(),
+                chkSaveHeatMap.isSelected(),
+                chkAllImages.isSelected());
 
     }
+
+    private static void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
+                                      String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps, boolean allImages){
+
+        if(!isOmeroRetriever && !new File(rootFolderPath).exists()){
+            buildWarningMessage("Root folder not accessible", "The root folder "+rootFolderPath+" does not exist");
+            return;
+        }
+        if(!isOmeroSender && !new File(savingFolderPath).exists()){
+            buildWarningMessage("Saving folder not accessible", "The saving folder "+savingFolderPath+" does not exist");
+            return;
+        }
+
+        Client client = new Client();
+
+        // connect to OMERO
+        try {
+            client.connect(defaultHost, Integer.parseInt(defaultPort), username, password);
+            IJLogger.info("Successful connection to OMERO");
+        } catch (ServiceException e) {
+            IJLogger.error("Cannot connect to OMERO");
+            throw new RuntimeException(e);
+        }
+
+        try{
+            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(Long.parseLong(defaultProjectID), microscope, allImages);
+            int nImages = omeroRetriever.getNImages();
+
+            Sender sender;
+            if(!isOmeroSender) {
+                File savingFolder = new File(savingFolderPath);
+                sender = new LocalSender(savingFolder, microscope);
+            }
+            else
+                sender = new OMEROSender(client, omeroRetriever.getParentTarget());
+
+            // run analysis
+            if(nImages > 0)
+                Processing.run(omeroRetriever, saveHeatMaps, sender);
+            else IJLogger.error("No images are available for project "+defaultProjectID+", dataset "+microscope);
+
+        } finally {
+            client.disconnect();
+            IJLogger.info("Disconnected from OMERO ");
+        }
+    }
+
 
     private void setDefaultParams(){
         Map<String, List<String>> defaultParams = getDefaultParams();
@@ -263,6 +382,9 @@ public class ArgoLightGui implements Command{
         defaultMicroscopes = defaultParams.containsKey(microscopeKey) ?
                 FXCollections.observableArrayList(defaultParams.get(microscopeKey)) :
                 FXCollections.observableArrayList();
+        defaultProjectID = defaultParams.containsKey(projectIdKey) ?
+                (defaultParams.get(projectIdKey).isEmpty() ? "-1" : defaultParams.get(projectIdKey).get(0)) :
+                "-1";
     }
 
 
@@ -275,6 +397,10 @@ public class ArgoLightGui implements Command{
         Label labPort = new Label("OMERO port");
         TextField tfPort = new TextField(defaultPort);
         labPort.setLabelFor(tfPort);
+
+        Label labProject = new Label("OMERO Project ID");
+        TextField tfProject = new TextField(defaultProjectID);
+        labProject.setLabelFor(tfProject);
 
         Label labMicroscope = new Label("Microscopes");
         TextField tfMicroscope = new TextField(String.join(",",defaultMicroscopes));
@@ -294,7 +420,7 @@ public class ArgoLightGui implements Command{
                 Label labError = new Label("The file you selected is not a .csv file. Please select a .csv file");
                 buildErrorMessage("Wrong file type", labError);
             } else {
-                List<String> microscopes = parseCSV(rootFolder);
+                List<String> microscopes = parseMicroscopesCSV(rootFolder);
                 String microscopesList = String.join(",", microscopes);
                 tfMicroscope.setText(microscopesList);
             }
@@ -307,6 +433,8 @@ public class ArgoLightGui implements Command{
         settingsPane.add(tfHost, 1, row++, 2, 1);
         settingsPane.add(labPort, 0, row);
         settingsPane.add(tfPort, 1, row++);
+        settingsPane.add(labProject, 0, row);
+        settingsPane.add(tfProject, 1, row++);
         settingsPane.add(labMicroscope, 0, row);
         settingsPane.add(tfMicroscope, 1, row);
         settingsPane.add(bChooseMicroscope, 2, row);
@@ -316,8 +444,7 @@ public class ArgoLightGui implements Command{
         if (!buildDialog("Setup your default settings", settingsPane))
             return;
 
-        buildCSVFile(tfHost.getText(), tfPort.getText(), tfMicroscope.getText());
-
+        buildCSVFile(tfHost.getText(), tfPort.getText(), tfProject.getText(), tfMicroscope.getText());
     }
 
     private static boolean buildDialog(String title, Node content){
@@ -379,14 +506,14 @@ public class ArgoLightGui implements Command{
         dialog.show();
     }
 
-    private static void buildWarningMessage(String title, Node content){
+    private static void buildWarningMessage(String title, String content){
         Dialog<ButtonType> dialog = new Alert(Alert.AlertType.WARNING);
         if(title != null)
             dialog.setTitle(title);
         else
             dialog.setTitle("");
 
-        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setContent(new Label(content));
 
         dialog.setResizable(false);
         dialog.initModality(Modality.APPLICATION_MODAL);
@@ -394,7 +521,7 @@ public class ArgoLightGui implements Command{
         dialog.show();
     }
 
-    private static List<String> parseCSV(File file){
+    private static List<String> parseMicroscopesCSV(File file){
         List<String> items = new ArrayList<>();
         try {
             //parsing a CSV file into BufferedReader class constructor
@@ -406,12 +533,12 @@ public class ArgoLightGui implements Command{
             br.close();
             return items;
         } catch (IOException e) {
-            buildWarningMessage("CSV parsing",new Label("Couldn't parse the csv file. No default microscopes to add"));
+            buildWarningMessage("CSV parsing","Couldn't parse the csv file. No default microscopes to add");
             return Collections.emptyList();
         }
     }
 
-    private void buildCSVFile(String host, String port, String microscopes) {
+    private void buildCSVFile(String host, String port, String projectID, String microscopes) {
         File directory = new File(folderName);
 
         if(!directory.exists())
@@ -423,13 +550,14 @@ public class ArgoLightGui implements Command{
             BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
             buffer.write(hostKey+","+host + "\n");
             buffer.write(portKey+","+port + "\n");
+            buffer.write(projectIdKey+","+projectID + "\n");
             buffer.write(microscopeKey+","+microscopes + "\n");
 
             // close the file
             buffer.close();
 
         } catch (IOException e) {
-            buildWarningMessage("CSV writing",new Label("Couldn't write the csv for default parameters."));
+            buildWarningMessage("CSV writing","Couldn't write the csv for default parameters.");
         }
     }
 
