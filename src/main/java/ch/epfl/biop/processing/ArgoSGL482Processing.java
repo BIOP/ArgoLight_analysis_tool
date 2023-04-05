@@ -83,7 +83,7 @@ public class ArgoSGL482Processing {
             // display all points (grid and ideal)
             roiManager.reset();
 
-            if(imageFile.getZoomFactor() <= 1){
+            if(imageFile.getImagedFoV().equals("fullFoV")){
                 // reduced grid to compute average step
                 List<Point2D> smallerGrid = gridPoints.stream()
                         .filter(e -> (Math.abs(e.getX() - crossRoi.getStatistics().xCentroid) < (2.5*argoSpacing) / pixelSizeImage && Math.abs(e.getY() - crossRoi.getStatistics().yCentroid) < (2.5*argoSpacing) / pixelSizeImage))

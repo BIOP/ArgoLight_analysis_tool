@@ -10,12 +10,41 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ImageFile {
-    private final Pattern pattern = Pattern.compile("(?<microscope>.*)_o(?<objective>.*)_z(?<zoom>.*)_(?<immersion>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_?(?<series>.*)?\\.(?<extension>.*)");
+
+    public enum FILETYPE{
+        SINGLE("Single file",
+                Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)_(?<fov>.*)_(?<serie>.*)\\.(?<extension>.*)"),
+                Pattern.compile(".*[\\.][a-zA-Z]*")),
+
+        MULTIPLE("File coming from a fileset",
+                 Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)\\.(?<extension>[\\w]*).*\\[(?<fov>.*)_(?<serie>.*)\\]"),
+                Pattern.compile(".*[\\.].*\\[.*\\]")),
+
+        //TODO see if there is conflicted with others
+        OLDPROTOCOL("Single or multiple files with ArgoSim first protocol naming convention",
+                Pattern.compile("(?<microscope>.*)_o(?<objective>.*)_(?<immersion>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_?(?<series>.*)?\\.(?<extension>.*)"),
+                Pattern.compile(".*"));
+
+        private final String type;
+        private final Pattern pattern;
+        private final Pattern typeMatching;
+
+        FILETYPE(String type, Pattern pattern, Pattern comparator) {
+            this.type = type;
+            this.pattern = pattern;
+            this.typeMatching = comparator;
+        }
+
+        boolean matchesType(String s) { return typeMatching.matcher(s).matches(); }
+
+    }
+
     private final String imgName;
     private final String imgNameWithoutExtension;
     private String microscope;
@@ -23,7 +52,7 @@ public class ImageFile {
     private String immersionMedium;
     private String argoSlideName;
     private String acquisitionDate;
-    private String zoomFactor;
+    private String imagedFoV;
     private String argoSlidePattern;
     private final ImagePlus image;
     private List<String> tags = new ArrayList<>();
@@ -56,7 +85,7 @@ public class ImageFile {
         return this.id;
     }
     public ImagePlus getImage(){ return this.image; }
-    public double getZoomFactor(){ return Double.parseDouble(this.zoomFactor); }
+    public String getImagedFoV(){ return this.imagedFoV; }
     public List<String> getTags(){
         return this.tags;
     }
@@ -72,12 +101,22 @@ public class ImageFile {
     }
 
     private void parseImageName(String imgName){
-        Matcher matcher = pattern.matcher(imgName);
+
+        Optional<FILETYPE> filePattern = Arrays.stream(FILETYPE.values()).filter(ft -> ft.matchesType(imgName)).findFirst();
+
+        if(!filePattern.isPresent()) {
+            IJLogger.error("The name "+imgName+ "is not correctly formatted. Please format it like : "+
+                    "\\n MicrosocpeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension for single file (ex: lsm980_ArgoSLG482_b_d20230405_o63x_oil_fullFoV_1.czi)"+
+                    "\\n MicrosocpeName_ArgoSlideName_pattern_dDate_oObjective_immersion.extension [FoV_serie] for fileset images (ex: sp8up1_ArgoSLG482_b_d20230405_o63x_oil.lif [fullFoV_1]");
+            return;
+        }
+
+        Matcher matcher = filePattern.get().pattern.matcher(imgName);
 
         if(matcher.find()) {
             this.microscope = matcher.group("microscope");
             this.objective = matcher.group("objective");
-            this.zoomFactor = matcher.group("zoom");
+            this.imagedFoV = matcher.group("fov");
             this.immersionMedium = matcher.group("immersion");
             this.argoSlideName = matcher.group("argoslide");
             this.argoSlidePattern = matcher.group("pattern");
@@ -86,7 +125,7 @@ public class ImageFile {
             this.keyValues.put("Microscope", this.microscope);
             this.keyValues.put("Objective", this.objective);
             this.keyValues.put("Immersion", this.immersionMedium);
-            this.keyValues.put("Zoom", this.zoomFactor);
+            this.keyValues.put("FOV", this.imagedFoV);
             this.keyValues.put("ArgoSlide_name", this.argoSlideName);
             this.keyValues.put("ArgoSlide_pattern", this.argoSlidePattern);
             this.keyValues.put("Acquisition_date", this.acquisitionDate);
@@ -94,8 +133,9 @@ public class ImageFile {
            /* if(matcher.group("series") != null)
                 ;*/
         } else {
-            IJLogger.error("The name "+imgName+ "is not correctly formatted. Please format it like : \\n lsm980_o63x_z1.2_oil_ArgoSLG511_b_d20230223_1.extension "+
-                    "\\n sp8up1_063x_z2.6_gly_ArgoSLG511_b_d20230223.lif [img1] for lif files");
+            IJLogger.error("The name "+imgName+ "is not correctly formatted. Please format it like : "+
+                    "\\n MicrosocpeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension for single file (ex: lsm980_ArgoSLG482_b_d20230405_o63x_oil_fullFoV_1.czi)"+
+                    "\\n MicrosocpeName_ArgoSlideName_pattern_dDate_oObjective_immersion.extension [FoV_serie] for fileset images (ex: sp8up1_ArgoSLG482_b_d20230405_o63x_oil.lif [fullFoV_1]");
         }
     }
 

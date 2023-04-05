@@ -9,7 +9,6 @@ import ch.epfl.biop.utils.IJLogger;
 import com.sun.javafx.application.PlatformImpl;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
-import ij.IJ;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -55,12 +54,12 @@ import java.util.Map;
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight gui")
 public class ArgoLightGui implements Command{
 
-    private static String defaultHost = "";
-    private static String defaultPort = "";
-    private static String defaultProjectID = "-1";
-    private ObservableList<String> defaultMicroscopes = FXCollections.observableArrayList();
-    private static String defaultRootFolder = "";
-    private static String defaultSaveFolder = "";
+    private static String defaultHost;
+    private static String defaultPort;
+    private static String defaultProjectID;
+    private ObservableList<String> defaultMicroscopes;
+    private static String defaultRootFolder;
+    private static String defaultSaveFolder;
     final private String hostKey = "OMERO Host";
     final private String portKey = "OMERO Port";
     final private String projectIdKey = "Project ID";
@@ -69,6 +68,60 @@ public class ArgoLightGui implements Command{
     final private String rootFolderKey = "Root folder";
     final static private String folderName = "." + File.separator + "plugins" + File.separator + "BIOP";
     final static private String fileName = "ArgoLight_default_params.csv";
+
+
+    private static void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
+                                      String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps, boolean allImages){
+
+        boolean finalPopupMessage = true;
+        if(!isOmeroRetriever && !new File(rootFolderPath).exists()){
+            showWarningMessage("Root folder not accessible", "The root folder "+rootFolderPath+" does not exist");
+            return;
+        }
+        if(!isOmeroSender && !new File(savingFolderPath).exists()){
+            showWarningMessage("Saving folder not accessible", "The saving folder "+savingFolderPath+" does not exist");
+            return;
+        }
+
+        Client client = new Client();
+
+        // connect to OMERO
+        try {
+            client.connect(defaultHost, Integer.parseInt(defaultPort), username, password);
+            IJLogger.info("Successful connection to OMERO");
+        } catch (ServiceException e) {
+            IJLogger.error("Cannot connect to OMERO");
+            showErrorMessage("OMERO connections", "OMERO connection fails. Please check host, port and credentials");
+            return;
+        }
+
+        try {
+            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(Long.parseLong(defaultProjectID), microscope, allImages);
+            int nImages = omeroRetriever.getNImages();
+
+            Sender sender;
+            if (!isOmeroSender) {
+                File savingFolder = new File(savingFolderPath);
+                sender = new LocalSender(savingFolder, microscope);
+            } else
+                sender = new OMEROSender(client, omeroRetriever.getParentTarget());
+
+            // run analysis
+            if (nImages > 0)
+                Processing.run(omeroRetriever, saveHeatMaps, sender);
+            else IJLogger.error("No images are available for project " + defaultProjectID + ", dataset " + microscope);
+
+        } catch (Exception e){
+            finalPopupMessage = false;
+        } finally {
+            client.disconnect();
+            IJLogger.info("Disconnected from OMERO ");
+        }
+
+        if(finalPopupMessage) {
+            showInfoMessage("Processing Done", "All images have been analyzed and results saved");
+        }
+    }
 
 
 
@@ -327,60 +380,6 @@ public class ArgoLightGui implements Command{
                 chkSaveHeatMap.isSelected(),
                 chkAllImages.isSelected());
 
-    }
-
-    private static void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
-                                      String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps, boolean allImages){
-
-        boolean finalPopupMessage = true;
-        if(!isOmeroRetriever && !new File(rootFolderPath).exists()){
-            showWarningMessage("Root folder not accessible", "The root folder "+rootFolderPath+" does not exist");
-            return;
-        }
-        if(!isOmeroSender && !new File(savingFolderPath).exists()){
-            showWarningMessage("Saving folder not accessible", "The saving folder "+savingFolderPath+" does not exist");
-            return;
-        }
-
-        Client client = new Client();
-
-        // connect to OMERO
-        try {
-            client.connect(defaultHost, Integer.parseInt(defaultPort), username, password);
-            IJLogger.info("Successful connection to OMERO");
-        } catch (ServiceException e) {
-            IJLogger.error("Cannot connect to OMERO");
-            showErrorMessage("OMERO connections", "OMERO connection fails. Please check host, port and credentials");
-            return;
-        }
-
-        try {
-            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(Long.parseLong(defaultProjectID), microscope, allImages);
-            int nImages = omeroRetriever.getNImages();
-
-            Sender sender;
-            if (!isOmeroSender) {
-                File savingFolder = new File(savingFolderPath);
-                sender = new LocalSender(savingFolder, microscope);
-            } else
-                sender = new OMEROSender(client, omeroRetriever.getParentTarget());
-
-            // run analysis
-            if (nImages > 0)
-                Processing.run(omeroRetriever, saveHeatMaps, sender);
-            else IJLogger.error("No images are available for project " + defaultProjectID + ", dataset " + microscope);
-
-        } catch (Exception e){
-            finalPopupMessage = false;
-        } finally {
-            client.disconnect();
-            IJLogger.info("Disconnected from OMERO ");
-        }
-
-        if(finalPopupMessage) {
-            IJ.run("Close All");
-            showInfoMessage("Processing Done", "All images have been analyzed and results saved");
-        }
     }
 
 

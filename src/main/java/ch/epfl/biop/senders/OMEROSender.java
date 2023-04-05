@@ -138,7 +138,7 @@ public class OMEROSender implements Sender{
             newKeyValues.setNameSpace("openmicroscopy.org/omero/client/mapAnnotation");
             try {
                 // upload key-values on OMERO
-                this.imageWrapper.addMapAnnotation(this.client, newKeyValues);
+                this.imageWrapper.link(this.client, newKeyValues);
             } catch (ServiceException | AccessException | ExecutionException e) {
                 IJLogger.error("Adding Key-Values", "KeyValues could not be added on the image " + this.imageWrapper.getId());
             }
@@ -222,6 +222,7 @@ public class OMEROSender implements Sender{
 
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
+        // TODO wait the new release of simple-omero-client because bug on getting tables larger than 500 rows
         // get the current date
         String date = Tools.getCurrentDateAndHour();
 

@@ -3,7 +3,6 @@ package ch.epfl.biop.processing;
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.retrievers.OMERORetriever;
-import ch.epfl.biop.senders.OMEROSender;
 import ch.epfl.biop.senders.Sender;
 import fr.igred.omero.repository.ImageWrapper;
 import ij.ImagePlus;
@@ -79,16 +78,16 @@ public class Processing {
 
             // send heat maps
             if (savingHeatMaps) {
-                if(is482SGL && imageFile.getZoomFactor() == 1) sender.sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()));
-                if(is482SGL && imageFile.getZoomFactor() == 1) sender.sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()));
-                if(is482SGL && imageFile.getZoomFactor() > 1) sender.sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(is482SGL && imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(is482SGL && imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(is482SGL && !imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()));
             }
         }
 
         // send results table
-        if(is482SGL && imageFile.getZoomFactor() == 1) sender.sendResultsTable(distortionValues, chIds, false, "Field_distortion");
-        if(is482SGL && imageFile.getZoomFactor() == 1) sender.sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
-        if(is482SGL && imageFile.getZoomFactor() > 1) sender.sendResultsTable(fwhmValues, chIds, false, "FWHM");
+        if(is482SGL && imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(distortionValues, chIds, false, "Field_distortion");
+        if(is482SGL && imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
+        if(is482SGL && !imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(fwhmValues, chIds, false, "FWHM");
 
         // send key values
         keyValues.put("Image_ID",""+imageFile.getId());
