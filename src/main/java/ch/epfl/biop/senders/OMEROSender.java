@@ -24,6 +24,7 @@ import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
 import omero.gateway.facility.TablesFacility;
 import omero.gateway.model.EllipseData;
+import omero.gateway.model.FileAnnotationData;
 import omero.gateway.model.ImageData;
 import omero.gateway.model.ROIData;
 import omero.gateway.model.RectangleData;
@@ -39,10 +40,12 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -203,19 +206,19 @@ public class OMEROSender implements Sender{
         String date = Tools.getCurrentDateAndHour();
         TableWrapper tableWrapper;
 
-        if(!replaceExistingTable){
-            TableWrapper table = getOmeroTable(this.client, this.imageWrapper, tableName);
-            if(table != null)
-                tableWrapper = addNewColumnsToTable(table, values, channelIdList, date);
-            else tableWrapper = createNewTable(values, channelIdList, date);
-        } else tableWrapper = createNewTable(values, channelIdList, date);
+        TableWrapper table = getOmeroTable(this.client, this.imageWrapper, tableName);
+
+        if(!replaceExistingTable && table != null)
+            tableWrapper = addNewColumnsToTable(table, values, channelIdList, date);
+        else tableWrapper = createNewTable(values, channelIdList, date);
 
         // send table to OMERO
         try {
             tableWrapper.setName(tableName);
             this.imageWrapper.addTable(client, tableWrapper);
+            this.client.delete(table);
             IJLogger.info("Results table for image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId() + " has been uploaded");
-        } catch (DSAccessException | ServiceException | ExecutionException e) {
+        } catch (DSAccessException | ServiceException | ExecutionException | OMEROServerError | InterruptedException e) {
             IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
         }
     }
@@ -458,11 +461,21 @@ public class OMEROSender implements Sender{
 
     private static TableWrapper getOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper, String tableName){
         try {
-            List<TableWrapper> tables = repoWrapper.getTables(client).stream().filter(e -> e.getName().contains(tableName)).collect(Collectors.toList());
-            if(!tables.isEmpty()) {
-                TableWrapper table = tables.get(0);
-                TableData tableData = client.getGateway().getFacility(TablesFacility.class).getTable(client.getCtx(), table.getFileId(), 0, table.getRowCount(),
-                        IntStream.range(0, table.getColumnCount()).toArray());
+            //TODO integrate v6.0.0 of simple-omero-client and see if it solves the problem of fileID = -1 (i.e. can access to tables larger than 500 rows)
+            Collection<FileAnnotationData> tables = new ArrayList<>();//repoWrapper.getTables(client).stream().filter(e -> e.getName().contains(tableName)).collect(Collectors.toList());
+            if(repoWrapper instanceof ImageWrapper)
+                tables = client.getGateway().getFacility(TablesFacility.class).getAvailableTables(client.getCtx(), ((ImageWrapper)repoWrapper).asDataObject());
+            else if (repoWrapper instanceof DatasetWrapper) {
+                tables = client.getGateway().getFacility(TablesFacility.class).getAvailableTables(client.getCtx(), ((DatasetWrapper)repoWrapper).asDataObject());
+            }
+
+            Optional<FileAnnotationData> table = tables.stream().filter(e->e.getFileName().contains(tableName)).findFirst();
+
+            if(table.isPresent()) {
+                FileAnnotationData tableToUpdate = table.get();
+                TableData smallTable = client.getGateway().getFacility(TablesFacility.class).getTable(client.getCtx(), tableToUpdate.getFileID());
+                TableData tableData = client.getGateway().getFacility(TablesFacility.class).getTable(client.getCtx(), tableToUpdate.getFileID(), 0, smallTable.getNumberOfRows()-1,
+                        IntStream.range(0, smallTable.getColumns().length).toArray());
                 return new TableWrapper(tableData);
             }
            return null;
