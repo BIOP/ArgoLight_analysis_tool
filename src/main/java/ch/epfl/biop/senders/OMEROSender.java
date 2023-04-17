@@ -216,7 +216,7 @@ public class OMEROSender implements Sender{
         try {
             tableWrapper.setName(tableName);
             this.imageWrapper.addTable(client, tableWrapper);
-            this.client.delete(table);
+            if(table != null) this.client.delete(table);
             IJLogger.info("Results table for image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId() + " has been uploaded");
         } catch (DSAccessException | ServiceException | ExecutionException | OMEROServerError | InterruptedException e) {
             IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
@@ -225,7 +225,6 @@ public class OMEROSender implements Sender{
 
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
-        // TODO wait the new release of simple-omero-client because bug on getting tables larger than 500 rows
         // get the current date
         String date = Tools.getCurrentDateAndHour();
 
@@ -461,22 +460,9 @@ public class OMEROSender implements Sender{
 
     private static TableWrapper getOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper, String tableName){
         try {
-            //TODO integrate v6.0.0 of simple-omero-client and see if it solves the problem of fileID = -1 (i.e. can access to tables larger than 500 rows)
-            Collection<FileAnnotationData> tables = new ArrayList<>();//repoWrapper.getTables(client).stream().filter(e -> e.getName().contains(tableName)).collect(Collectors.toList());
-            if(repoWrapper instanceof ImageWrapper)
-                tables = client.getGateway().getFacility(TablesFacility.class).getAvailableTables(client.getCtx(), ((ImageWrapper)repoWrapper).asDataObject());
-            else if (repoWrapper instanceof DatasetWrapper) {
-                tables = client.getGateway().getFacility(TablesFacility.class).getAvailableTables(client.getCtx(), ((DatasetWrapper)repoWrapper).asDataObject());
-            }
-
-            Optional<FileAnnotationData> table = tables.stream().filter(e->e.getFileName().contains(tableName)).findFirst();
-
-            if(table.isPresent()) {
-                FileAnnotationData tableToUpdate = table.get();
-                TableData smallTable = client.getGateway().getFacility(TablesFacility.class).getTable(client.getCtx(), tableToUpdate.getFileID());
-                TableData tableData = client.getGateway().getFacility(TablesFacility.class).getTable(client.getCtx(), tableToUpdate.getFileID(), 0, smallTable.getNumberOfRows()-1,
-                        IntStream.range(0, smallTable.getColumns().length).toArray());
-                return new TableWrapper(tableData);
+            List<TableWrapper> tableList = repoWrapper.getTables(client).stream().filter(e -> e.getName().contains(tableName)).collect(Collectors.toList());
+            if(!tableList.isEmpty()){
+                return tableList.get(0);
             }
            return null;
         }catch(ExecutionException | DSOutOfServiceException | DSAccessException e){
