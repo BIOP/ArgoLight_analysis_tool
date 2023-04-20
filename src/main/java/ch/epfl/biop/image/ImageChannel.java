@@ -110,10 +110,10 @@ public class ImageChannel {
         IJLogger.info("Channel "+this.channelId, "Vertical cross shit :"+(crossStats.yCentroid - this.imageHeight/2));
 
         double[] fieldDistortionStats = Tools.computeStatistics(this.ringsFieldDistortion);
-        channelSummaryMap.put("Field_Distortion_avg__um", this.ringsFieldDistortion.isEmpty() ? Double.NaN : fieldDistortionStats[0]);
-        channelSummaryMap.put("Field_Distortion_std__um", this.ringsFieldDistortion.isEmpty() ? Double.NaN : fieldDistortionStats[1]);
-        channelSummaryMap.put("Field_Distortion_min__um", this.ringsFieldDistortion.isEmpty() ? Double.NaN : fieldDistortionStats[2]);
-        channelSummaryMap.put("Field_Distortion_max__um", this.ringsFieldDistortion.isEmpty() ? Double.NaN : fieldDistortionStats[3]);
+        channelSummaryMap.put("Field_Distortion_avg__um", this.ringsFieldDistortion.isEmpty() ? -1 : fieldDistortionStats[0]);
+        channelSummaryMap.put("Field_Distortion_std__um", this.ringsFieldDistortion.isEmpty() ? -1 : fieldDistortionStats[1]);
+        channelSummaryMap.put("Field_Distortion_min__um", this.ringsFieldDistortion.isEmpty() ? -1 : fieldDistortionStats[2]);
+        channelSummaryMap.put("Field_Distortion_max__um", this.ringsFieldDistortion.isEmpty() ? -1 : fieldDistortionStats[3]);
 
         IJLogger.info("Channel "+this.channelId, "Field distortion (avg, std, min, max) um :"
                 +fieldDistortionStats[0] +", "
@@ -122,10 +122,10 @@ public class ImageChannel {
                 +fieldDistortionStats[3] +", ");
 
         double[] fieldUniformityStats = Tools.computeStatistics(this.ringsFieldUniformity);
-        channelSummaryMap.put("Field_Uniformity_avg", this.ringsFieldUniformity.isEmpty() ? Double.NaN : fieldUniformityStats[0]);
-        channelSummaryMap.put("Field_Uniformity_std", this.ringsFieldUniformity.isEmpty() ? Double.NaN : fieldUniformityStats[1]);
-        channelSummaryMap.put("Field_Uniformity_min", this.ringsFieldUniformity.isEmpty() ? Double.NaN : fieldUniformityStats[2]);
-        channelSummaryMap.put("Field_Uniformity_max", this.ringsFieldUniformity.isEmpty() ? Double.NaN : fieldUniformityStats[3]);
+        channelSummaryMap.put("Field_Uniformity_avg", this.ringsFieldUniformity.isEmpty() ? -1 : fieldUniformityStats[0]);
+        channelSummaryMap.put("Field_Uniformity_std", this.ringsFieldUniformity.isEmpty() ? -1 : fieldUniformityStats[1]);
+        channelSummaryMap.put("Field_Uniformity_min", this.ringsFieldUniformity.isEmpty() ? -1: fieldUniformityStats[2]);
+        channelSummaryMap.put("Field_Uniformity_max", this.ringsFieldUniformity.isEmpty() ? -1 : fieldUniformityStats[3]);
 
         IJLogger.info("Channel "+this.channelId, "Field uniformity (avg, std, min, max) um :"
                 +fieldUniformityStats[0] +", "
@@ -134,10 +134,10 @@ public class ImageChannel {
                 +fieldUniformityStats[3] +", ");
 
         double[] fwhmStats = Tools.computeStatistics(this.ringsFWHM);
-        channelSummaryMap.put("Field_FWHM_avg__um", this.ringsFWHM.isEmpty() ? Double.NaN : fwhmStats[0]);
-        channelSummaryMap.put("Field_FWHM_std__um", this.ringsFWHM.isEmpty() ? Double.NaN : fwhmStats[1]);
-        channelSummaryMap.put("Field_FWHM_min__um", this.ringsFWHM.isEmpty() ? Double.NaN : fwhmStats[2]);
-        channelSummaryMap.put("Field_FWHM_max__um", this.ringsFWHM.isEmpty() ? Double.NaN : fwhmStats[3]);
+        channelSummaryMap.put("Field_FWHM_avg__um", this.ringsFWHM.isEmpty() ? -1 : fwhmStats[0]);
+        channelSummaryMap.put("Field_FWHM_std__um", this.ringsFWHM.isEmpty() ? -1: fwhmStats[1]);
+        channelSummaryMap.put("Field_FWHM_min__um", this.ringsFWHM.isEmpty() ? -1 : fwhmStats[2]);
+        channelSummaryMap.put("Field_FWHM_max__um", this.ringsFWHM.isEmpty() ? -1 : fwhmStats[3]);
 
         IJLogger.info("Channel "+this.channelId, "FWHM (avg, std, min, max) um :"
                 +fwhmStats[0] +", "

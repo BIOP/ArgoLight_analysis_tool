@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+/**
+ * Class that retrieve images from OMERO database, based on a container ID.
+ */
 public class OMERORetriever implements Retriever {
     final private Client client;
     private List<ImageWrapper> images = new ArrayList<>();
@@ -24,6 +27,14 @@ public class OMERORetriever implements Retriever {
         this.client = client;
     }
 
+    /**
+     * Retrieve from OMERO images that need to be processed.
+     *
+     * @param datasetId where to look for images
+     * @param processAllRawImages true if you want to process all images within the dataset, regardless if
+     *                            they have already been processed one.
+     * @return builder
+     */
     public OMERORetriever loadRawImages(long datasetId, boolean processAllRawImages) {
         this.processAllRawImages = processAllRawImages;
         try {
@@ -43,6 +54,15 @@ public class OMERORetriever implements Retriever {
         return this;
     }
 
+    /**
+     * Retrieve from OMERO images that need to be processed.
+     *
+     * @param projectId where to look for images
+     * @param datasetName name of the dataset where to look for images (corresponding to the microscope name)
+     * @param processAllRawImages true if you want to process all images within the dataset, regardless if
+     *                            they have already been processed one.
+     * @return builder
+     */
     public OMERORetriever loadRawImages(long projectId, String datasetName, boolean processAllRawImages) {
         this.processAllRawImages = processAllRawImages;
         try {
@@ -70,13 +90,15 @@ public class OMERORetriever implements Retriever {
     }
 
     /**
-     * return the list of all images that have never been processed yet.
+     * Filter the list of images by removing macro images, heat maps (i.e. every image tagged with "processed" tag)
+     * and optionally by removing images that have already been processed (tagged with "raw" tag).
      *
-     * @param imageWrapperList
-     * @param processAllRawImages
-     * @return
+     * @param imageWrapperList List of image to filter
+     * @param processAllRawImages true if you want to process all images within the dataset, regardless if
+     *                            they have already been processed one.
+     * @return the filtered list
      */
-    public List<ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages) {
+    private List<ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages) {
         // get all images without the tags "raw" nor "process" and remove macro images from vsi files.
         return imageWrapperList.stream().filter(e-> {
             try {
@@ -93,6 +115,10 @@ public class OMERORetriever implements Retriever {
     }
 
 
+    /**
+     * @param index image position in the list
+     * @return the {@link ImageWrapper} object of an image picked from the list of image to process.
+     */
     public ImageWrapper getImageWrapper(int index){
         if(index >= this.images.size()) {
             IJLogger.error("Get image channel", "You try to access to channel "+index+ " that doesn't exists");
@@ -101,6 +127,10 @@ public class OMERORetriever implements Retriever {
         return this.images.get(index);
     }
 
+    /**
+     *
+     * @return the {@link Client} object that handle the OMERO connection.
+     */
     public Client getClient(){ return this.client; }
 
     @Override

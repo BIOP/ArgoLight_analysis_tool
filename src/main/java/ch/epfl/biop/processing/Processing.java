@@ -4,6 +4,7 @@ import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.retrievers.OMERORetriever;
 import ch.epfl.biop.senders.Sender;
+import ch.epfl.biop.utils.IJLogger;
 import fr.igred.omero.repository.ImageWrapper;
 import ij.ImagePlus;
 
@@ -18,34 +19,41 @@ public class Processing {
         Map<ImageWrapper, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
 
-        for(int i = 0; i < retriever.getNImages(); i++) {
-            // get the image
-            ImagePlus imp = retriever.getImage(i);
-            // get the imageWrapper
-            ImageWrapper imageWrapper = retriever.getImageWrapper(i);
-            // create a new ImageFile object
-            ImageFile imageFile = new ImageFile(imp, imageWrapper.getId());
-            boolean isSGL482 = false;
+        for (int i = 0; i < retriever.getNImages(); i++) {
+           // try {
+                // get the image
+                ImagePlus imp = retriever.getImage(i);
+                // get the imageWrapper
+                ImageWrapper imageWrapper = retriever.getImageWrapper(i);
+                if (imp == null || imageWrapper == null)
+                    continue;
+                // create a new ImageFile object
+                ImageFile imageFile = new ImageFile(imp, imageWrapper.getId());
+                boolean isSGL482 = false;
 
-            // choose the right ArgoLight processing
-            if(imageFile.getArgoSlideName().contains("SGL482")){
-                ArgoSGL482Processing.run(imageFile);
-                isSGL482 = true;
-            }else{
-                ArgoSGL511Processing.run(imageFile);
-            }
+                // choose the right ArgoLight processing
+                if (imageFile.getArgoSlideName().contains("SGL482")) {
+                    ArgoSGL482Processing.run(imageFile);
+                    isSGL482 = true;
+                } else {
+                    ArgoSGL511Processing.run(imageFile);
+                }
 
-            // send image results (metrics, rings, tags, key-values)
-            sender.initialize(imageFile, imageWrapper);
-            sender.sendTags(imageFile.getTags(), imageWrapper, retriever.getClient());
-            sendResults(sender, imageFile, savingHeatMaps, isSGL482);
+                // send image results (metrics, rings, tags, key-values)
+                sender.initialize(imageFile, imageWrapper);
+                sender.sendTags(imageFile.getTags(), imageWrapper, retriever.getClient());
+                sendResults(sender, imageFile, savingHeatMaps, isSGL482);
 
-            // metrics summary to populate parent table
-            Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
-            headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
-            if(!allChannelMetrics.values().isEmpty())
-                summaryMap.put(imageWrapper, allChannelMetrics.values().iterator().next());
+                // metrics summary to populate parent table
+                Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
+                headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
+                if (!allChannelMetrics.values().isEmpty())
+                    summaryMap.put(imageWrapper, allChannelMetrics.values().iterator().next());
+            /*}catch (Exception e){
+                IJLogger.error("An error occured during processing ; cannot analyse the image "+retriever.getImage(i).getTitle());
+            }*/
         }
+
         // populate parent table with summary results
         sender.populateParentTable(summaryMap, headers, !retriever.isProcessingAllRawImages());
     }

@@ -84,6 +84,7 @@ public class ArgoSGL482Processing {
             roiManager.reset();
 
             if(imageFile.getImagedFoV().equals("fullFoV")){
+                imageFile.addTags("fullFoV");
                 // reduced grid to compute average step
                 List<Point2D> smallerGrid = gridPoints.stream()
                         .filter(e -> (Math.abs(e.getX() - crossRoi.getStatistics().xCentroid) < (2.5*argoSpacing) / pixelSizeImage && Math.abs(e.getY() - crossRoi.getStatistics().yCentroid) < (2.5*argoSpacing) / pixelSizeImage))
@@ -128,6 +129,7 @@ public class ArgoSGL482Processing {
                 imageChannel.addFieldUniformity(computeFieldUniformity(gridPoints,channel,ovalRadius));
 
             }else {
+                imageFile.addTags("partialFoV");
                 // create grid point ROIs
                 gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi((pR.getX()-ovalRadius+0.5), pR.getY()-ovalRadius+0.5, 2*ovalRadius, 2*ovalRadius));});
                 // save ROIs
@@ -229,7 +231,7 @@ public class ArgoSGL482Processing {
         IJ.run(imp2, "Convert to Mask", "");
 
         // make measurements
-        IJ.run("Set Measurements...", "area mean min centroid center perimeter display redirect=None decimal=3");
+        IJ.run("Set Measurements...", "area centroid center display redirect=None decimal=3");
         IJ.run(imp2, "Analyze Particles...", "pixel display clear overlay add");
         ResultsTable rt_points = ResultsTable.getResultsTable("Results");
         RoiManager rm = RoiManager.getRoiManager();
@@ -239,6 +241,7 @@ public class ArgoSGL482Processing {
         // get coordinates of each point
         float[] raw_x_array = rt_points.getColumn(rt_points.getColumnIndex("XM"));
         float[] raw_y_array = rt_points.getColumn(rt_points.getColumnIndex("YM"));
+        float[] raw_area_array = rt_points.getColumn(rt_points.getColumnIndex("Area"));
 
         List<Point2D> gridPoints = new ArrayList<>();
 
@@ -248,7 +251,8 @@ public class ArgoSGL482Processing {
             if(Math.abs(raw_x_array[i] - large_rect_roi_x) <= large_rect_roi_w/2 &&
                     Math.abs(raw_y_array[i] - large_rect_roi_y) <= large_rect_roi_h/2 &&
                     !(Math.abs(raw_x_array[i] - crossRoi.getStatistics().xCentroid) <= crossRoi.getStatistics().roiWidth/2 &&
-                            Math.abs(raw_y_array[i] - crossRoi.getStatistics().yCentroid) <= crossRoi.getStatistics().roiHeight/2)){
+                            Math.abs(raw_y_array[i] - crossRoi.getStatistics().yCentroid) <= crossRoi.getStatistics().roiHeight/2) &&
+                    raw_area_array[i] > 25){
                 gridPoints.add(new Point2D.Double(raw_x_array[i], raw_y_array[i]));
             }
         }
