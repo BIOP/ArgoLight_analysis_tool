@@ -43,13 +43,27 @@ public interface Sender {
 
     /**
      * Save the table regrouping measured features on the imaged grid
-     * @param values measured features
-     * @param channelIdList
-     * @param replaceExistingTable
-     * @param tableName
+     * @param values measured features for all channels
+     * @param channelIdList list of channels
+     * @param createNewTable true if you want to create a new file
+     * @param tableName file name
      */
-    void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean replaceExistingTable, String tableName);
+    void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean createNewTable, String tableName);
+
+    /**
+     * Save summary table and new entries if new images are acquired
+     * @param summary summary metrics for each image
+     * @param headers metrics names and other headers
+     * @param populateExistingTable true if you want to add the current summary to the current table ;
+     *                              false if you want to create a new file.
+     */
     void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable);
+
+    /**
+     * Save Pearson Correlation Coefficient analysis table
+     * @param pccValues
+     * @param nChannels
+     */
     void sendPCCTable(List<List<Double>> pccValues, int nChannels);
     void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client);
 }

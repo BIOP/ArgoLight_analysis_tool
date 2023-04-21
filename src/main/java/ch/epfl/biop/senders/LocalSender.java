@@ -151,11 +151,11 @@ public class LocalSender implements Sender{
     }
 
     @Override
-    public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean replaceExistingTable, String tableName){
+    public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean createNewTable, String tableName){
         String date = Tools.getCurrentDateAndHour();
         String text;
 
-        if(!replaceExistingTable){
+        if(!createNewTable){
             File csvTable = new File(this.imageFolder + File.separator + tableName+"_table.csv");
             if(csvTable.exists()) {
                 List<String> rows = Tools.readCsvFile(csvTable);
@@ -276,7 +276,7 @@ public class LocalSender implements Sender{
             // check if all channels have the same number of detected rings
             for (int i = 0; i < values.size() - 1; i++)
                 if (values.get(i).size() != values.get(i + 1).size()) {
-                    IJLogger.error("Cannot save Uniformity table because the size of detected rings is not the same for each channel");
+                    IJLogger.error("Cannot save table because the size of detected rings is not the same for each channel");
                     return "";
                 }
 

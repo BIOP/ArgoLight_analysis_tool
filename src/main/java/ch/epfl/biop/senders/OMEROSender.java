@@ -202,13 +202,13 @@ public class OMEROSender implements Sender{
     }
 
     @Override
-    public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean replaceExistingTable, String tableName){
+    public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean createNewTable, String tableName){
         String date = Tools.getCurrentDateAndHour();
         TableWrapper tableWrapper;
 
         TableWrapper table = getOmeroTable(this.client, this.imageWrapper, tableName);
 
-        if(!replaceExistingTable && table != null)
+        if(!createNewTable && table != null)
             tableWrapper = addNewColumnsToTable(table, values, channelIdList, date);
         else tableWrapper = createNewTable(values, channelIdList, date);
 
