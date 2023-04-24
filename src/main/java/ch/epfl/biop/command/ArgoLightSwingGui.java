@@ -183,6 +183,7 @@ public class ArgoLightSwingGui implements Command {
         // build project combo model
         DefaultComboBoxModel<String> modelCmbMicroscope = new DefaultComboBoxModel<>();
         JComboBox<String> cbMicroscope = new JComboBox<>(modelCmbMicroscope);
+        cbMicroscope.setFont(stdFont);
         defaultMicroscopes.forEach(cbMicroscope::addItem);
 
         // label and textField to choose root folder in case of local retriever
@@ -304,31 +305,6 @@ public class ArgoLightSwingGui implements Command {
             tfProjectID.setText(defaultProjectID);
             tfRootFolder.setText(defaultRootFolder);
             tfSavingFolder.setText(defaultSaveFolder);
-        });
-
-        // button to choose root folder
-        JButton bOK = new JButton("OK");
-        bOK.setFont(stdFont);
-        bOK.addActionListener(e->{
-            generalPane.dispose();
-
-            char[] password = tfPassword.getPassword();
-
-            runProcessing(rbOmeroRetriever.isSelected(),
-                    tfUsername.getText(),
-                    password,
-                    tfRootFolder.getText(),
-                    (String)cbMicroscope.getSelectedItem(),
-                    rbOmeroSender.isSelected(),
-                    tfSavingFolder.getText(),
-                    chkSaveHeatMap.isSelected(),
-                    chkAllImages.isSelected());
-        });
-
-        JButton bCancel = new JButton("Cancel");
-        bCancel.setFont(stdFont);
-        bCancel.addActionListener(e->{
-            generalPane.dispose();
         });
 
 
@@ -488,37 +464,24 @@ public class ArgoLightSwingGui implements Command {
         constraints.gridwidth = 1; // set it back
 
         constraints.gridx = 0;
-        constraints.gridy = omeroRetrieverRow++;
+        constraints.gridy = omeroRetrieverRow;
         omeroPane.add(bSettings, constraints);
 
-        constraints.gridx = 2;
-        constraints.gridy = omeroRetrieverRow;
-        omeroPane.add(bOK, constraints);
+        int opt = JOptionPane.showConfirmDialog(null, omeroPane, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if(opt == JOptionPane.OK_OPTION){
+            char[] password = tfPassword.getPassword();
 
-        constraints.gridx = 3;
-        constraints.gridy = omeroRetrieverRow;
-        omeroPane.add(bCancel, constraints);
-
-        // set general frame
-        generalPane.setTitle(title);
-        generalPane.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        generalPane.setModal(true);
-
-        int prefWidth = 800;
-        int prefHeight = 700;
-        generalPane.setPreferredSize(new Dimension(prefWidth, prefHeight));
-
-        // get the screen size
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        double width = screenSize.getWidth();
-        double height = screenSize.getHeight();
-
-        // set location in the middle of the screen
-        generalPane.setLocation((int)((width - prefWidth)/2), (int)((height - prefHeight)/2));
-
-        generalPane.setContentPane(omeroPane);
-        generalPane.pack();
-        generalPane.setVisible(true);
+            runProcessing(rbOmeroRetriever.isSelected(),
+                    tfUsername.getText(),
+                    password,
+                    tfRootFolder.getText(),
+                    (String)cbMicroscope.getSelectedItem(),
+                    rbOmeroSender.isSelected(),
+                    tfSavingFolder.getText(),
+                    chkSaveHeatMap.isSelected(),
+                    chkAllImages.isSelected());
+        }
+       // generalPane.setVisible(true);
     }
 
 
@@ -611,26 +574,6 @@ public class ArgoLightSwingGui implements Command {
                 tfSaveFolder.setText(fileChooser.getSelectedFile().getAbsolutePath());
         });
 
-        // button to choose root folder
-        JButton bOK = new JButton("OK");
-        bOK.setFont(stdFont);
-        bOK.addActionListener(e->{
-            buildCSVFile(tfHost.getText(),
-                    tfPort.getText(),
-                    tfProject.getText(),
-                    tfMicroscope.getText(),
-                    tfRootFolder.getText(),
-                    tfSaveFolder.getText());
-            generalPane.dispose();
-        });
-
-        JButton bCancel = new JButton("Cancel");
-        bCancel.setFont(stdFont);
-        bCancel.addActionListener(e->{
-            generalPane.dispose();
-        });
-
-
         GridBagConstraints constraints = new GridBagConstraints( );
         constraints.fill = GridBagConstraints.BOTH;
         constraints.insets = new Insets(5,5,5,5);
@@ -703,33 +646,15 @@ public class ArgoLightSwingGui implements Command {
         constraints.gridy = settingsRow++;
         settingsPane.add(bChooseSaveFolder, constraints);
 
-        constraints.gridx = 1;
-        constraints.gridy = ++settingsRow;
-        settingsPane.add(bOK, constraints);
-
-        constraints.gridx = 2;
-        constraints.gridy = settingsRow;
-        settingsPane.add(bCancel, constraints);
-
-        // set general frame
-        generalPane.setTitle("Setup your default settings");
-        generalPane.setModal(true);
-        generalPane.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        int prefWidth = 550;
-        int prefHeight = 400;
-        generalPane.setPreferredSize(new Dimension(prefWidth, prefHeight));
-
-        // get the screen size
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        double width = screenSize.getWidth();
-        double height = screenSize.getHeight();
-
-        // set location in the middle of the screen
-        generalPane.setLocation((int)((width - prefWidth)/2), (int)((height - prefHeight)/2));
-
-        generalPane.setContentPane(settingsPane);
-        generalPane.pack();
-        generalPane.setVisible(true);
+        int opt = JOptionPane.showConfirmDialog(null, settingsPane, "Setup your default settings", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if(opt == JOptionPane.OK_OPTION){
+            buildCSVFile(tfHost.getText(),
+                    tfPort.getText(),
+                    tfProject.getText(),
+                    tfMicroscope.getText(),
+                    tfRootFolder.getText(),
+                    tfSaveFolder.getText());
+        }
     }
 
     private void setDefaultParams(){
