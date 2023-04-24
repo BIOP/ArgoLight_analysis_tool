@@ -1,37 +1,30 @@
 package ch.epfl.biop.command;
 
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.RadioButton;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ToggleGroup;
-import javafx.scene.layout.GridPane;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
-import javafx.stage.Modality;
 import net.imagej.ImageJ;
 import org.scijava.command.Command;
 import org.scijava.plugin.Plugin;
 
-import javax.swing.*;
-import java.awt.Component;
-import java.awt.Dialog;
+import javax.swing.ButtonGroup;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JRadioButton;
+import javax.swing.JSeparator;
+import javax.swing.JTextField;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -50,7 +43,6 @@ import java.util.Map;
 
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight swing gui")
 public class ArgoLightSwingGui implements Command {
-
     private static String defaultHost;
     private static String defaultPort;
     private static String defaultProjectID;
@@ -70,14 +62,13 @@ public class ArgoLightSwingGui implements Command {
     final private Font titleFont = new Font("Calibri", Font.BOLD, 22);
 
     public void createGui(){
-
         String title = "Metrology with ArgoLight plugin";
-        JFrame generalPane = new JFrame();
+        JDialog generalPane = new JDialog();
 
         setDefaultParams();
 
         // label and text field for OMERO credentials and host
-        JLabel  labHost = new JLabel (defaultHost+":"+defaultPort);
+        JLabel labHost = new JLabel (defaultHost+":"+defaultPort);
         labHost.setFont(stdFont);
 
         JLabel  labUsername = new JLabel ("Username");
@@ -110,6 +101,7 @@ public class ArgoLightSwingGui implements Command {
 
         // button to choose root folder
         JButton bRootFolder = new JButton("Choose folder");
+        bRootFolder.setFont(stdFont);
         bRootFolder.addActionListener(e->{
             JFileChooser directoryChooser = new JFileChooser();
             directoryChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
@@ -121,7 +113,6 @@ public class ArgoLightSwingGui implements Command {
         });
 
         bRootFolder.setEnabled(false);
-
 
         JLabel labMicroscope = new JLabel("Microscope");
         labMicroscope.setFont(stdFont);
@@ -142,6 +133,7 @@ public class ArgoLightSwingGui implements Command {
 
         // button to choose root folder
         JButton bSavingFolder = new JButton("Choose folder");
+        bSavingFolder.setFont(stdFont);
         bSavingFolder.addActionListener(e->{
             JFileChooser directoryChooser = new JFileChooser();
             directoryChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
@@ -239,6 +231,7 @@ public class ArgoLightSwingGui implements Command {
 
         // button to choose root folder
         JButton bSettings = new JButton("Settings");
+        bSettings.setFont(stdFont);
         bSettings.addActionListener(e->{
             createSettingsPane();
             setDefaultParams();
@@ -450,8 +443,9 @@ public class ArgoLightSwingGui implements Command {
 
         // set general frame
         generalPane.setTitle(title);
-        generalPane.setVisible(true);
         generalPane.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        generalPane.setModal(true);
+
         int prefWidth = 800;
         int prefHeight = 700;
         generalPane.setPreferredSize(new Dimension(prefWidth, prefHeight));
@@ -466,7 +460,7 @@ public class ArgoLightSwingGui implements Command {
 
         generalPane.setContentPane(omeroPane);
         generalPane.pack();
-
+        generalPane.setVisible(true);
     }
 
 
@@ -661,8 +655,7 @@ public class ArgoLightSwingGui implements Command {
 
         // set general frame
         generalPane.setTitle("Setup your default settings");
-        generalPane.setVisible(true);
-        generalPane.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
+        generalPane.setModal(true);
         generalPane.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         int prefWidth = 550;
         int prefHeight = 400;
@@ -678,6 +671,7 @@ public class ArgoLightSwingGui implements Command {
 
         generalPane.setContentPane(settingsPane);
         generalPane.pack();
+        generalPane.setVisible(true);
     }
 
     private void setDefaultParams(){
