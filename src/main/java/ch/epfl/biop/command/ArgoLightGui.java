@@ -51,8 +51,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight gui")
-public class ArgoLightGui implements Command{
+//@Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight gui")
+public class ArgoLightGui /*implements Command*/{
 
     private static String defaultHost;
     private static String defaultPort;
@@ -613,7 +613,7 @@ public class ArgoLightGui implements Command{
         }
     }
 
-    public static void main(String... args){
+   /* public static void main(String... args){
         final ImageJ ij = new ImageJ();
         ij.ui().showUI();
     }
@@ -627,5 +627,5 @@ public class ArgoLightGui implements Command{
         Platform.runLater(()->{
             createGui();
         });
-    }
+    }*/
 }

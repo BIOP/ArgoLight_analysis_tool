@@ -27,12 +27,10 @@ import javax.swing.JPasswordField;
 import javax.swing.JRadioButton;
 import javax.swing.JSeparator;
 import javax.swing.JTextField;
-import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.Toolkit;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -49,7 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 
-@Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight swing gui")
+@Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
 public class ArgoLightSwingGui implements Command {
     private static String defaultHost;
     private static String defaultPort;

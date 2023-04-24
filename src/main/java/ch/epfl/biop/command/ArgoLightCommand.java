@@ -16,7 +16,7 @@ import org.scijava.plugin.Plugin;
 
 import java.io.File;
 
-@Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
+@Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight backup")
 public class ArgoLightCommand extends DynamicCommand implements Command {
 
     @Parameter(label = "OMERO host")
