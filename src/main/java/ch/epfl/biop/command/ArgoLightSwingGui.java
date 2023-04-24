@@ -1,5 +1,13 @@
 package ch.epfl.biop.command;
 
+import ch.epfl.biop.processing.Processing;
+import ch.epfl.biop.retrievers.OMERORetriever;
+import ch.epfl.biop.senders.LocalSender;
+import ch.epfl.biop.senders.OMEROSender;
+import ch.epfl.biop.senders.Sender;
+import ch.epfl.biop.utils.IJLogger;
+import fr.igred.omero.Client;
+import fr.igred.omero.exception.ServiceException;
 import net.imagej.ImageJ;
 import org.scijava.command.Command;
 import org.scijava.plugin.Plugin;
@@ -60,6 +68,62 @@ public class ArgoLightSwingGui implements Command {
 
     final private Font stdFont = new Font("Calibri", Font.PLAIN, 17);
     final private Font titleFont = new Font("Calibri", Font.BOLD, 22);
+
+
+    private static void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
+                                      String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps, boolean allImages){
+
+        boolean finalPopupMessage = true;
+        if(!isOmeroRetriever && !new File(rootFolderPath).exists()){
+            showWarningMessage("Root folder not accessible", "The root folder "+rootFolderPath+" does not exist");
+            return;
+        }
+        if(!isOmeroSender && !new File(savingFolderPath).exists()){
+            showWarningMessage("Saving folder not accessible", "The saving folder "+savingFolderPath+" does not exist");
+            return;
+        }
+
+        Client client = new Client();
+
+        // connect to OMERO
+        try {
+            client.connect(defaultHost, Integer.parseInt(defaultPort), username, password);
+            IJLogger.info("Successful connection to OMERO");
+        } catch (ServiceException e) {
+            IJLogger.error("Cannot connect to OMERO");
+            showErrorMessage("OMERO connections", "OMERO connection fails. Please check host, port and credentials");
+            return;
+        }
+
+        try {
+            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(Long.parseLong(defaultProjectID), microscope, allImages);
+            int nImages = omeroRetriever.getNImages();
+
+            Sender sender;
+            if (!isOmeroSender) {
+                File savingFolder = new File(savingFolderPath);
+                sender = new LocalSender(savingFolder, microscope);
+            } else
+                sender = new OMEROSender(client, omeroRetriever.getParentTarget());
+
+            // run analysis
+            if (nImages > 0)
+                Processing.run(omeroRetriever, saveHeatMaps, sender);
+            else IJLogger.error("No images are available for project " + defaultProjectID + ", dataset " + microscope);
+
+        } catch (Exception e){
+            finalPopupMessage = false;
+        } finally {
+            client.disconnect();
+            IJLogger.info("Disconnected from OMERO ");
+        }
+
+        if(finalPopupMessage) {
+            showInfoMessage("Processing Done", "All images have been analyzed and results saved");
+        }
+    }
+
+
 
     public void createGui(){
         String title = "Metrology with ArgoLight plugin";
@@ -246,25 +310,19 @@ public class ArgoLightSwingGui implements Command {
         JButton bOK = new JButton("OK");
         bOK.setFont(stdFont);
         bOK.addActionListener(e->{
-           /* rbOmeroRetriever.isSelected(),
-                    tfUsername.getText(),
-                    password,
-                    tfRootFolder.getText(),
-                    cbMicroscope.getSelectionModel().getSelectedItem(),
-                    rbOmeroSender.isSelected(),
-                    tfSavingFolder.getText(),
-                    chkSaveHeatMap.isSelected(),
-                    chkAllImages.isSelected()
+            generalPane.dispose();
+
+            char[] password = tfPassword.getPassword();
+
             runProcessing(rbOmeroRetriever.isSelected(),
                     tfUsername.getText(),
                     password,
                     tfRootFolder.getText(),
-                    cbMicroscope.getSelectionModel().getSelectedItem(),
+                    (String)cbMicroscope.getSelectedItem(),
                     rbOmeroSender.isSelected(),
                     tfSavingFolder.getText(),
                     chkSaveHeatMap.isSelected(),
-                    chkAllImages.isSelected());*/
-            generalPane.dispose();
+                    chkAllImages.isSelected());
         });
 
         JButton bCancel = new JButton("Cancel");
