@@ -1,7 +1,10 @@
 package ch.epfl.biop.command;
 
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -10,12 +13,15 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 import net.imagej.ImageJ;
 import org.scijava.command.Command;
 import org.scijava.plugin.Plugin;
 
 import javax.swing.*;
 import java.awt.Component;
+import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -26,18 +32,29 @@ import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight swing gui")
 public class ArgoLightSwingGui implements Command {
 
-    private static String defaultHost = "omero-poc.epfl.ch";
-    private static String defaultPort = "4064";
+    private static String defaultHost;
+    private static String defaultPort;
     private static String defaultProjectID;
-    private List<String> defaultMicroscopes = new ArrayList<String>(){{add("A");add("N");}};
+    private List<String> defaultMicroscopes;
     private static String defaultRootFolder;
     private static String defaultSaveFolder;
     final private String hostKey = "OMERO Host";
@@ -57,8 +74,7 @@ public class ArgoLightSwingGui implements Command {
         String title = "Metrology with ArgoLight plugin";
         JFrame generalPane = new JFrame();
 
-        //setDefaultParams();
-
+        setDefaultParams();
 
         // label and text field for OMERO credentials and host
         JLabel  labHost = new JLabel (defaultHost+":"+defaultPort);
@@ -139,17 +155,15 @@ public class ArgoLightSwingGui implements Command {
         bSavingFolder.setEnabled(false);
 
         JCheckBox chkSaveHeatMap = new JCheckBox("Save heat maps");
-        //chkSaveHeatMap.(CheckBox.USE_PREF_SIZE);
         chkSaveHeatMap.setSelected(false);
         chkSaveHeatMap.setFont(stdFont);
 
         JCheckBox chkAllImages = new JCheckBox("Process again existing images");
-        // chkAllImages.setMinWidth(CheckBox.USE_PREF_SIZE);
         chkAllImages.setSelected(false);
         chkAllImages.setFont(stdFont);
 
-        ButtonGroup senderChoice = new ButtonGroup();
         // Radio button to choose local retriever
+        ButtonGroup senderChoice = new ButtonGroup();
         JRadioButton rbLocalSender = new JRadioButton("Local");
         rbLocalSender.setFont(stdFont);
         rbLocalSender.setSelected(false);
@@ -223,13 +237,48 @@ public class ArgoLightSwingGui implements Command {
             bSavingFolder.setEnabled(rbLocalRetriever.isSelected());
         });
 
-        // create general pane
+        // button to choose root folder
+        JButton bSettings = new JButton("Settings");
+        bSettings.addActionListener(e->{
+            createSettingsPane();
+            setDefaultParams();
+            labHost.setText(defaultHost+":"+defaultPort);
+            cbMicroscope.setSelectedItem(defaultMicroscopes);
+            tfProjectID.setText(defaultProjectID);
+            tfRootFolder.setText(defaultRootFolder);
+            tfSavingFolder.setText(defaultSaveFolder);
+        });
 
-        final double MAX_FONT_SIZE = 20.0; // define max font size you need
+        // button to choose root folder
+        JButton bOK = new JButton("OK");
+        bOK.setFont(stdFont);
+        bOK.addActionListener(e->{
+           /* rbOmeroRetriever.isSelected(),
+                    tfUsername.getText(),
+                    password,
+                    tfRootFolder.getText(),
+                    cbMicroscope.getSelectionModel().getSelectedItem(),
+                    rbOmeroSender.isSelected(),
+                    tfSavingFolder.getText(),
+                    chkSaveHeatMap.isSelected(),
+                    chkAllImages.isSelected()
+            runProcessing(rbOmeroRetriever.isSelected(),
+                    tfUsername.getText(),
+                    password,
+                    tfRootFolder.getText(),
+                    cbMicroscope.getSelectionModel().getSelectedItem(),
+                    rbOmeroSender.isSelected(),
+                    tfSavingFolder.getText(),
+                    chkSaveHeatMap.isSelected(),
+                    chkAllImages.isSelected());*/
+            generalPane.dispose();
+        });
 
-
-        JLabel settingsHeader = new JLabel("Setup your project");
-       // settingsHeader.setFont();
+        JButton bCancel = new JButton("Cancel");
+        bCancel.setFont(stdFont);
+        bCancel.addActionListener(e->{
+            generalPane.dispose();
+        });
 
 
         GridBagConstraints constraints = new GridBagConstraints( );
@@ -372,48 +421,40 @@ public class ArgoLightSwingGui implements Command {
         constraints.gridy = omeroRetrieverRow++;
         omeroPane.add(bSavingFolder, constraints);
 
-
-
-
-
-
-        /*JPanel localPane = new JPanel();
-        localPane.setLayout(new GridBagLayout());
-        //localPane.setAlignmentY(JPanel.TOP_ALIGNMENT);
-        int localRetrieverRow = 0;
+        constraints.gridwidth = 4; // span two rows
         constraints.gridx = 0;
-        constraints.gridy = localRetrieverRow++;
-        localPane.add(rbLocalRetriever, constraints);
-        constraints.gridx = 0;
-        constraints.gridy = localRetrieverRow;
-        localPane.add(labRootFolder, constraints);
-        constraints.gridx = 1;
-        constraints.gridy = localRetrieverRow++;
-        localPane.add(tfRootFolder, constraints);
-        constraints.gridx = 0;
-        constraints.gridy = localRetrieverRow;
-        localPane.add(bRootFolder, constraints);*/
+        constraints.gridy = omeroRetrieverRow++;
+        omeroPane.add(new JSeparator(), constraints);
+        constraints.gridwidth = 1; // set it back
 
+        JLabel settingsHeader = new JLabel("Setup your project");
+        settingsHeader.setFont(titleFont);
 
-        //JPanel retrieverPane = new JPanel();
-        /*retrieverPane.setLayout(new GridBagLayout());
+        constraints.gridwidth = 3; // span two rows
         constraints.gridx = 0;
-        constraints.gridy = 0;
-        constraints.anchor = GridBagConstraints.NORTH;
-        retrieverPane.add(omeroPane);
-        constraints.gridx = 1;
-        constraints.gridy = 0;
-        retrieverPane.add(localPane);*/
-        //retrieverPane.setLayout(new BoxLayout(retrieverPane, BoxLayout.X_AXIS));
-       // retrieverPane.add(omeroPane);
-        //retrieverPane.add(localPane);
+        constraints.gridy = omeroRetrieverRow++;
+        omeroPane.add(settingsHeader, constraints);
+        constraints.gridwidth = 1; // set it back
 
+        constraints.gridx = 0;
+        constraints.gridy = omeroRetrieverRow++;
+        omeroPane.add(bSettings, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = omeroRetrieverRow;
+        omeroPane.add(bOK, constraints);
+
+        constraints.gridx = 3;
+        constraints.gridy = omeroRetrieverRow;
+        omeroPane.add(bCancel, constraints);
 
         // set general frame
         generalPane.setTitle(title);
         generalPane.setVisible(true);
         generalPane.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        generalPane.setPreferredSize(new Dimension(800, 700));
+        int prefWidth = 800;
+        int prefHeight = 700;
+        generalPane.setPreferredSize(new Dimension(prefWidth, prefHeight));
 
         // get the screen size
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
@@ -421,16 +462,329 @@ public class ArgoLightSwingGui implements Command {
         double height = screenSize.getHeight();
 
         // set location in the middle of the screen
-        generalPane.setLocation((int)((width - 400)/2), (int)((height - 200)/2));
+        generalPane.setLocation((int)((width - prefWidth)/2), (int)((height - prefHeight)/2));
 
         generalPane.setContentPane(omeroPane);
         generalPane.pack();
 
+    }
 
 
+    private void createSettingsPane(){
+        JDialog generalPane = new JDialog();
+
+        // label and text field for OMERO credentials and host
+        JLabel labHost = new JLabel("OMERO host");
+        labHost.setFont(stdFont);
+        JTextField tfHost = new JTextField(defaultHost);
+        tfHost.setFont(stdFont);
+        tfHost.setColumns(15);
+
+        JLabel labPort = new JLabel("OMERO port");
+        labPort.setFont(stdFont);
+        JTextField tfPort = new JTextField(defaultPort);
+        tfPort.setFont(stdFont);
+        tfPort.setColumns(15);
+
+        JLabel labProject = new JLabel("OMERO Project ID");
+        labProject.setFont(stdFont);
+        JTextField tfProject = new JTextField(defaultProjectID);
+        tfProject.setFont(stdFont);
+        tfProject.setColumns(15);
+
+        JLabel labMicroscope = new JLabel("Microscopes");
+        labMicroscope.setFont(stdFont);
+        JTextField tfMicroscope = new JTextField(String.join(",",defaultMicroscopes));
+        tfMicroscope.setFont(stdFont);
+        tfMicroscope.setColumns(15);
+
+        // button to choose root folder
+        JButton bChooseMicroscope = new JButton("Open file");
+        bChooseMicroscope.setFont(stdFont);
+        bChooseMicroscope.addActionListener(e->{
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            fileChooser.setDialogTitle("Choose the microscopes' csv file");
+            fileChooser.showDialog(generalPane,"Select");
+
+            if (fileChooser.getSelectedFile() != null) {
+                File rootFolder = fileChooser.getSelectedFile();
+                if(!rootFolder.exists())
+                    showErrorMessage("No files", "The file you selected does not exist. Please check your path / file");
+                else if(!rootFolder.getAbsolutePath().endsWith(".csv"))
+                    showErrorMessage("Wrong file type", "The file you selected is not a .csv file. Please select a .csv file");
+                else {
+                    List<String> microscopes = parseMicroscopesCSV(rootFolder);
+                    String microscopesList = String.join(",", microscopes);
+                    tfMicroscope.setText(microscopesList);
+                }
+            }
+        });
+
+        JLabel labRootFolder = new JLabel("Root folder");
+        labRootFolder.setFont(stdFont);
+        JTextField tfRootFolder = new JTextField(defaultRootFolder);
+        tfRootFolder.setFont(stdFont);
+        tfRootFolder.setColumns(15);
+
+        JLabel labSaveFolder = new JLabel("Saving folder");
+        labSaveFolder.setFont(stdFont);
+        JTextField tfSaveFolder = new JTextField(defaultSaveFolder);
+        tfSaveFolder.setFont(stdFont);
+        tfSaveFolder.setColumns(15);
+
+        // button to choose root folder
+        JButton bChooseRootFolder = new JButton("Open folder");
+        bChooseRootFolder.setFont(stdFont);
+        bChooseRootFolder.addActionListener(e->{
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            fileChooser.setDialogTitle("Choose the root folder where to get local image");
+            fileChooser.showDialog(generalPane,"Select");
+
+            if (fileChooser.getSelectedFile() != null)
+                tfRootFolder.setText(fileChooser.getSelectedFile().getAbsolutePath());
+        });
+
+        // button to choose root folder
+        JButton bChooseSaveFolder = new JButton("Open folder");
+        bChooseSaveFolder.setFont(stdFont);
+        bChooseSaveFolder.addActionListener(e->{
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            fileChooser.setDialogTitle("Choose the folder where to save results");
+            fileChooser.showDialog(generalPane,"Select");
+
+            if(fileChooser.getSelectedFile() != null)
+                tfSaveFolder.setText(fileChooser.getSelectedFile().getAbsolutePath());
+        });
+
+        // button to choose root folder
+        JButton bOK = new JButton("OK");
+        bOK.setFont(stdFont);
+        bOK.addActionListener(e->{
+            buildCSVFile(tfHost.getText(),
+                    tfPort.getText(),
+                    tfProject.getText(),
+                    tfMicroscope.getText(),
+                    tfRootFolder.getText(),
+                    tfSaveFolder.getText());
+            generalPane.dispose();
+        });
+
+        JButton bCancel = new JButton("Cancel");
+        bCancel.setFont(stdFont);
+        bCancel.addActionListener(e->{
+            generalPane.dispose();
+        });
+
+
+        GridBagConstraints constraints = new GridBagConstraints( );
+        constraints.fill = GridBagConstraints.BOTH;
+        constraints.insets = new Insets(5,5,5,5);
+        JPanel settingsPane = new JPanel();
+
+        int settingsRow = 0;
+        settingsPane.setLayout(new GridBagLayout());
+
+        // label and text field for OMERO credentials and host
+        JLabel  retrieverTitle = new JLabel ("Get images from");
+        retrieverTitle.setFont(titleFont);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labHost, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(tfHost, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labPort, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(tfPort, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labProject, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(tfProject, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labMicroscope, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(tfMicroscope, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(bChooseMicroscope, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labRootFolder, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(tfRootFolder, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(bChooseRootFolder, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labSaveFolder, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(tfSaveFolder, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(bChooseSaveFolder, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = ++settingsRow;
+        settingsPane.add(bOK, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = settingsRow;
+        settingsPane.add(bCancel, constraints);
+
+        // set general frame
+        generalPane.setTitle("Setup your default settings");
+        generalPane.setVisible(true);
+        generalPane.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
+        generalPane.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        int prefWidth = 550;
+        int prefHeight = 400;
+        generalPane.setPreferredSize(new Dimension(prefWidth, prefHeight));
+
+        // get the screen size
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        double width = screenSize.getWidth();
+        double height = screenSize.getHeight();
+
+        // set location in the middle of the screen
+        generalPane.setLocation((int)((width - prefWidth)/2), (int)((height - prefHeight)/2));
+
+        generalPane.setContentPane(settingsPane);
+        generalPane.pack();
+    }
+
+    private void setDefaultParams(){
+        Map<String, List<String>> defaultParams = getDefaultParams();
+        defaultHost = defaultParams.containsKey(hostKey) ?
+                (defaultParams.get(hostKey).isEmpty() ? "localhost" : defaultParams.get(hostKey).get(0)) :
+                "localhost";
+        defaultPort = defaultParams.containsKey(portKey) ?
+                (defaultParams.get(portKey).isEmpty() ? "4064" : defaultParams.get(portKey).get(0)) :
+                "4064";
+        defaultMicroscopes = defaultParams.getOrDefault(microscopeKey, Collections.emptyList());
+        defaultProjectID = defaultParams.containsKey(projectIdKey) ?
+                (defaultParams.get(projectIdKey).isEmpty() ? "-1" : defaultParams.get(projectIdKey).get(0)) :
+                "-1";
+        defaultRootFolder = defaultParams.containsKey(rootFolderKey) ?
+                (defaultParams.get(rootFolderKey).isEmpty() ? "" : defaultParams.get(rootFolderKey).get(0)) : "";
+        defaultSaveFolder = defaultParams.containsKey(saveFolderKey) ?
+                (defaultParams.get(saveFolderKey).isEmpty() ? "" : defaultParams.get(saveFolderKey).get(0)) : "";
+    }
+
+    private static Map<String, List<String>> getDefaultParams(){
+        File file = new File(folderName + File.separator + fileName);
+        Map<String, List<String>> default_params = new HashMap<>();
+
+        if(!file.exists())
+            return Collections.emptyMap();
+
+        try {
+            //parsing a CSV file into BufferedReader class constructor
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = br.readLine()) != null){   //returns a Boolean value
+                String[] items = line.split(",");
+                List<String> values = new ArrayList<>(Arrays.asList(items).subList(1, items.length));
+                default_params.put(items[0],values);
+            }
+            br.close();
+            return default_params;
+        } catch (IOException e) {
+            return Collections.emptyMap();
+        }
 
     }
 
+
+    private static void showInfoMessage(String title, String content){
+        showMessage(title, content, JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private static void showErrorMessage(String title, String content){
+        showMessage(title, content, JOptionPane.ERROR_MESSAGE);
+    }
+
+    private static void showWarningMessage(String title, String content){
+        showMessage(title, content, JOptionPane.WARNING_MESSAGE);
+    }
+
+    private static void showMessage(String title, String content, int type){
+        if(title == null)
+            title = "";
+        if(content == null)
+            content = "";
+
+        JOptionPane.showMessageDialog(new JFrame(), content, title, type);
+    }
+
+    private static List<String> parseMicroscopesCSV(File file){
+        List<String> items = new ArrayList<>();
+        try {
+            //parsing a CSV file into BufferedReader class constructor
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = br.readLine()) != null){   //returns a Boolean value
+                items.add(line.replace("\ufeff", ""));
+            }
+            br.close();
+            return items;
+        } catch (IOException e) {
+            showWarningMessage("CSV parsing","Couldn't parse the csv file. No default microscopes to add");
+            return Collections.emptyList();
+        }
+    }
+
+    private void buildCSVFile(String host, String port, String projectID, String microscopes, String rootFolder, String savingFolder) {
+        File directory = new File(folderName);
+
+        if(!directory.exists())
+            directory.mkdir();
+
+        try {
+            File file = new File(directory.getAbsoluteFile() + File.separator + fileName);
+            // write the file
+            BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
+            buffer.write(hostKey+","+host + "\n");
+            buffer.write(portKey+","+port + "\n");
+            buffer.write(projectIdKey+","+projectID + "\n");
+            buffer.write(microscopeKey+","+microscopes + "\n");
+            buffer.write(rootFolderKey+","+rootFolder + "\n");
+            buffer.write(saveFolderKey+","+savingFolder + "\n");
+
+            // close the file
+            buffer.close();
+
+        } catch (IOException e) {
+            showWarningMessage("CSV writing","Couldn't write the csv for default parameters.");
+        }
+    }
 
     public static void main(String... args){
         final ImageJ ij = new ImageJ();
