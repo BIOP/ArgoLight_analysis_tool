@@ -125,13 +125,10 @@ public class ImageFile {
             this.keyValues.put("Microscope", this.microscope);
             this.keyValues.put("Objective", this.objective);
             this.keyValues.put("Immersion", this.immersionMedium);
-            this.keyValues.put("FOV", this.imagedFoV);
             this.keyValues.put("ArgoSlide_name", this.argoSlideName);
             this.keyValues.put("ArgoSlide_pattern", this.argoSlidePattern);
-            this.keyValues.put("Acquisition_date", this.acquisitionDate);
+            addTags(this.imagedFoV);
 
-           /* if(matcher.group("series") != null)
-                ;*/
         } else {
             IJLogger.error("The name "+imgName+ "is not correctly formatted. Please format it like : "+
                     "\\n MicrosocpeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension for single file (ex: lsm980_ArgoSLG482_b_d20230405_o63x_oil_fullFoV_1.czi)"+

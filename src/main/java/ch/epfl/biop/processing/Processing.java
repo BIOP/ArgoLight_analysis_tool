@@ -3,6 +3,7 @@ package ch.epfl.biop.processing;
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.retrievers.OMERORetriever;
+import ch.epfl.biop.senders.LocalSender;
 import ch.epfl.biop.senders.Sender;
 import ch.epfl.biop.utils.IJLogger;
 import fr.igred.omero.repository.ImageWrapper;
@@ -98,7 +99,8 @@ public class Processing {
         if(is482SGL && !imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(fwhmValues, chIds, false, "FWHM");
 
         // send key values
-        keyValues.put("Image_ID",""+imageFile.getId());
+        if(sender instanceof LocalSender)
+            keyValues.put("Image_ID",""+imageFile.getId());
         sender. sendKeyValues(keyValues);
     }
 }

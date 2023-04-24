@@ -84,7 +84,6 @@ public class ArgoSGL482Processing {
             roiManager.reset();
 
             if(imageFile.getImagedFoV().equals("fullFoV")){
-                imageFile.addTags("fullFoV");
                 // reduced grid to compute average step
                 List<Point2D> smallerGrid = gridPoints.stream()
                         .filter(e -> (Math.abs(e.getX() - crossRoi.getStatistics().xCentroid) < (2.5*argoSpacing) / pixelSizeImage && Math.abs(e.getY() - crossRoi.getStatistics().yCentroid) < (2.5*argoSpacing) / pixelSizeImage))
@@ -129,7 +128,6 @@ public class ArgoSGL482Processing {
                 imageChannel.addFieldUniformity(computeFieldUniformity(gridPoints,channel,ovalRadius));
 
             }else {
-                imageFile.addTags("partialFoV");
                 // create grid point ROIs
                 gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi((pR.getX()-ovalRadius+0.5), pR.getY()-ovalRadius+0.5, 2*ovalRadius, 2*ovalRadius));});
                 // save ROIs
