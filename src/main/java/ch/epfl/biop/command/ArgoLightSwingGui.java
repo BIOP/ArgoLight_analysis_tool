@@ -26,7 +26,10 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JRadioButton;
 import javax.swing.JSeparator;
+import javax.swing.JSpinner;
 import javax.swing.JTextField;
+import javax.swing.SpinnerModel;
+import javax.swing.SpinnerNumberModel;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -49,26 +52,35 @@ import java.util.Map;
 
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
 public class ArgoLightSwingGui implements Command {
-    private static String userHost;
-    private static String userPort;
-    private static String userProjectID;
+    private String userHost;
+    private String userPort;
+    private String userProjectID;
     private List<String> userMicroscopes;
-    private static String userRootFolder;
-    private static String userSaveFolder;
-    private static String userSigma;
-    private static String userMedianRadius;
-    private static String userSegmentationMethod;
-    private static String userThreshParticles;
-    private static String userRingRadius;
+    private String userRootFolder;
+    private String userSaveFolder;
+    private double userSigma;
+    private double userMedianRadius;
+    private String userThresholdMethod;
+    private double userParticleThresh;
+    private double userRingRadius;
+    private boolean isDefaultSigma;
+    private boolean isDefaultMedianRadius;
+    private boolean isDefaultThresholdMethod;
+    private boolean isDefaultParticleThresh;
+    private boolean isDefaultRingRadius;
 
-    final private static String defaultHost = "localHost";
-    final private static String defaultPort = "4064";
 
-    final private static String defaultSigma = "-1";
-    final private static String defaultMedianRadius = "-1";
-    final private static String defaultSegmentationMethod = "Li";
-    final private static String defaultThreshParticles = "-1";
-    final private static String defaultRingRadius = "-1";
+    final private String defaultHost = "localHost";
+    final private String defaultPort = "4064";
+
+    final private double defaultSigma = 0.2;
+    final private double defaultMedianRadius = 0.2;
+    final private String defaultThresholdMethod = "Li";
+    final private double defaultParticleThresh = 5;
+    final private double defaultRingRadius = 1.25;
+    final private int sigmaUpperBound = 10;
+    final private int particleThresholdUpperBound = 30;
+    final private int ringRadiusUpperBound = 5;
 
     final private static List<String> thresholdingMethods = Arrays.asList("Default", "Huang", "Intermodes",
             "IsoData",  "IJ_IsoData", "Li", "MaxEntropy", "Mean", "MinError(I)", "Minimum", "Moments", "Otsu", "Percentile",
@@ -131,8 +143,12 @@ public class ArgoLightSwingGui implements Command {
 
             // run analysis
             if (nImages > 0)
-                Processing.run(omeroRetriever, saveHeatMaps, sender, userSigma, userMedianRadius,
-                        userSegmentationMethod, userThreshParticles, userRingRadius);
+                Processing.run(omeroRetriever, saveHeatMaps, sender,
+                        isDefaultSigma ? defaultSigma : userSigma,
+                        isDefaultMedianRadius ? defaultMedianRadius : userMedianRadius,
+                        isDefaultThresholdMethod ? defaultThresholdMethod : userThresholdMethod,
+                        isDefaultParticleThresh ? defaultParticleThresh : userParticleThresh,
+                        isDefaultRingRadius ? defaultRingRadius : userRingRadius);
             else IJLogger.error("No images are available for project " + userProjectID + ", dataset " + microscope);
 
         } catch (Exception e){
@@ -717,19 +733,19 @@ public class ArgoLightSwingGui implements Command {
     private void createProcessingSettingsPane(){
 
         // label and text field for OMERO credentials and host
-        JLabel labSigma = new JLabel("Gaussian blur sigma");
+        JLabel labSigma = new JLabel("Gaussian blur sigma (um)");
         labSigma.setFont(stdFont);
-        JTextField tfSigma = new JTextField(userSigma);
-        tfSigma.setFont(stdFont);
-        tfSigma.setColumns(15);
-        tfSigma.setEnabled(false);
+        SpinnerModel spModelSigma = new SpinnerNumberModel(userSigma,0,10,0.01);
+        JSpinner spSigma = new JSpinner(spModelSigma);
+        spSigma.setFont(stdFont);
+        spSigma.setEnabled(!isDefaultSigma);
 
-        JLabel labMedian = new JLabel("Median filter radius");
+        JLabel labMedian = new JLabel("Median filter radius (um)");
         labMedian.setFont(stdFont);
-        JTextField tfMedian = new JTextField(userMedianRadius);
-        tfMedian.setFont(stdFont);
-        tfMedian.setColumns(15);
-        tfMedian.setEnabled(false);
+        SpinnerModel spModelMedian = new SpinnerNumberModel(userMedianRadius,0,10,0.01);
+        JSpinner spMedian = new JSpinner(spModelMedian);
+        spMedian.setFont(stdFont);
+        spMedian.setEnabled(!isDefaultMedianRadius);
 
         JLabel labThreshSeg = new JLabel("Thresholding method for segmentation");
         labThreshSeg.setFont(stdFont);
@@ -738,56 +754,56 @@ public class ArgoLightSwingGui implements Command {
         JComboBox<String> cbSegmentation = new JComboBox<>(modelCmbSegmentation);
         cbSegmentation.setFont(stdFont);
         thresholdingMethods.forEach(cbSegmentation::addItem);
-        cbSegmentation.setSelectedItem(userSegmentationMethod);
-        cbSegmentation.setEnabled(false);
+        cbSegmentation.setSelectedItem(userThresholdMethod);
+        cbSegmentation.setEnabled(!isDefaultThresholdMethod);
 
-        JLabel labThreshParticles = new JLabel("Threshold on segmented particles");
+        JLabel labThreshParticles = new JLabel("Threshold on segmented particles (um^2)");
         labThreshParticles.setFont(stdFont);
-        JTextField tfThreshParticles = new JTextField(userThreshParticles);
-        tfThreshParticles.setFont(stdFont);
-        tfThreshParticles.setColumns(15);
-        tfThreshParticles.setEnabled(false);
+        SpinnerModel spModelThreshParticles = new SpinnerNumberModel(userParticleThresh,0,30,0.01);
+        JSpinner spThreshParticles = new JSpinner(spModelThreshParticles);
+        spThreshParticles.setFont(stdFont);
+        spThreshParticles.setEnabled(!isDefaultParticleThresh);
 
-        JLabel labRingRadius = new JLabel("Analyzed ring radius");
+        JLabel labRingRadius = new JLabel("Analyzed ring radius (um)");
         labRingRadius.setFont(stdFont);
-        JTextField tfRingRadius = new JTextField(userRingRadius);
-        tfRingRadius.setFont(stdFont);
-        tfRingRadius.setColumns(15);
-        tfRingRadius.setEnabled(false);
+        SpinnerModel spModelRingRadius = new SpinnerNumberModel(userRingRadius,0,3,0.01);
+        JSpinner spRingRadius = new JSpinner(spModelRingRadius);
+        spRingRadius.setFont(stdFont);
+        spRingRadius.setEnabled(!isDefaultRingRadius);
 
         JCheckBox chkSigma = new JCheckBox("default");
-        chkSigma.setSelected(true);
+        chkSigma.setSelected(isDefaultSigma);
         chkSigma.setFont(stdFont);
         chkSigma.addActionListener(e->{
-            tfSigma.setEnabled(!chkSigma.isSelected());
+            spSigma.setEnabled(!chkSigma.isSelected());
         });
 
         JCheckBox chkMedian = new JCheckBox("default");
-        chkMedian.setSelected(true);
+        chkMedian.setSelected(isDefaultMedianRadius);
         chkMedian.setFont(stdFont);
         chkMedian.addActionListener(e->{
-            tfMedian.setEnabled(!chkMedian.isSelected());
+            spMedian.setEnabled(!chkMedian.isSelected());
         });
 
         JCheckBox chkThreshSeg = new JCheckBox("default");
-        chkThreshSeg.setSelected(true);
+        chkThreshSeg.setSelected(isDefaultThresholdMethod);
         chkThreshSeg.setFont(stdFont);
         chkThreshSeg.addActionListener(e->{
             cbSegmentation.setEnabled(!chkThreshSeg.isSelected());
         });
 
         JCheckBox chkThreshParticles = new JCheckBox("default");
-        chkThreshParticles.setSelected(true);
+        chkThreshParticles.setSelected(isDefaultParticleThresh);
         chkThreshParticles.setFont(stdFont);
         chkThreshParticles.addActionListener(e->{
-            tfThreshParticles.setEnabled(!chkThreshParticles.isSelected());
+            spThreshParticles.setEnabled(!chkThreshParticles.isSelected());
         });
 
         JCheckBox chkRingRadius = new JCheckBox("default");
-        chkRingRadius.setSelected(true);
+        chkRingRadius.setSelected(isDefaultRingRadius);
         chkRingRadius.setFont(stdFont);
         chkRingRadius.addActionListener(e->{
-            tfRingRadius.setEnabled(!chkRingRadius.isSelected());
+            spRingRadius.setEnabled(!chkRingRadius.isSelected());
         });
 
         GridBagConstraints constraints = new GridBagConstraints( );
@@ -812,7 +828,7 @@ public class ArgoLightSwingGui implements Command {
 
         constraints.gridx = 2;
         constraints.gridy = settingsRow++;
-        settingsPane.add(tfSigma, constraints);
+        settingsPane.add(spSigma, constraints);
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow;
@@ -824,7 +840,7 @@ public class ArgoLightSwingGui implements Command {
 
         constraints.gridx = 2;
         constraints.gridy = settingsRow++;
-        settingsPane.add(tfMedian, constraints);
+        settingsPane.add(spMedian, constraints);
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow;
@@ -848,7 +864,7 @@ public class ArgoLightSwingGui implements Command {
 
         constraints.gridx = 2;
         constraints.gridy = settingsRow++;
-        settingsPane.add(tfThreshParticles, constraints);
+        settingsPane.add(spThreshParticles, constraints);
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow;
@@ -860,92 +876,169 @@ public class ArgoLightSwingGui implements Command {
 
         constraints.gridx = 2;
         constraints.gridy = settingsRow;
-        settingsPane.add(tfRingRadius, constraints);
-
+        settingsPane.add(spRingRadius, constraints);
 
         int opt = JOptionPane.showConfirmDialog(null, settingsPane, "Setup your default settings for processing", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if(opt == JOptionPane.OK_OPTION){
-            String badEntries = "";
-            if(chkSigma.isSelected())
-                userSigma = defaultSigma;
-            else {
-                try {
-                    Double.parseDouble(tfSigma.getText());
-                    userSigma = tfSigma.getText();
-                } catch (Exception e) {
-                    badEntries += " - sigma";
-                }
-            }
+            isDefaultSigma = chkSigma.isSelected();
+            isDefaultMedianRadius = chkMedian.isSelected();
+            isDefaultThresholdMethod = chkThreshSeg.isSelected();
+            isDefaultParticleThresh = chkThreshParticles.isSelected();
+            isDefaultRingRadius = chkRingRadius.isSelected();
+            userSigma = (double)spSigma.getValue();
+            userMedianRadius = (double)spMedian.getValue();
+            userThresholdMethod = (String)cbSegmentation.getSelectedItem();
+            userParticleThresh = (double)spThreshParticles.getValue();
+            userRingRadius = (double)spRingRadius.getValue();
 
-            if(chkMedian.isSelected())
-                userMedianRadius = defaultMedianRadius;
-            else {
-                try {
-                    Double.parseDouble(tfMedian.getText());
-                    userMedianRadius = tfMedian.getText();
-                } catch (Exception e) {
-                    badEntries += " - median radius";
-                }
-            }
-
-            if(chkThreshSeg.isSelected())
-                userSegmentationMethod = defaultSegmentationMethod;
-            else userSegmentationMethod = (String)cbSegmentation.getSelectedItem();
-
-            if(chkThreshParticles.isSelected())
-                userThreshParticles = defaultThreshParticles;
-            else {
-                try {
-                    Double.parseDouble(tfThreshParticles.getText());
-                    userThreshParticles = tfThreshParticles.getText();
-                } catch (Exception e) {
-                    badEntries += " - particle threshold";
-                }
-            }
-
-            if(chkRingRadius.isSelected())
-                userRingRadius = defaultRingRadius;
-            else {
-                try {
-                    Double.parseDouble(tfRingRadius.getText());
-                    userRingRadius = tfRingRadius.getText();
-                } catch (Exception e) {
-                    badEntries += " - ring radius";
-                }
-            }
-
-
-            saveDefaultProcessingParams(userSigma,
+            saveDefaultProcessingParams(isDefaultSigma,
+                    isDefaultMedianRadius,
+                    isDefaultThresholdMethod,
+                    isDefaultParticleThresh,
+                    isDefaultRingRadius,
+                    userSigma,
                     userMedianRadius,
-                    userSegmentationMethod,
-                    userThreshParticles,
+                    userThresholdMethod,
+                    userParticleThresh,
                     userRingRadius);
-
-            if(!badEntries.isEmpty())
-                showWarningMessage("Bad entries", "The following entries require numeric values : "+badEntries);
         }
     }
 
 
     private void setDefaultProcessingParams(){
         Map<String, List<String>> defaultParams = getDefaultParams(processingFileName);
-        userSigma = defaultParams.containsKey(sigmaKey) ?
-                (defaultParams.get(sigmaKey).isEmpty() ? defaultSigma : defaultParams.get(sigmaKey).get(0)) :
-                defaultSigma;
-        userMedianRadius = defaultParams.containsKey(medianKey) ?
-                (defaultParams.get(medianKey).isEmpty() ? defaultMedianRadius : defaultParams.get(medianKey).get(0)) :
-                defaultMedianRadius;
-        userSegmentationMethod = defaultParams.containsKey(segmentationKey) ?
-                (defaultParams.get(segmentationKey).isEmpty() ? defaultSegmentationMethod : defaultParams.get(segmentationKey).get(0)) :
-                defaultSegmentationMethod;
-        userThreshParticles = defaultParams.containsKey(threshParticlesKey) ?
-                (defaultParams.get(threshParticlesKey).isEmpty() ? defaultThreshParticles : defaultParams.get(threshParticlesKey).get(0)) :
-                defaultThreshParticles;
-        userRingRadius = defaultParams.containsKey(ringRadiusKey) ?
-                (defaultParams.get(ringRadiusKey).isEmpty() ? defaultRingRadius : defaultParams.get(ringRadiusKey).get(0)) : defaultRingRadius;
+
+        /*if(defaultParams.containsKey(sigmaKey) && !(defaultParams.get(sigmaKey).isEmpty() || defaultParams.get(sigmaKey).size() < 2)){
+            List<String> val = defaultParams.get(sigmaKey);
+            isDefaultSigma = Boolean.parseBoolean(val.get(0));
+            try {
+                userSigma = Double.parseDouble(val.get(1));
+                if(userSigma < 0 || userSigma > sigmaUpperBound) {
+                    userSigma = defaultSigma;
+                    IJLogger.warn("Read default processing params","The value of sigma "+val.get(1)+ " is not a range [0;"+sigmaUpperBound+"]. Default value is used instead.");
+                }
+            }catch(Exception e){
+                userSigma = defaultSigma;
+                IJLogger.warn("Read default processing params","The value of sigma "+val.get(1)+ " is not a numeric value. Default value is used instead.");
+            }
+        }else{
+            isDefaultSigma = true;
+            userSigma = defaultSigma;
+        }
+
+        if(defaultParams.containsKey(medianKey) && !(defaultParams.get(medianKey).isEmpty() || defaultParams.get(medianKey).size() < 2)){
+            List<String> val = defaultParams.get(medianKey);
+            isDefaultMedianRadius = Boolean.parseBoolean(val.get(0));
+            try {
+                userMedianRadius = Double.parseDouble(val.get(1));
+                if(userMedianRadius < 0 || userMedianRadius > sigmaUpperBound) {
+                    userMedianRadius = defaultMedianRadius;
+                    IJLogger.warn("Read default processing params","The value of median radius  "+val.get(1)+ " is not a range [0;"+sigmaUpperBound+"]. Default value is used instead.");
+                }
+            }catch(Exception e){
+                userMedianRadius = defaultMedianRadius;
+                IJLogger.warn("Read default processing params","The value of median radius "+val.get(1)+ " is not a numeric value. Default value is used instead.");
+            }
+        }else{
+            isDefaultMedianRadius = true;
+            userMedianRadius = defaultMedianRadius;
+        }
+
+        if(defaultParams.containsKey(segmentationKey) && !(defaultParams.get(segmentationKey).isEmpty() || defaultParams.get(segmentationKey).size() < 2)){
+            List<String> val = defaultParams.get(segmentationKey);
+            isDefaultThresholdMethod = Boolean.parseBoolean(val.get(0));
+            userThresholdMethod = val.get(1);
+        }else{
+            isDefaultThresholdMethod = true;
+            userThresholdMethod = defaultThresholdMethod;
+        }
+
+        if(defaultParams.containsKey(threshParticlesKey) && !(defaultParams.get(threshParticlesKey).isEmpty() || defaultParams.get(threshParticlesKey).size() < 2)){
+            List<String> val = defaultParams.get(threshParticlesKey);
+            isDefaultParticleThresh = Boolean.parseBoolean(val.get(0));
+            try {
+                userParticleThresh = Double.parseDouble(val.get(1));
+                if(userParticleThresh < 0 || userParticleThresh > particleThresholdUpperBound) {
+                    userParticleThresh = defaultParticleThresh;
+                    IJLogger.warn("Read default processing params","The value of particle threshold "+val.get(1)+ " is not a range [0;"+particleThresholdUpperBound+"]. Default value is used instead.");
+                }
+            }catch(Exception e){
+                userParticleThresh = defaultParticleThresh;
+                IJLogger.warn("Read default processing params","The value of particle threshold "+val.get(1)+ " is not a numeric value. Default value is used instead.");
+            }
+        }else{
+            isDefaultParticleThresh = true;
+            userParticleThresh = defaultParticleThresh;
+        }*/
+
+        double val = checkAndSetValidityOfReadMetric(defaultParams, sigmaKey, defaultSigma, sigmaUpperBound);
+        isDefaultSigma = val > 0;
+        userSigma = Math.abs(val);
+
+        val = checkAndSetValidityOfReadMetric(defaultParams, medianKey, defaultMedianRadius, sigmaUpperBound);
+        isDefaultMedianRadius = val > 0;
+        userMedianRadius = Math.abs(val);
+
+        if(defaultParams.containsKey(segmentationKey) && !(defaultParams.get(segmentationKey).isEmpty() || defaultParams.get(segmentationKey).size() < 2)){
+            List<String> values = defaultParams.get(segmentationKey);
+            isDefaultThresholdMethod = Boolean.parseBoolean(values.get(0));
+            userThresholdMethod = values.get(1);
+        }else{
+            isDefaultThresholdMethod = true;
+            userThresholdMethod = defaultThresholdMethod;
+        }
+
+        val = checkAndSetValidityOfReadMetric(defaultParams, threshParticlesKey, defaultParticleThresh, particleThresholdUpperBound);
+        isDefaultParticleThresh = val > 0;
+        userParticleThresh = Math.abs(val);
+
+        val = checkAndSetValidityOfReadMetric(defaultParams, ringRadiusKey, defaultRingRadius, ringRadiusUpperBound);
+        isDefaultRingRadius = val > 0;
+        userRingRadius = Math.abs(val);
+
+       /* if(defaultParams.containsKey(ringRadiusKey) && !(defaultParams.get(ringRadiusKey).isEmpty() || defaultParams.get(ringRadiusKey).size() < 2)){
+            List<String> val = defaultParams.get(ringRadiusKey);
+            isDefaultRingRadius = Boolean.parseBoolean(val.get(0));
+            try {
+                userRingRadius = Double.parseDouble(val.get(1));
+                if(userRingRadius < 0 || userRingRadius > ringRadiusUpperBound) {
+                    userRingRadius = defaultRingRadius;
+                    IJLogger.warn("Read default processing params","The value of particle threshold "+val.get(1)+ " is not a range [0;"+particleThresholdUpperBound+"]. Default value is used instead.");
+                }
+            }catch(Exception e){
+                userRingRadius = defaultRingRadius;
+                IJLogger.warn("Read default processing params","The value of ring radius "+val.get(1)+ " is not a numeric value. Default value is used instead.");
+            }
+        }else{
+            isDefaultRingRadius = true;
+            userRingRadius = defaultRingRadius;
+        }*/
     }
 
 
+    private double checkAndSetValidityOfReadMetric(Map<String, List<String>> metrics, String key, double defaultVal, int upperBound){
+        boolean isDefault;
+        double userVal;
+        if(metrics.containsKey(key) && !(metrics.get(key).isEmpty() || metrics.get(key).size() < 2)){
+            List<String> val = metrics.get(key);
+            isDefault = Boolean.parseBoolean(val.get(0));
+            try {
+                userVal = Double.parseDouble(val.get(1));
+                if(userVal < 0 || userVal > upperBound) {
+                    userVal = defaultVal;
+                    IJLogger.warn("Read default processing params","The value of "+key+" "+val.get(1)+ " is not a range ]0;"+upperBound+"]. Default value is used instead.");
+                }
+            }catch(Exception e){
+                userVal = defaultVal;
+                IJLogger.warn("Read default processing params","The value of "+key+" "+val.get(1)+ " is not a numeric value. Default value is used instead.");
+            }
+        }else{
+            isDefault = true;
+            userVal = defaultVal;
+        }
+
+        return (isDefault ? userVal : -userVal);
+    }
 
     private void setDefaultParams(){
         Map<String, List<String>> defaultParams = getDefaultParams(fileName);
@@ -1053,7 +1146,10 @@ public class ArgoLightSwingGui implements Command {
         }
     }
 
-    private void saveDefaultProcessingParams(String sigma, String median, String thresholdingMethod, String particleThreshold, String ringRadius) {
+    private void saveDefaultProcessingParams(boolean isDefaultSigma, boolean isDefaultMedian, boolean isDefaultSegMed,
+                                             boolean isDefaultParticleThresh, boolean isDefaultRingRadius, double sigma,
+                                             double median, String thresholdingMethod, double particleThreshold,
+                                             double ringRadius) {
         File directory = new File(folderName);
 
         if(!directory.exists())
@@ -1063,11 +1159,11 @@ public class ArgoLightSwingGui implements Command {
             File file = new File(directory.getAbsoluteFile() + File.separator + processingFileName);
             // write the file
             BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
-            buffer.write(sigmaKey+","+ sigma + "\n");
-            buffer.write(medianKey+","+median + "\n");
-            buffer.write(segmentationKey+","+thresholdingMethod + "\n");
-            buffer.write(threshParticlesKey+","+particleThreshold + "\n");
-            buffer.write(ringRadiusKey+","+ringRadius + "\n");
+            buffer.write(sigmaKey+","+ isDefaultSigma+","+sigma + "\n");
+            buffer.write(medianKey+","+ isDefaultMedian+","+median + "\n");
+            buffer.write(segmentationKey+","+ isDefaultSegMed+","+thresholdingMethod + "\n");
+            buffer.write(threshParticlesKey+","+ isDefaultParticleThresh+","+particleThreshold + "\n");
+            buffer.write(ringRadiusKey+","+ isDefaultRingRadius+","+ringRadius + "\n");
 
             // close the file
             buffer.close();

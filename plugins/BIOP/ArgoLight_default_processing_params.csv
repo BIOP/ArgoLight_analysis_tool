@@ -1,5 +1,5 @@
-Sigma,-1
-Median radius,-1
-Segmentation method,Li
-Particle size threshold,25
-Analyzed ring radius,-1
+Sigma,true,-1
+Median radius,true,-1
+Segmentation method,true,Li
+Particle size threshold,true,-1
+Analyzed ring radius,true,-1

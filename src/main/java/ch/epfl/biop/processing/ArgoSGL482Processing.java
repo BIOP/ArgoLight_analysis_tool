@@ -28,23 +28,22 @@ public class ArgoSGL482Processing {
     final private static int argoSpacing = 15; // um
     final private static int argoFOV = 570; // um
     final private static int argoNPoints = 39; // on each row/column
-    final private static String thresholdingMethodCentralCross = "Huang dark";
-    final private static String thresholdingMethodRings = "Li dark";
-    public static void run(ImageFile imageFile, String userSigma, String userMedianRadius, String userThresholdingMethod,
-                           String userParticleThreshold, String userRingRadius){
+
+    public static void run(ImageFile imageFile, double userSigma, double userMedianRadius, String userThresholdingMethod,
+                           double userParticleThreshold, double userRingRadius){
 
         ImagePlus imp = imageFile.getImage();
         // pixel size of the image
         final double pixelSizeImage = imp.getCalibration().pixelWidth;
         // spot radius to compute the FWHM
-        final int lineLength = userRingRadius.equals("-1") ? (int)(1.25 / pixelSizeImage) : Integer.parseInt(userRingRadius);
+        final int lineLength = (int)(userRingRadius / pixelSizeImage);
         // spot radius to compute other metrics
-        final int ovalRadius = userRingRadius.equals("-1") ? (int)(1.25 / pixelSizeImage) : Integer.parseInt(userRingRadius);
+        final int ovalRadius = lineLength;
         // Number of channels
         final int NChannels = imp.getNChannels();
-        final double sigma = userSigma.equals("-1") ? 0.2 / pixelSizeImage : Double.parseDouble(userSigma);
-        final double medianRadius = userMedianRadius.equals("-1") ? 0.2 / pixelSizeImage : Double.parseDouble(userMedianRadius);
-        final double particleThreshold = userParticleThreshold.equals("-1") ? 5 / pixelSizeImage : Double.parseDouble(userParticleThreshold);
+        final double sigma = userSigma / pixelSizeImage;
+        final double medianRadius = userMedianRadius / pixelSizeImage  ;
+        final double particleThreshold = userParticleThreshold / pixelSizeImage ;
 
         // add tags
         imageFile.addTags("raw", "argolight");
@@ -53,11 +52,17 @@ public class ArgoSGL482Processing {
         imageFile.addKeyValue("Pixel_size_(um)",""+pixelSizeImage);
         imageFile.addKeyValue("Profile_length_for_FWHM_(pix)",""+lineLength);
         imageFile.addKeyValue("Oval_radius_(pix)",""+ovalRadius);
-        //imageFile.addKeyValue("thresholding_method_central_cross", thresholdingMethodCentralCross);
+        imageFile.addKeyValue("thresholding_method_central_cross", "Huang dark");
         imageFile.addKeyValue("Thresholding_method", userThresholdingMethod);
         imageFile.addKeyValue("Sigma_(pix)",""+sigma);
         imageFile.addKeyValue("Median_radius_(pix)",""+medianRadius);
         imageFile.addKeyValue("Particle_threshold",""+particleThreshold);
+
+        IJLogger.info("Pixel size : "+pixelSizeImage+ " um");
+        IJLogger.info("Ring radius : "+ovalRadius + " pix");
+        IJLogger.info("Sigma : "+sigma + " pix");
+        IJLogger.info("Median radius : "+medianRadius + " pix");
+        IJLogger.info("Particle threshold : "+particleThreshold + " pix");
 
         RoiManager roiManager = new RoiManager();
 
@@ -75,7 +80,7 @@ public class ArgoSGL482Processing {
             channel.show();
 
             // get the central cross
-            Roi crossRoi = getCentralCross(channel, roiManager, pixelSizeImage, userThresholdingMethod);
+            Roi crossRoi = getCentralCross(channel, roiManager, pixelSizeImage, "Huang dark");
             imageChannel.setCenterCross(crossRoi);
             IJLogger.info("Channel "+c,"Cross = " +crossRoi);
 

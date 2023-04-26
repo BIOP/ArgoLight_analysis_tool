@@ -16,8 +16,8 @@ import java.util.Map;
 
 public class Processing {
 
-    public static void run(OMERORetriever retriever, boolean savingHeatMaps, Sender sender, String userSigma, String userMedianRadius, String userThresholdingMethod,
-                           String userParticleThreshold, String userRingRadius){
+    public static void run(OMERORetriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
+                           double userParticleThreshold, double userRingRadius){
         Map<ImageWrapper, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
 

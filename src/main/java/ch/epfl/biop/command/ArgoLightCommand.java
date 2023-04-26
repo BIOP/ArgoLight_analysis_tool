@@ -77,7 +77,7 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
 
                 // run analysis
                 if(nImages > 0)
-                    Processing.run(omeroRetriever, savingHeatMaps, sender, "-1", "-1", "Li", "-1", "-1");
+                    Processing.run(omeroRetriever, savingHeatMaps, sender, 0.2, 0.2, "Li", 5, 1.25);
                 else IJLogger.error("No images are available for project "+argoLightProjectId+", dataset "+microscope);
 
             } else IJLogger.error("Directory "+this.folder.getAbsolutePath()+" doesn't exists");
