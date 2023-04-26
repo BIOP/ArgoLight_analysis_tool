@@ -30,17 +30,21 @@ public class ArgoSGL482Processing {
     final private static int argoNPoints = 39; // on each row/column
     final private static String thresholdingMethodCentralCross = "Huang dark";
     final private static String thresholdingMethodRings = "Li dark";
-    public static void run(ImageFile imageFile){
+    public static void run(ImageFile imageFile, String userSigma, String userMedianRadius, String userThresholdingMethod,
+                           String userParticleThreshold, String userRingRadius){
 
         ImagePlus imp = imageFile.getImage();
         // pixel size of the image
         final double pixelSizeImage = imp.getCalibration().pixelWidth;
         // spot radius to compute the FWHM
-        final int lineLength = (int)(1.25 / pixelSizeImage);
+        final int lineLength = userRingRadius.equals("-1") ? (int)(1.25 / pixelSizeImage) : Integer.parseInt(userRingRadius);
         // spot radius to compute other metrics
-        final int ovalRadius = (int)(1.25 / pixelSizeImage);
+        final int ovalRadius = userRingRadius.equals("-1") ? (int)(1.25 / pixelSizeImage) : Integer.parseInt(userRingRadius);
         // Number of channels
         final int NChannels = imp.getNChannels();
+        final double sigma = userSigma.equals("-1") ? 0.2 / pixelSizeImage : Double.parseDouble(userSigma);
+        final double medianRadius = userMedianRadius.equals("-1") ? 0.2 / pixelSizeImage : Double.parseDouble(userMedianRadius);
+        final double particleThreshold = userParticleThreshold.equals("-1") ? 5 / pixelSizeImage : Double.parseDouble(userParticleThreshold);
 
         // add tags
         imageFile.addTags("raw", "argolight");
@@ -49,8 +53,11 @@ public class ArgoSGL482Processing {
         imageFile.addKeyValue("Pixel_size_(um)",""+pixelSizeImage);
         imageFile.addKeyValue("Profile_length_for_FWHM_(pix)",""+lineLength);
         imageFile.addKeyValue("Oval_radius_(pix)",""+ovalRadius);
-        imageFile.addKeyValue("thresholding_method_central_cross", thresholdingMethodCentralCross);
-        imageFile.addKeyValue("thresholding_method_rings", thresholdingMethodRings);
+        //imageFile.addKeyValue("thresholding_method_central_cross", thresholdingMethodCentralCross);
+        imageFile.addKeyValue("Thresholding_method", userThresholdingMethod);
+        imageFile.addKeyValue("Sigma_(pix)",""+sigma);
+        imageFile.addKeyValue("Median_radius_(pix)",""+medianRadius);
+        imageFile.addKeyValue("Particle_threshold",""+particleThreshold);
 
         RoiManager roiManager = new RoiManager();
 
@@ -68,7 +75,7 @@ public class ArgoSGL482Processing {
             channel.show();
 
             // get the central cross
-            Roi crossRoi = getCentralCross(channel, roiManager, pixelSizeImage);
+            Roi crossRoi = getCentralCross(channel, roiManager, pixelSizeImage, userThresholdingMethod);
             imageChannel.setCenterCross(crossRoi);
             IJLogger.info("Channel "+c,"Cross = " +crossRoi);
 
@@ -76,9 +83,7 @@ public class ArgoSGL482Processing {
             roiManager.addRoi(crossRoi);
             channel.setRoi(crossRoi);
 
-            double sigma = 0.2 / pixelSizeImage;
-            List<Point2D> gridPoints = getGridPoint(channel, crossRoi, pixelSizeImage, sigma);
-            imageChannel.addKeyValue("Sigma",""+sigma);
+            List<Point2D> gridPoints = getGridPoint(channel, crossRoi, pixelSizeImage, sigma, medianRadius, particleThreshold, userThresholdingMethod);
 
             // display all points (grid and ideal)
             roiManager.reset();
@@ -135,7 +140,7 @@ public class ArgoSGL482Processing {
                 // add grid point centers
                 gridPoints.forEach(pR -> {roiManager.addRoi(new PointRoi(pR.getX(), pR.getY()));});
                 // compute metrics
-                imageChannel.addFWHM(computeFWHM(gridPoints,channel, lineLength, roiManager, pixelSizeImage));
+                imageChannel.addFWHM(computeFWHM(gridPoints,channel, lineLength, pixelSizeImage));
             }
             roiManager.runCommand(channel,"Show All without labels");
             imageFile.addChannel(imageChannel);
@@ -156,7 +161,7 @@ public class ArgoSGL482Processing {
      * @param rm
      * @return
      */
-    private static Roi getCentralCross(ImagePlus imp, RoiManager rm, double imagePixelSize){
+    private static Roi getCentralCross(ImagePlus imp, RoiManager rm, double imagePixelSize, String segMethod){
         rm.reset();
 
         // make sure no ROI is left on the imp
@@ -165,7 +170,7 @@ public class ArgoSGL482Processing {
 
         // Detect Cross in the center of the FOV
         ImagePlus mask_imp = imp.duplicate();
-        IJ.setAutoThreshold(mask_imp, thresholdingMethodCentralCross);
+        IJ.setAutoThreshold(mask_imp, segMethod+" dark");
         IJ.run(mask_imp, "Convert to Mask", "");
         IJ.run(mask_imp, "Analyze Particles...", "size="+(2.5/imagePixelSize)+"-Infinity add");
 
@@ -193,7 +198,7 @@ public class ArgoSGL482Processing {
      * @param pixelSizeImage
      * @return
      */
-    private static List<Point2D> getGridPoint(ImagePlus DoGImage, Roi crossRoi, double pixelSizeImage,double sigma){
+    private static List<Point2D> getGridPoint(ImagePlus DoGImage, Roi crossRoi, double pixelSizeImage, double sigma, double medianRadius, double prtThreshold, String segMethod){
         int nPoints;
         Roi enlargedRectangle;
 
@@ -219,13 +224,13 @@ public class ArgoSGL482Processing {
         // find ring centers
         ImagePlus imp2 = DoGImage.duplicate();
         // preprocess the image
-        IJ.run(imp2, "Median...", "radius="+sigma);
+        IJ.run(imp2, "Median...", "radius="+medianRadius);
         IJ.run(imp2, "Gaussian Blur...", "sigma="+sigma);
 
         // threshold the image
         //double medianValue = imp2.getStatistics().median;
         //IJ.setThreshold(imp2, medianValue+1, 255);
-        IJ.setAutoThreshold(imp2, thresholdingMethodRings);
+        IJ.setAutoThreshold(imp2, segMethod+" dark");
         IJ.run(imp2, "Convert to Mask", "");
 
         // make measurements
@@ -250,7 +255,7 @@ public class ArgoSGL482Processing {
                     Math.abs(raw_y_array[i] - large_rect_roi_y) <= large_rect_roi_h/2 &&
                     !(Math.abs(raw_x_array[i] - crossRoi.getStatistics().xCentroid) <= crossRoi.getStatistics().roiWidth/2 &&
                             Math.abs(raw_y_array[i] - crossRoi.getStatistics().yCentroid) <= crossRoi.getStatistics().roiHeight/2) &&
-                    raw_area_array[i] > 25){
+                    raw_area_array[i] > prtThreshold){
                 gridPoints.add(new Point2D.Double(raw_x_array[i], raw_y_array[i]));
             }
         }
@@ -449,10 +454,9 @@ public class ArgoSGL482Processing {
      * @param gridPoints
      * @param imp
      * @param lineLength
-     * @param rm
      * @return
      */
-    private static List<Double> computeFWHM(List<Point2D> gridPoints, ImagePlus imp, int lineLength, RoiManager rm, double pixelSize){
+    private static List<Double> computeFWHM(List<Point2D> gridPoints, ImagePlus imp, int lineLength, double pixelSize){
         List<Double> fwhmValues = new ArrayList<>();
 
         double[] xData = new double[lineLength];

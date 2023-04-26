@@ -108,7 +108,7 @@ public class ArgoLightGui /*implements Command*/{
 
             // run analysis
             if (nImages > 0)
-                Processing.run(omeroRetriever, saveHeatMaps, sender);
+                Processing.run(omeroRetriever, saveHeatMaps, sender,"-1", "-1", "Li", "-1", "-1");
             else IJLogger.error("No images are available for project " + defaultProjectID + ", dataset " + microscope);
 
         } catch (Exception e){

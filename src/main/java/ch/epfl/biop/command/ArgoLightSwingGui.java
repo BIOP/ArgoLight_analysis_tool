@@ -49,26 +49,51 @@ import java.util.Map;
 
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
 public class ArgoLightSwingGui implements Command {
-    private static String defaultHost;
-    private static String defaultPort;
-    private static String defaultProjectID;
-    private List<String> defaultMicroscopes;
-    private static String defaultRootFolder;
-    private static String defaultSaveFolder;
+    private static String userHost;
+    private static String userPort;
+    private static String userProjectID;
+    private List<String> userMicroscopes;
+    private static String userRootFolder;
+    private static String userSaveFolder;
+    private static String userSigma;
+    private static String userMedianRadius;
+    private static String userSegmentationMethod;
+    private static String userThreshParticles;
+    private static String userRingRadius;
+
+    final private static String defaultHost = "localHost";
+    final private static String defaultPort = "4064";
+
+    final private static String defaultSigma = "-1";
+    final private static String defaultMedianRadius = "-1";
+    final private static String defaultSegmentationMethod = "Li";
+    final private static String defaultThreshParticles = "-1";
+    final private static String defaultRingRadius = "-1";
+
+    final private static List<String> thresholdingMethods = Arrays.asList("Default", "Huang", "Intermodes",
+            "IsoData",  "IJ_IsoData", "Li", "MaxEntropy", "Mean", "MinError(I)", "Minimum", "Moments", "Otsu", "Percentile",
+            "RenyiEntropy", "Shanbhag" , "Triangle", "Yen");
     final private String hostKey = "OMERO Host";
     final private String portKey = "OMERO Port";
     final private String projectIdKey = "Project ID";
     final private String microscopeKey = "Microscopes";
     final private String saveFolderKey = "Saving folder";
     final private String rootFolderKey = "Root folder";
-    final static private String folderName = "." + File.separator + "plugins" + File.separator + "BIOP";
-    final static private String fileName = "ArgoLight_default_params.csv";
+    final private String sigmaKey = "Sigma";
+    final private String medianKey = "Median radius";
+    final private String segmentationKey = "Segmentation method";
+    final private String threshParticlesKey = "Particle size threshold";
+    final private String ringRadiusKey = "Analyzed ring radius";
+
+    final private String folderName = "." + File.separator + "plugins" + File.separator + "BIOP";
+    final private String fileName = "ArgoLight_default_params.csv";
+    final private String processingFileName = "ArgoLight_default_processing_params.csv";
 
     final private Font stdFont = new Font("Calibri", Font.PLAIN, 17);
     final private Font titleFont = new Font("Calibri", Font.BOLD, 22);
 
 
-    private static void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
+    private void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
                                       String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps, boolean allImages){
 
         boolean finalPopupMessage = true;
@@ -85,7 +110,7 @@ public class ArgoLightSwingGui implements Command {
 
         // connect to OMERO
         try {
-            client.connect(defaultHost, Integer.parseInt(defaultPort), username, password);
+            client.connect(userHost, Integer.parseInt(userPort), username, password);
             IJLogger.info("Successful connection to OMERO");
         } catch (ServiceException e) {
             IJLogger.error("Cannot connect to OMERO");
@@ -94,7 +119,7 @@ public class ArgoLightSwingGui implements Command {
         }
 
         try {
-            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(Long.parseLong(defaultProjectID), microscope, allImages);
+            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(Long.parseLong(userProjectID), microscope, allImages);
             int nImages = omeroRetriever.getNImages();
 
             Sender sender;
@@ -106,8 +131,9 @@ public class ArgoLightSwingGui implements Command {
 
             // run analysis
             if (nImages > 0)
-                Processing.run(omeroRetriever, saveHeatMaps, sender);
-            else IJLogger.error("No images are available for project " + defaultProjectID + ", dataset " + microscope);
+                Processing.run(omeroRetriever, saveHeatMaps, sender, userSigma, userMedianRadius,
+                        userSegmentationMethod, userThreshParticles, userRingRadius);
+            else IJLogger.error("No images are available for project " + userProjectID + ", dataset " + microscope);
 
         } catch (Exception e){
             finalPopupMessage = false;
@@ -128,9 +154,10 @@ public class ArgoLightSwingGui implements Command {
         JDialog generalPane = new JDialog();
 
         setDefaultParams();
+        setDefaultProcessingParams();
 
         // label and text field for OMERO credentials and host
-        JLabel labHost = new JLabel (defaultHost+":"+defaultPort);
+        JLabel labHost = new JLabel (userHost +":"+ userPort);
         labHost.setFont(stdFont);
 
         JLabel  labUsername = new JLabel ("Username");
@@ -147,14 +174,14 @@ public class ArgoLightSwingGui implements Command {
 
         JLabel labProjectID = new JLabel("Project ID");
         labProjectID.setFont(stdFont);
-        JTextField tfProjectID = new JTextField(defaultProjectID);
+        JTextField tfProjectID = new JTextField(userProjectID);
         tfProjectID.setFont(stdFont);
         tfProjectID.setColumns(15);
 
         // label and textField to choose root folder in case of local retriever
         JLabel labRootFolder  = new JLabel("Root Folder");
         labRootFolder.setFont(stdFont);
-        JTextField tfRootFolder = new JTextField(defaultRootFolder);
+        JTextField tfRootFolder = new JTextField(userRootFolder);
         tfRootFolder.setFont(stdFont);
         tfRootFolder.setColumns(15);
 
@@ -182,12 +209,12 @@ public class ArgoLightSwingGui implements Command {
         DefaultComboBoxModel<String> modelCmbMicroscope = new DefaultComboBoxModel<>();
         JComboBox<String> cbMicroscope = new JComboBox<>(modelCmbMicroscope);
         cbMicroscope.setFont(stdFont);
-        defaultMicroscopes.forEach(cbMicroscope::addItem);
+        userMicroscopes.forEach(cbMicroscope::addItem);
 
         // label and textField to choose root folder in case of local retriever
         JLabel labSavingFolder  = new JLabel("Saving Folder");
         labSavingFolder.setFont(stdFont);
-        JTextField tfSavingFolder = new JTextField(defaultSaveFolder);
+        JTextField tfSavingFolder = new JTextField(userSaveFolder);
         tfSavingFolder.setFont(stdFont);
         tfSavingFolder.setColumns(15);
 
@@ -293,18 +320,24 @@ public class ArgoLightSwingGui implements Command {
         });
 
         // button to choose root folder
-        JButton bSettings = new JButton("Settings");
-        bSettings.setFont(stdFont);
-        bSettings.addActionListener(e->{
+        JButton bGeneralSettings = new JButton("General Settings");
+        bGeneralSettings.setFont(stdFont);
+        bGeneralSettings.addActionListener(e->{
             createSettingsPane();
             setDefaultParams();
-            labHost.setText(defaultHost+":"+defaultPort);
-            cbMicroscope.setSelectedItem(defaultMicroscopes);
-            tfProjectID.setText(defaultProjectID);
-            tfRootFolder.setText(defaultRootFolder);
-            tfSavingFolder.setText(defaultSaveFolder);
+            labHost.setText(userHost +":"+ userPort);
+            cbMicroscope.setSelectedItem(userMicroscopes);
+            tfProjectID.setText(userProjectID);
+            tfRootFolder.setText(userRootFolder);
+            tfSavingFolder.setText(userSaveFolder);
         });
 
+        // button to choose root folder
+        JButton bProcessingSettings = new JButton("Processing Settings");
+        bProcessingSettings.setFont(stdFont);
+        bProcessingSettings.addActionListener(e->{
+            createProcessingSettingsPane();
+        });
 
         GridBagConstraints constraints = new GridBagConstraints( );
         constraints.fill = GridBagConstraints.BOTH;
@@ -463,7 +496,11 @@ public class ArgoLightSwingGui implements Command {
 
         constraints.gridx = 0;
         constraints.gridy = omeroRetrieverRow;
-        omeroPane.add(bSettings, constraints);
+        omeroPane.add(bGeneralSettings, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = omeroRetrieverRow;
+        omeroPane.add(bProcessingSettings, constraints);
 
         int opt = JOptionPane.showConfirmDialog(null, omeroPane, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if(opt == JOptionPane.OK_OPTION){
@@ -479,7 +516,6 @@ public class ArgoLightSwingGui implements Command {
                     chkSaveHeatMap.isSelected(),
                     chkAllImages.isSelected());
         }
-       // generalPane.setVisible(true);
     }
 
 
@@ -489,25 +525,25 @@ public class ArgoLightSwingGui implements Command {
         // label and text field for OMERO credentials and host
         JLabel labHost = new JLabel("OMERO host");
         labHost.setFont(stdFont);
-        JTextField tfHost = new JTextField(defaultHost);
+        JTextField tfHost = new JTextField(userHost);
         tfHost.setFont(stdFont);
         tfHost.setColumns(15);
 
         JLabel labPort = new JLabel("OMERO port");
         labPort.setFont(stdFont);
-        JTextField tfPort = new JTextField(defaultPort);
+        JTextField tfPort = new JTextField(userPort);
         tfPort.setFont(stdFont);
         tfPort.setColumns(15);
 
         JLabel labProject = new JLabel("OMERO Project ID");
         labProject.setFont(stdFont);
-        JTextField tfProject = new JTextField(defaultProjectID);
+        JTextField tfProject = new JTextField(userProjectID);
         tfProject.setFont(stdFont);
         tfProject.setColumns(15);
 
         JLabel labMicroscope = new JLabel("Microscopes");
         labMicroscope.setFont(stdFont);
-        JTextField tfMicroscope = new JTextField(String.join(",",defaultMicroscopes));
+        JTextField tfMicroscope = new JTextField(String.join(",", userMicroscopes));
         tfMicroscope.setFont(stdFont);
         tfMicroscope.setColumns(15);
 
@@ -536,13 +572,13 @@ public class ArgoLightSwingGui implements Command {
 
         JLabel labRootFolder = new JLabel("Root folder");
         labRootFolder.setFont(stdFont);
-        JTextField tfRootFolder = new JTextField(defaultRootFolder);
+        JTextField tfRootFolder = new JTextField(userRootFolder);
         tfRootFolder.setFont(stdFont);
         tfRootFolder.setColumns(15);
 
         JLabel labSaveFolder = new JLabel("Saving folder");
         labSaveFolder.setFont(stdFont);
-        JTextField tfSaveFolder = new JTextField(defaultSaveFolder);
+        JTextField tfSaveFolder = new JTextField(userSaveFolder);
         tfSaveFolder.setFont(stdFont);
         tfSaveFolder.setColumns(15);
 
@@ -641,39 +677,296 @@ public class ArgoLightSwingGui implements Command {
         settingsPane.add(tfSaveFolder, constraints);
 
         constraints.gridx = 2;
-        constraints.gridy = settingsRow++;
+        constraints.gridy = settingsRow;
         settingsPane.add(bChooseSaveFolder, constraints);
 
         int opt = JOptionPane.showConfirmDialog(null, settingsPane, "Setup your default settings", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if(opt == JOptionPane.OK_OPTION){
-            buildCSVFile(tfHost.getText(),
-                    tfPort.getText(),
-                    tfProject.getText(),
+            String badEntries = "";
+
+            try {
+                Double.parseDouble(tfPort.getText());
+                userPort = tfPort.getText();
+            }catch (Exception e){
+                badEntries += " - port";
+            }
+            try {
+                Double.parseDouble(tfProject.getText());
+                userProjectID = tfProject.getText();
+            }catch (Exception e){
+                badEntries += " - project";
+            }
+
+            userHost = tfHost.getText();
+            userRootFolder = tfRootFolder.getText();
+            userSaveFolder = tfSaveFolder.getText();
+
+            saveDefaultParams(userHost,
+                    userPort,
+                    userProjectID,
                     tfMicroscope.getText(),
-                    tfRootFolder.getText(),
-                    tfSaveFolder.getText());
+                    userRootFolder,
+                    userSaveFolder);
+
+            if(!badEntries.isEmpty())
+                showWarningMessage("Bad entries", "The following entries require numeric values : "+badEntries);
         }
     }
 
+
+    private void createProcessingSettingsPane(){
+
+        // label and text field for OMERO credentials and host
+        JLabel labSigma = new JLabel("Gaussian blur sigma");
+        labSigma.setFont(stdFont);
+        JTextField tfSigma = new JTextField(userSigma);
+        tfSigma.setFont(stdFont);
+        tfSigma.setColumns(15);
+        tfSigma.setEnabled(false);
+
+        JLabel labMedian = new JLabel("Median filter radius");
+        labMedian.setFont(stdFont);
+        JTextField tfMedian = new JTextField(userMedianRadius);
+        tfMedian.setFont(stdFont);
+        tfMedian.setColumns(15);
+        tfMedian.setEnabled(false);
+
+        JLabel labThreshSeg = new JLabel("Thresholding method for segmentation");
+        labThreshSeg.setFont(stdFont);
+        // build project combo model
+        DefaultComboBoxModel<String> modelCmbSegmentation = new DefaultComboBoxModel<>();
+        JComboBox<String> cbSegmentation = new JComboBox<>(modelCmbSegmentation);
+        cbSegmentation.setFont(stdFont);
+        thresholdingMethods.forEach(cbSegmentation::addItem);
+        cbSegmentation.setSelectedItem(userSegmentationMethod);
+        cbSegmentation.setEnabled(false);
+
+        JLabel labThreshParticles = new JLabel("Threshold on segmented particles");
+        labThreshParticles.setFont(stdFont);
+        JTextField tfThreshParticles = new JTextField(userThreshParticles);
+        tfThreshParticles.setFont(stdFont);
+        tfThreshParticles.setColumns(15);
+        tfThreshParticles.setEnabled(false);
+
+        JLabel labRingRadius = new JLabel("Analyzed ring radius");
+        labRingRadius.setFont(stdFont);
+        JTextField tfRingRadius = new JTextField(userRingRadius);
+        tfRingRadius.setFont(stdFont);
+        tfRingRadius.setColumns(15);
+        tfRingRadius.setEnabled(false);
+
+        JCheckBox chkSigma = new JCheckBox("default");
+        chkSigma.setSelected(true);
+        chkSigma.setFont(stdFont);
+        chkSigma.addActionListener(e->{
+            tfSigma.setEnabled(!chkSigma.isSelected());
+        });
+
+        JCheckBox chkMedian = new JCheckBox("default");
+        chkMedian.setSelected(true);
+        chkMedian.setFont(stdFont);
+        chkMedian.addActionListener(e->{
+            tfMedian.setEnabled(!chkMedian.isSelected());
+        });
+
+        JCheckBox chkThreshSeg = new JCheckBox("default");
+        chkThreshSeg.setSelected(true);
+        chkThreshSeg.setFont(stdFont);
+        chkThreshSeg.addActionListener(e->{
+            cbSegmentation.setEnabled(!chkThreshSeg.isSelected());
+        });
+
+        JCheckBox chkThreshParticles = new JCheckBox("default");
+        chkThreshParticles.setSelected(true);
+        chkThreshParticles.setFont(stdFont);
+        chkThreshParticles.addActionListener(e->{
+            tfThreshParticles.setEnabled(!chkThreshParticles.isSelected());
+        });
+
+        JCheckBox chkRingRadius = new JCheckBox("default");
+        chkRingRadius.setSelected(true);
+        chkRingRadius.setFont(stdFont);
+        chkRingRadius.addActionListener(e->{
+            tfRingRadius.setEnabled(!chkRingRadius.isSelected());
+        });
+
+        GridBagConstraints constraints = new GridBagConstraints( );
+        constraints.fill = GridBagConstraints.BOTH;
+        constraints.insets = new Insets(5,5,5,5);
+        JPanel settingsPane = new JPanel();
+
+        int settingsRow = 0;
+        settingsPane.setLayout(new GridBagLayout());
+
+        // label and text field for OMERO credentials and host
+        JLabel  retrieverTitle = new JLabel ("Get images from");
+        retrieverTitle.setFont(titleFont);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labSigma, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(chkSigma, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(tfSigma, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labMedian, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(chkMedian, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(tfMedian, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labThreshSeg, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(chkThreshSeg, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(cbSegmentation, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labThreshParticles, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(chkThreshParticles, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(tfThreshParticles, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labRingRadius, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(chkRingRadius, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = settingsRow;
+        settingsPane.add(tfRingRadius, constraints);
+
+
+        int opt = JOptionPane.showConfirmDialog(null, settingsPane, "Setup your default settings for processing", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if(opt == JOptionPane.OK_OPTION){
+            String badEntries = "";
+            if(chkSigma.isSelected())
+                userSigma = defaultSigma;
+            else {
+                try {
+                    Double.parseDouble(tfSigma.getText());
+                    userSigma = tfSigma.getText();
+                } catch (Exception e) {
+                    badEntries += " - sigma";
+                }
+            }
+
+            if(chkMedian.isSelected())
+                userMedianRadius = defaultMedianRadius;
+            else {
+                try {
+                    Double.parseDouble(tfMedian.getText());
+                    userMedianRadius = tfMedian.getText();
+                } catch (Exception e) {
+                    badEntries += " - median radius";
+                }
+            }
+
+            if(chkThreshSeg.isSelected())
+                userSegmentationMethod = defaultSegmentationMethod;
+            else userSegmentationMethod = (String)cbSegmentation.getSelectedItem();
+
+            if(chkThreshParticles.isSelected())
+                userThreshParticles = defaultThreshParticles;
+            else {
+                try {
+                    Double.parseDouble(tfThreshParticles.getText());
+                    userThreshParticles = tfThreshParticles.getText();
+                } catch (Exception e) {
+                    badEntries += " - particle threshold";
+                }
+            }
+
+            if(chkRingRadius.isSelected())
+                userRingRadius = defaultRingRadius;
+            else {
+                try {
+                    Double.parseDouble(tfRingRadius.getText());
+                    userRingRadius = tfRingRadius.getText();
+                } catch (Exception e) {
+                    badEntries += " - ring radius";
+                }
+            }
+
+
+            saveDefaultProcessingParams(userSigma,
+                    userMedianRadius,
+                    userSegmentationMethod,
+                    userThreshParticles,
+                    userRingRadius);
+
+            if(!badEntries.isEmpty())
+                showWarningMessage("Bad entries", "The following entries require numeric values : "+badEntries);
+        }
+    }
+
+
+    private void setDefaultProcessingParams(){
+        Map<String, List<String>> defaultParams = getDefaultParams(processingFileName);
+        userSigma = defaultParams.containsKey(sigmaKey) ?
+                (defaultParams.get(sigmaKey).isEmpty() ? defaultSigma : defaultParams.get(sigmaKey).get(0)) :
+                defaultSigma;
+        userMedianRadius = defaultParams.containsKey(medianKey) ?
+                (defaultParams.get(medianKey).isEmpty() ? defaultMedianRadius : defaultParams.get(medianKey).get(0)) :
+                defaultMedianRadius;
+        userSegmentationMethod = defaultParams.containsKey(segmentationKey) ?
+                (defaultParams.get(segmentationKey).isEmpty() ? defaultSegmentationMethod : defaultParams.get(segmentationKey).get(0)) :
+                defaultSegmentationMethod;
+        userThreshParticles = defaultParams.containsKey(threshParticlesKey) ?
+                (defaultParams.get(threshParticlesKey).isEmpty() ? defaultThreshParticles : defaultParams.get(threshParticlesKey).get(0)) :
+                defaultThreshParticles;
+        userRingRadius = defaultParams.containsKey(ringRadiusKey) ?
+                (defaultParams.get(ringRadiusKey).isEmpty() ? defaultRingRadius : defaultParams.get(ringRadiusKey).get(0)) : defaultRingRadius;
+    }
+
+
+
     private void setDefaultParams(){
-        Map<String, List<String>> defaultParams = getDefaultParams();
-        defaultHost = defaultParams.containsKey(hostKey) ?
-                (defaultParams.get(hostKey).isEmpty() ? "localhost" : defaultParams.get(hostKey).get(0)) :
-                "localhost";
-        defaultPort = defaultParams.containsKey(portKey) ?
-                (defaultParams.get(portKey).isEmpty() ? "4064" : defaultParams.get(portKey).get(0)) :
-                "4064";
-        defaultMicroscopes = defaultParams.getOrDefault(microscopeKey, Collections.emptyList());
-        defaultProjectID = defaultParams.containsKey(projectIdKey) ?
+        Map<String, List<String>> defaultParams = getDefaultParams(fileName);
+        userHost = defaultParams.containsKey(hostKey) ?
+                (defaultParams.get(hostKey).isEmpty() ? defaultHost : defaultParams.get(hostKey).get(0)) :
+                defaultHost;
+        userPort = defaultParams.containsKey(portKey) ?
+                (defaultParams.get(portKey).isEmpty() ? defaultPort : defaultParams.get(portKey).get(0)) :
+                defaultPort;
+        userMicroscopes = defaultParams.getOrDefault(microscopeKey, Collections.emptyList());
+        userProjectID = defaultParams.containsKey(projectIdKey) ?
                 (defaultParams.get(projectIdKey).isEmpty() ? "-1" : defaultParams.get(projectIdKey).get(0)) :
                 "-1";
-        defaultRootFolder = defaultParams.containsKey(rootFolderKey) ?
+        userRootFolder = defaultParams.containsKey(rootFolderKey) ?
                 (defaultParams.get(rootFolderKey).isEmpty() ? "" : defaultParams.get(rootFolderKey).get(0)) : "";
-        defaultSaveFolder = defaultParams.containsKey(saveFolderKey) ?
+        userSaveFolder = defaultParams.containsKey(saveFolderKey) ?
                 (defaultParams.get(saveFolderKey).isEmpty() ? "" : defaultParams.get(saveFolderKey).get(0)) : "";
     }
 
-    private static Map<String, List<String>> getDefaultParams(){
+
+    private Map<String, List<String>> getDefaultParams(String fileName){
         File file = new File(folderName + File.separator + fileName);
         Map<String, List<String>> default_params = new HashMap<>();
 
@@ -694,23 +987,22 @@ public class ArgoLightSwingGui implements Command {
         } catch (IOException e) {
             return Collections.emptyMap();
         }
-
     }
 
 
-    private static void showInfoMessage(String title, String content){
+    private void showInfoMessage(String title, String content){
         showMessage(title, content, JOptionPane.INFORMATION_MESSAGE);
     }
 
-    private static void showErrorMessage(String title, String content){
+    private void showErrorMessage(String title, String content){
         showMessage(title, content, JOptionPane.ERROR_MESSAGE);
     }
 
-    private static void showWarningMessage(String title, String content){
+    private void showWarningMessage(String title, String content){
         showMessage(title, content, JOptionPane.WARNING_MESSAGE);
     }
 
-    private static void showMessage(String title, String content, int type){
+    private void showMessage(String title, String content, int type){
         if(title == null)
             title = "";
         if(content == null)
@@ -719,7 +1011,7 @@ public class ArgoLightSwingGui implements Command {
         JOptionPane.showMessageDialog(new JFrame(), content, title, type);
     }
 
-    private static List<String> parseMicroscopesCSV(File file){
+    private List<String> parseMicroscopesCSV(File file){
         List<String> items = new ArrayList<>();
         try {
             //parsing a CSV file into BufferedReader class constructor
@@ -736,7 +1028,7 @@ public class ArgoLightSwingGui implements Command {
         }
     }
 
-    private void buildCSVFile(String host, String port, String projectID, String microscopes, String rootFolder, String savingFolder) {
+    private void saveDefaultParams(String host, String port, String projectID, String microscopes, String rootFolder, String savingFolder) {
         File directory = new File(folderName);
 
         if(!directory.exists())
@@ -752,6 +1044,30 @@ public class ArgoLightSwingGui implements Command {
             buffer.write(microscopeKey+","+microscopes + "\n");
             buffer.write(rootFolderKey+","+rootFolder + "\n");
             buffer.write(saveFolderKey+","+savingFolder + "\n");
+
+            // close the file
+            buffer.close();
+
+        } catch (IOException e) {
+            showWarningMessage("CSV writing","Couldn't write the csv for default parameters.");
+        }
+    }
+
+    private void saveDefaultProcessingParams(String sigma, String median, String thresholdingMethod, String particleThreshold, String ringRadius) {
+        File directory = new File(folderName);
+
+        if(!directory.exists())
+            directory.mkdir();
+
+        try {
+            File file = new File(directory.getAbsoluteFile() + File.separator + processingFileName);
+            // write the file
+            BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
+            buffer.write(sigmaKey+","+ sigma + "\n");
+            buffer.write(medianKey+","+median + "\n");
+            buffer.write(segmentationKey+","+thresholdingMethod + "\n");
+            buffer.write(threshParticlesKey+","+particleThreshold + "\n");
+            buffer.write(ringRadiusKey+","+ringRadius + "\n");
 
             // close the file
             buffer.close();

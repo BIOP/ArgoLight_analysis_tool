@@ -16,7 +16,8 @@ import java.util.Map;
 
 public class Processing {
 
-    public static void run(OMERORetriever retriever, boolean savingHeatMaps, Sender sender){
+    public static void run(OMERORetriever retriever, boolean savingHeatMaps, Sender sender, String userSigma, String userMedianRadius, String userThresholdingMethod,
+                           String userParticleThreshold, String userRingRadius){
         Map<ImageWrapper, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
 
@@ -34,7 +35,8 @@ public class Processing {
 
                 // choose the right ArgoLight processing
                 if (imageFile.getArgoSlideName().contains("SGL482")) {
-                    ArgoSGL482Processing.run(imageFile);
+                    ArgoSGL482Processing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
+                            userParticleThreshold, userRingRadius);
                     isSGL482 = true;
                 } else {
                     ArgoSGL511Processing.run(imageFile);
