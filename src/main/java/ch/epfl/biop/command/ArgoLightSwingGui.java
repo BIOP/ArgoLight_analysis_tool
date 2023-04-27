@@ -735,14 +735,14 @@ public class ArgoLightSwingGui implements Command {
         // label and text field for OMERO credentials and host
         JLabel labSigma = new JLabel("Gaussian blur sigma (um)");
         labSigma.setFont(stdFont);
-        SpinnerModel spModelSigma = new SpinnerNumberModel(userSigma,0,10,0.01);
+        SpinnerModel spModelSigma = new SpinnerNumberModel(userSigma,0.01,10,0.01);
         JSpinner spSigma = new JSpinner(spModelSigma);
         spSigma.setFont(stdFont);
         spSigma.setEnabled(!isDefaultSigma);
 
         JLabel labMedian = new JLabel("Median filter radius (um)");
         labMedian.setFont(stdFont);
-        SpinnerModel spModelMedian = new SpinnerNumberModel(userMedianRadius,0,10,0.01);
+        SpinnerModel spModelMedian = new SpinnerNumberModel(userMedianRadius,0.01,10,0.01);
         JSpinner spMedian = new JSpinner(spModelMedian);
         spMedian.setFont(stdFont);
         spMedian.setEnabled(!isDefaultMedianRadius);
@@ -759,14 +759,14 @@ public class ArgoLightSwingGui implements Command {
 
         JLabel labThreshParticles = new JLabel("Threshold on segmented particles (um^2)");
         labThreshParticles.setFont(stdFont);
-        SpinnerModel spModelThreshParticles = new SpinnerNumberModel(userParticleThresh,0,30,0.01);
+        SpinnerModel spModelThreshParticles = new SpinnerNumberModel(userParticleThresh,0.001,20,0.001);
         JSpinner spThreshParticles = new JSpinner(spModelThreshParticles);
         spThreshParticles.setFont(stdFont);
         spThreshParticles.setEnabled(!isDefaultParticleThresh);
 
         JLabel labRingRadius = new JLabel("Analyzed ring radius (um)");
         labRingRadius.setFont(stdFont);
-        SpinnerModel spModelRingRadius = new SpinnerNumberModel(userRingRadius,0,3,0.01);
+        SpinnerModel spModelRingRadius = new SpinnerNumberModel(userRingRadius,0.01,3,0.01);
         JSpinner spRingRadius = new JSpinner(spModelRingRadius);
         spRingRadius.setFont(stdFont);
         spRingRadius.setEnabled(!isDefaultRingRadius);
@@ -908,7 +908,7 @@ public class ArgoLightSwingGui implements Command {
     private void setDefaultProcessingParams(){
         Map<String, List<String>> defaultParams = getDefaultParams(processingFileName);
 
-        double val = checkAndSetValidityOfReadMetric(defaultParams, sigmaKey, defaultSigma, sigmaUpperBound);
+        Double val = checkAndSetValidityOfReadMetric(defaultParams, sigmaKey, defaultSigma, sigmaUpperBound);
         isDefaultSigma = val > 0;
         userSigma = Math.abs(val);
 
@@ -935,7 +935,7 @@ public class ArgoLightSwingGui implements Command {
     }
 
 
-    private double checkAndSetValidityOfReadMetric(Map<String, List<String>> metrics, String key, double defaultVal, int upperBound){
+    private Double checkAndSetValidityOfReadMetric(Map<String, List<String>> metrics, String key, double defaultVal, int upperBound){
         boolean isDefault;
         double userVal;
         if(metrics.containsKey(key) && !(metrics.get(key).isEmpty() || metrics.get(key).size() < 2)){
