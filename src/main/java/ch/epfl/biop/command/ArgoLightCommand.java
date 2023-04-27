@@ -71,9 +71,9 @@ public class ArgoLightCommand extends DynamicCommand implements Command {
             if(this.folder.exists()){
                 Sender sender;
                 if(saveLocally)
-                    sender = new LocalSender(this.folder, microscope);
+                    sender = new LocalSender(this.folder, microscope, false);
                 else
-                    sender = new OMEROSender(client, omeroRetriever.getParentTarget());
+                    sender = new OMEROSender(client, omeroRetriever.getParentTarget(), false);
 
                 // run analysis
                 if(nImages > 0)

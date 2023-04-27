@@ -123,8 +123,10 @@ public class ImageFile {
             this.acquisitionDate = matcher.group("date");
 
             this.keyValues.put("Microscope", this.microscope);
+            this.keyValues.put("Objective", this.objective);
             this.keyValues.put("Immersion", this.immersionMedium);
             this.keyValues.put("ArgoSlide_pattern", this.argoSlidePattern);
+            this.keyValues.put("ArgoSlide_name", this.argoSlideName);
             addTags(this.imagedFoV, this.objective, this.argoSlideName);
 
         } else {

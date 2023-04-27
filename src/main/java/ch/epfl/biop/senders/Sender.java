@@ -65,5 +65,17 @@ public interface Sender {
      * @param nChannels
      */
     void sendPCCTable(List<List<Double>> pccValues, int nChannels);
+
+    /**
+     * Send to OMERO all the tags created for the current image
+     * @param tags
+     * @param imageWrapper
+     * @param client
+     */
     void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client);
+
+    /**
+     * Delete all previous runs (ROIs, tables, key-value pairs...) except tags and heatmaps, both located on OMERO
+     */
+    void clean();
 }

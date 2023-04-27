@@ -22,14 +22,18 @@ import ij.io.FileSaver;
 import ij.process.ImageStatistics;
 import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
+import omero.gateway.facility.MetadataFacility;
+import omero.gateway.model.AnnotationData;
 import omero.gateway.model.EllipseData;
 import omero.gateway.model.ImageData;
+import omero.gateway.model.MapAnnotationData;
 import omero.gateway.model.ROIData;
 import omero.gateway.model.RectangleData;
 import omero.gateway.model.ShapeData;
 import omero.gateway.model.TableData;
 import omero.gateway.model.TableDataColumn;
 import omero.gateway.model.TagAnnotationData;
+import omero.model.IObject;
 import omero.model.NamedValue;
 
 import java.io.File;
@@ -46,18 +50,24 @@ public class OMEROSender implements Sender{
     final Client client;
     private ImageWrapper imageWrapper;
     final private String date;
+    final private boolean cleanTarget;
+    private boolean cleanParent;
     final private static String PROCESSED_FEATURE = "feature";
     private final String datasetId;
 
-    public OMEROSender(Client client, String datasetTarget){
+    public OMEROSender(Client client, String datasetTarget, boolean cleanTarget){
         this.client = client;
         this.datasetId = datasetTarget;
         this.date = Tools.getCurrentDateAndHour();
+        this.cleanTarget = cleanTarget;
+        this.cleanParent = cleanTarget;
     } //TODO ajouter le boolean "local heat map saving"
 
     @Override
     public void initialize(ImageFile imageFile, ImageWrapper imageWrapper) {
         this.imageWrapper = imageWrapper;
+        if(this.cleanTarget)
+            clean();
     }
 
     @Override
@@ -83,6 +93,56 @@ public class OMEROSender implements Sender{
                 IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + imageWrapper.getId());
             }
         }
+    }
+
+    @Override
+    public void clean() {
+        // delete key-value pairs
+        try {
+            List<IObject> keyValues = client.getMetadata()
+                    .getAnnotations(client.getCtx(), this.imageWrapper.asDataObject()).stream()
+                    .filter(MapAnnotationData.class::isInstance)
+                    .map(MapAnnotationData.class::cast)
+                    .map(MapAnnotationData::asIObject)
+                    .collect(Collectors.toList());
+            client.getDm().delete(this.client.getCtx(), keyValues);
+        } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
+            IJLogger.error("Clean target", "Cannot delete key-values for image "+this.imageWrapper.getId());
+        }
+
+        try {
+            // delete tables
+            List<TableWrapper> tables = this.imageWrapper.getTables(this.client);
+            for (TableWrapper table : tables)
+                this.client.delete(table);
+        } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
+            IJLogger.error("Clean target", "Cannot delete tables for image "+this.imageWrapper.getId());
+        }
+
+        // delete ROIs
+        try{
+            List<IObject> rois = this.imageWrapper.getROIs(this.client).stream()
+                    .map(ROIWrapper::asDataObject)
+                    .map(ROIData::asIObject)
+                    .collect(Collectors.toList());
+            client.getDm().delete(this.client.getCtx(), rois);
+        } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
+            IJLogger.error("Clean target", "Cannot delete ROIs for image "+this.imageWrapper.getId());
+        }
+
+        if(this.cleanParent){
+            this.cleanParent = false;
+            try {
+                List<DatasetWrapper> dataset = this.imageWrapper.getDatasets(this.client);
+                // delete tables
+                List<TableWrapper> tables = dataset.get(0).getTables(this.client);
+                for (TableWrapper table : tables)
+                    this.client.delete(table);
+            } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
+                IJLogger.error("Clean target", "Cannot delete parent tables for image "+this.imageWrapper.getId());
+            }
+        }
+
     }
 
     @Override

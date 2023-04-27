@@ -102,9 +102,9 @@ public class ArgoLightGui /*implements Command*/{
             Sender sender;
             if (!isOmeroSender) {
                 File savingFolder = new File(savingFolderPath);
-                sender = new LocalSender(savingFolder, microscope);
+                sender = new LocalSender(savingFolder, microscope, false);
             } else
-                sender = new OMEROSender(client, omeroRetriever.getParentTarget());
+                sender = new OMEROSender(client, omeroRetriever.getParentTarget(), false);
 
             // run analysis
             if (nImages > 0)

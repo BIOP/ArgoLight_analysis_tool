@@ -106,7 +106,8 @@ public class ArgoLightSwingGui implements Command {
 
 
     private void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
-                                      String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps, boolean allImages){
+                               String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps,
+                               boolean allImages, boolean cleanTargetSelection){
 
         boolean finalPopupMessage = true;
         if(!isOmeroRetriever && !new File(rootFolderPath).exists()){
@@ -134,12 +135,14 @@ public class ArgoLightSwingGui implements Command {
             OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(Long.parseLong(userProjectID), microscope, allImages);
             int nImages = omeroRetriever.getNImages();
 
+            boolean cleanTarget = allImages && cleanTargetSelection;
+
             Sender sender;
             if (!isOmeroSender) {
                 File savingFolder = new File(savingFolderPath);
-                sender = new LocalSender(savingFolder, microscope);
+                sender = new LocalSender(savingFolder, microscope, cleanTarget);
             } else
-                sender = new OMEROSender(client, omeroRetriever.getParentTarget());
+                sender = new OMEROSender(client, omeroRetriever.getParentTarget(), cleanTarget);
 
             // run analysis
             if (nImages > 0)
@@ -256,9 +259,18 @@ public class ArgoLightSwingGui implements Command {
         chkSaveHeatMap.setSelected(false);
         chkSaveHeatMap.setFont(stdFont);
 
+        JCheckBox chkRemovePreviousRun = new JCheckBox("Remove previous runs");
+        chkRemovePreviousRun.setSelected(false);
+        chkRemovePreviousRun.setFont(stdFont);
+        chkRemovePreviousRun.setEnabled(false);
+
         JCheckBox chkAllImages = new JCheckBox("Process again existing images");
         chkAllImages.setSelected(false);
         chkAllImages.setFont(stdFont);
+        chkAllImages.addActionListener(e->{
+            //chkRemovePreviousRun.setSelected(chkAllImages.isSelected());
+            chkRemovePreviousRun.setEnabled(chkAllImages.isSelected());
+        });
 
         // Radio button to choose local retriever
         ButtonGroup senderChoice = new ButtonGroup();
@@ -495,6 +507,12 @@ public class ArgoLightSwingGui implements Command {
         constraints.gridy = omeroRetrieverRow++;
         omeroPane.add(bSavingFolder, constraints);
 
+        constraints.gridwidth = 2; // span two rows
+        constraints.gridx = 0;
+        constraints.gridy = omeroRetrieverRow++;
+        omeroPane.add(chkRemovePreviousRun, constraints);
+        constraints.gridwidth = 1; // set it back
+
         constraints.gridwidth = 4; // span two rows
         constraints.gridx = 0;
         constraints.gridy = omeroRetrieverRow++;
@@ -530,7 +548,8 @@ public class ArgoLightSwingGui implements Command {
                     rbOmeroSender.isSelected(),
                     tfSavingFolder.getText(),
                     chkSaveHeatMap.isSelected(),
-                    chkAllImages.isSelected());
+                    chkAllImages.isSelected(),
+                    chkRemovePreviousRun.isSelected());
         }
     }
 

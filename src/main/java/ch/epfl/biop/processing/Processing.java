@@ -22,7 +22,7 @@ public class Processing {
         List<String> headers = new ArrayList<>();
 
         for (int i = 0; i < retriever.getNImages(); i++) {
-           // try {
+            try {
                 // get the image
                 ImagePlus imp = retriever.getImage(i);
                 // get the imageWrapper
@@ -52,9 +52,9 @@ public class Processing {
                 headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
                 if (!allChannelMetrics.values().isEmpty())
                     summaryMap.put(imageWrapper, allChannelMetrics.values().iterator().next());
-            /*}catch (Exception e){
+            }catch (Exception e){
                 IJLogger.error("An error occured during processing ; cannot analyse the image "+retriever.getImage(i).getTitle());
-            }*/
+            }
         }
 
         // populate parent table with summary results

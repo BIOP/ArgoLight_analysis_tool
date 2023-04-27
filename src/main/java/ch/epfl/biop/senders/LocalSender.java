@@ -42,10 +42,14 @@ import java.util.zip.ZipOutputStream;
 public class LocalSender implements Sender{
     private final String parentFolder;
     private String imageFolder;
+    private final boolean cleanTarget;
+    private boolean cleanParent;
     final private String date;
 
-    public LocalSender(File target, String microscopeName){
+    public LocalSender(File target, String microscopeName, boolean cleanTarget){
         this.date = Tools.getCurrentDateAndHour();
+        this.cleanTarget = cleanTarget;
+        this.cleanParent = cleanTarget;
         //Check if the selected folder is the microscope folder
         if(!target.getName().contains(microscopeName)){
             // list files in the folder
@@ -93,6 +97,9 @@ public class LocalSender implements Sender{
                 this.imageFolder = this.parentFolder;
                 return;
             }
+
+        if(this.cleanTarget)
+            clean();
 
         String dateFolderPath = imageFileFolder.getAbsolutePath() + File.separator + this.date;
         if(new File(dateFolderPath).mkdir())
@@ -265,6 +272,26 @@ public class LocalSender implements Sender{
             } catch (ServiceException | OMEROServerError | AccessException | ExecutionException e) {
                 IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + imageWrapper.getId());
             }
+        }
+    }
+
+    @Override
+    public void clean() {
+        File parent = new File(this.imageFolder);
+        File[] children = parent.listFiles();
+
+        if(children != null)
+            for (File child : children) child.delete();
+
+        if(this.cleanParent){
+            this.cleanParent = false;
+            File file = new File(this.parentFolder);
+            String microscope = file.getName();
+            children = file.listFiles();
+            if(children != null)
+                for (File child : children)
+                    if(child.isFile() && child.getName().contains(microscope+"_table") && child.getName().endsWith(".csv"))
+                        child.delete();
         }
     }
 
