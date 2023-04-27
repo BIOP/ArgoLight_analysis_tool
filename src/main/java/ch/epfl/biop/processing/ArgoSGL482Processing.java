@@ -58,11 +58,11 @@ public class ArgoSGL482Processing {
         imageFile.addKeyValue("Median_radius_(pix)",""+medianRadius);
         imageFile.addKeyValue("Particle_threshold",""+particleThreshold);
 
-        IJLogger.info("Pixel size : "+pixelSizeImage+ " um");
-        IJLogger.info("Ring radius : "+ovalRadius + " pix");
-        IJLogger.info("Sigma : "+sigma + " pix");
-        IJLogger.info("Median radius : "+medianRadius + " pix");
-        IJLogger.info("Particle threshold : "+particleThreshold + " pix");
+        IJLogger.info("Image","Pixel size : "+pixelSizeImage+ " um");
+        IJLogger.info("Detection parameters","Ring radius : "+ovalRadius + " pix");
+        IJLogger.info("Detection parameters","Sigma : "+sigma + " pix");
+        IJLogger.info("Detection parameters","Median radius : "+medianRadius + " pix");
+        IJLogger.info("Detection parameters","Particle threshold : "+particleThreshold + " pix");
 
         RoiManager roiManager = new RoiManager();
 

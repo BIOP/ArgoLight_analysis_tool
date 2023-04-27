@@ -29,6 +29,8 @@ public class Processing {
                 ImageWrapper imageWrapper = retriever.getImageWrapper(i);
                 if (imp == null || imageWrapper == null)
                     continue;
+
+                IJLogger.info("Working on image "+imp.getTitle());
                 // create a new ImageFile object
                 ImageFile imageFile = new ImageFile(imp, imageWrapper.getId());
                 boolean isSGL482 = false;
@@ -42,6 +44,8 @@ public class Processing {
                     ArgoSGL511Processing.run(imageFile);
                 }
 
+                IJLogger.info("End of processing");
+                IJLogger.info("Sending results ... ");
                 // send image results (metrics, rings, tags, key-values)
                 sender.initialize(imageFile, imageWrapper);
                 sender.sendTags(imageFile.getTags(), imageWrapper, retriever.getClient());

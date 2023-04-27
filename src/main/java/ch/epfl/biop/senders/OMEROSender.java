@@ -72,6 +72,7 @@ public class OMEROSender implements Sender{
 
     @Override
     public void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client) {
+        IJLogger.info("Adding tag");
         for(String tag : tags) {
             try {
                 // get the corresponding tag in the list of available tags if exists
@@ -97,8 +98,10 @@ public class OMEROSender implements Sender{
 
     @Override
     public void clean() {
+        IJLogger.info("Cleaning target...");
         // delete key-value pairs
         try {
+            IJLogger.info("Cleaning target", "Removing key-values from image "+this.imageWrapper.getId());
             List<IObject> keyValues = client.getMetadata()
                     .getAnnotations(client.getCtx(), this.imageWrapper.asDataObject()).stream()
                     .filter(MapAnnotationData.class::isInstance)
@@ -106,43 +109,49 @@ public class OMEROSender implements Sender{
                     .map(MapAnnotationData::asIObject)
                     .collect(Collectors.toList());
             client.getDm().delete(this.client.getCtx(), keyValues);
+            IJLogger.info("Cleaning target", "Key-values removed");
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
-            IJLogger.error("Clean target", "Cannot delete key-values for image "+this.imageWrapper.getId());
+            IJLogger.error("Cleaning target", "Cannot delete key-values for image "+this.imageWrapper.getId());
         }
 
         try {
             // delete tables
+            IJLogger.info("Cleaning target", "Removing tables from image "+this.imageWrapper.getId());
             List<TableWrapper> tables = this.imageWrapper.getTables(this.client);
             for (TableWrapper table : tables)
                 this.client.delete(table);
+            IJLogger.info("Cleaning target", "Tables removed");
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
-            IJLogger.error("Clean target", "Cannot delete tables for image "+this.imageWrapper.getId());
+            IJLogger.error("Cleaning target", "Cannot delete tables for image "+this.imageWrapper.getId());
         }
 
         // delete ROIs
         try{
+            IJLogger.info("Cleaning target", "Removing ROIs from image "+this.imageWrapper.getId());
             List<IObject> rois = this.imageWrapper.getROIs(this.client).stream()
                     .map(ROIWrapper::asDataObject)
                     .map(ROIData::asIObject)
                     .collect(Collectors.toList());
             client.getDm().delete(this.client.getCtx(), rois);
+            IJLogger.info("Cleaning target", "ROIs removed");
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
-            IJLogger.error("Clean target", "Cannot delete ROIs for image "+this.imageWrapper.getId());
+            IJLogger.error("Cleaning target", "Cannot delete ROIs for image "+this.imageWrapper.getId());
         }
 
         if(this.cleanParent){
             this.cleanParent = false;
             try {
+                IJLogger.info("Cleaning target", "Removing parent table from image "+this.imageWrapper.getId());
                 List<DatasetWrapper> dataset = this.imageWrapper.getDatasets(this.client);
                 // delete tables
                 List<TableWrapper> tables = dataset.get(0).getTables(this.client);
                 for (TableWrapper table : tables)
                     this.client.delete(table);
+                IJLogger.info("Cleaning target", "Parent table removed");
             } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
-                IJLogger.error("Clean target", "Cannot delete parent tables for image "+this.imageWrapper.getId());
+                IJLogger.error("Cleaning target", "Cannot delete parent tables for image "+this.imageWrapper.getId());
             }
         }
-
     }
 
     @Override
@@ -150,6 +159,7 @@ public class OMEROSender implements Sender{
      * target : dataset ID
      */
     public void sendHeatMaps(ImagePlus imp) {
+        IJLogger.info("Sending heatmaps");
         String home = Prefs.getHomeDir();
 
         // save the image on the computer first and get the generate file
@@ -185,6 +195,7 @@ public class OMEROSender implements Sender{
 
     @Override
     public void sendKeyValues(Map<String, String> keyValues) {
+        IJLogger.info("Sending key-values");
         if(!keyValues.isEmpty()) {
             List<NamedValue> namedValues = new ArrayList<>();
             keyValues.forEach((key, value) -> namedValues.add(new NamedValue(key, value)));
@@ -195,14 +206,16 @@ public class OMEROSender implements Sender{
             try {
                 // upload key-values on OMERO
                 this.imageWrapper.link(this.client, newKeyValues);
+                IJLogger.info("Sending key values","Key-values have been successfully applied on the image " + imageWrapper.getId());
             } catch (ServiceException | AccessException | ExecutionException e) {
-                IJLogger.error("Adding Key-Values", "KeyValues could not be added on the image " + this.imageWrapper.getId());
+                IJLogger.error("Sending Key-Values", "Key-values could not be uploaded and linked to the image " + this.imageWrapper.getId());
             }
         } else IJLogger.warn("Sending Key-Values", "There is no key-values to send to OMERO");
     }
 
     @Override
     public void sendGridPoints(List<Roi> rois, int channelId, String roiTitle) {
+        IJLogger.info("Sending "+roiTitle + " ROIs");
         // import ROIs on OMERO
         if (!(rois.isEmpty())) {
             List<ShapeData> gridShapes = convertIJRoisToShapeData(rois, channelId);
@@ -215,15 +228,17 @@ public class OMEROSender implements Sender{
             try {
                 // save ROIs
                 this.imageWrapper.saveROIs(this.client, omeroRois);
+                IJLogger.info("Sending "+roiTitle + " ROIs","The ROIs have been successfully uploaded and linked to the image " + imageWrapper.getId());
             } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
-                IJLogger.error("ROI Saving","Error during saving ROIs on OMERO.");
+                IJLogger.error("Sending "+roiTitle + " ROIs","Error during saving ROIs on OMERO.");
             }
-        } else IJLogger.info("Upload annotations","There is no Annotations to upload on OMERO");
+        } else IJLogger.info("Sending "+roiTitle + " ROIs","There is no Annotations to upload on OMERO");
 
     }
 
     @Override
     public void sendPCCTable(List<List<Double>> pccValues, int nChannels){
+        IJLogger.info("Sending PCC table");
         List<TableDataColumn> columns = new ArrayList<>();
         List<List<Object>> measurements = new ArrayList<>();
 
@@ -248,15 +263,16 @@ public class OMEROSender implements Sender{
                 TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
                 tableWrapper.setName(this.date + "_PCC_table");
                 this.imageWrapper.addTable(this.client, tableWrapper);
-                IJLogger.info("Results table for image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId() + " has been uploaded");
+                IJLogger.info("Sending PCC table","PCC table has been successfully uploaded and linked to the image " + imageWrapper.getId());
             } catch (DSAccessException | ServiceException | ExecutionException e) {
-                IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
+                IJLogger.error("Sending PCC table","Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
             }
         } else IJLogger.warn("Saving PCC table","No results to save");
     }
 
     @Override
     public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean createNewTable, String tableName){
+        IJLogger.info("Sending "+tableName+" table");
         TableWrapper tableWrapper;
         TableWrapper table = getOmeroTable(this.client, this.imageWrapper, tableName);
 
@@ -269,14 +285,15 @@ public class OMEROSender implements Sender{
             tableWrapper.setName(tableName);
             this.imageWrapper.addTable(this.client, tableWrapper);
             if(table != null) this.client.delete(table);
-            IJLogger.info("Results table for image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId() + " has been uploaded");
+            IJLogger.info("Sending "+tableName+" table",tableName+" table has been successfully uploaded and linked to the image " + imageWrapper.getId());
         } catch (DSAccessException | ServiceException | ExecutionException | OMEROServerError | InterruptedException e) {
-            IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
+            IJLogger.error("Sending "+tableName+" table","Cannot add the "+tableName+" table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
         }
     }
 
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
+        IJLogger.info("Update parent table...");
         // format data
         List<Object[]> fullRows = new ArrayList<>();
         for (Map.Entry<ImageWrapper, List<List<Double>>> image : summary.entrySet()) {
@@ -289,7 +306,7 @@ public class OMEROSender implements Sender{
 
             for (List<Object> metrics : allChannelMetricsAsObject) {
                 metrics.add(0, image.getKey().getName());
-                metrics.add(0, image.getKey().asImageData());
+                metrics.add(0, image.getKey().asDataObject());
                 fullRows.add(metrics.toArray());
             }
         }
@@ -309,9 +326,9 @@ public class OMEROSender implements Sender{
             } else
                 addNewParentTable(fullRows, headers, dataset, this.date);
 
-            IJLogger.info("Results table for dataset " + dataset.getName() + " : " + dataset.getId() + " has been uploaded");
+            IJLogger.info("Update parent table","New analysis summaries have been uploaded and linked to dataset " + dataset.getName() + " : " + dataset.getId());
         } catch (DSAccessException | ServiceException | ExecutionException e) {
-            IJLogger.error("Cannot add the results table to dataset " + this.datasetId);
+            IJLogger.error("Update parent table","Cannot add the summaries to the parent table on dataset " + this.datasetId);
         }
     }
 
@@ -326,7 +343,7 @@ public class OMEROSender implements Sender{
             List<Object> imageData = new ArrayList<>();
 
             for (Double ignored : values.get(0)) {
-                imageData.add(this.imageWrapper.asImageData());
+                imageData.add(this.imageWrapper.asDataObject());
             }
             measurements.add(imageData);
 
