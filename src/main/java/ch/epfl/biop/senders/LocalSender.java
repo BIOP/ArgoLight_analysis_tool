@@ -42,8 +42,10 @@ import java.util.zip.ZipOutputStream;
 public class LocalSender implements Sender{
     private final String parentFolder;
     private String imageFolder;
+    final private String date;
 
     public LocalSender(File target, String microscopeName){
+        this.date = Tools.getCurrentDateAndHour();
         //Check if the selected folder is the microscope folder
         if(!target.getName().contains(microscopeName)){
             // list files in the folder
@@ -65,8 +67,7 @@ public class LocalSender implements Sender{
                     }
                 }else{
                     // select the existing microscope folder
-                    File microscopeFolder = microscopeList.get(0);
-                    this.parentFolder = microscopeFolder.getAbsolutePath();
+                    this.parentFolder = microscopeList.get(0).getAbsolutePath();
                 }
             }else{
                 // create the microscope folder if it doesn't exist
@@ -88,8 +89,16 @@ public class LocalSender implements Sender{
         File imageFileFolder = new File(this.imageFolder);
 
         if(!imageFileFolder.exists())
-            if(!imageFileFolder.mkdir())
+            if (!imageFileFolder.mkdir()) {
                 this.imageFolder = this.parentFolder;
+                return;
+            }
+
+        String dateFolderPath = imageFileFolder.getAbsolutePath() + File.separator + this.date;
+        if(new File(dateFolderPath).mkdir())
+            this.imageFolder = dateFolderPath;
+        else
+            IJLogger.error("Cannot create folder "+dateFolderPath+ ". Use this folder instead "+this.imageFolder);
     }
 
     @Override
@@ -152,17 +161,17 @@ public class LocalSender implements Sender{
 
     @Override
     public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean createNewTable, String tableName){
-        String date = Tools.getCurrentDateAndHour();
-        String text;
+        String text = createNewTable(values, channelIdList);
 
-        if(!createNewTable){
+        /*if(!createNewTable){
             File csvTable = new File(this.imageFolder + File.separator + tableName+"_table.csv");
             if(csvTable.exists()) {
                 List<String> rows = Tools.readCsvFile(csvTable);
                 text = addNewColumnsToTable(rows, values, channelIdList, date);
             }
             else text = createNewTable(values, channelIdList, date);
-        } else text = createNewTable(values, channelIdList, date);
+        } else text = createNewTable(values, channelIdList, date);*/
+
 
         File file = new File(this.imageFolder + File.separator + tableName+"_table.csv");
         Tools.saveCsvFile(file, text);
@@ -171,7 +180,6 @@ public class LocalSender implements Sender{
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
         // get the current date
-        String date = Tools.getCurrentDateAndHour();
         File lastTable = getLastLocalParentTable(this.parentFolder);
         String text = "";
 
@@ -192,7 +200,7 @@ public class LocalSender implements Sender{
             }
 
         String microscopeName = new File(this.parentFolder).getName();
-        File file = new File(this.parentFolder + File.separator + date + "_" + microscopeName + "_table.csv");
+        File file = new File(this.parentFolder + File.separator + this.date + "_" + microscopeName + "_table.csv");
 
         if(!populateExistingTable || lastTable == null || !lastTable.exists()) {
             Tools.saveCsvFile(file, text);
@@ -261,12 +269,12 @@ public class LocalSender implements Sender{
     }
 
 
-    private String createNewTable(List<List<Double>> values, List<Integer> channelIdList, String date) {
+    private String createNewTable(List<List<Double>> values, List<Integer> channelIdList) {
         String text = "Ring ID";
 
         // add headers
-        for (Integer ignored : channelIdList) text += "," + date;
-        text += "\n";
+       // for (Integer ignored : channelIdList) text += "," + date;
+        //text += "\n";
         for (Integer channelId : channelIdList) text += ",ch_" + channelId ;
         text += "\n";
 
@@ -290,7 +298,7 @@ public class LocalSender implements Sender{
         return text;
     }
 
-    private String addNewColumnsToTable(List<String> rows, List<List<Double>> values, List<Integer> channelIdList, String date){
+   /* private String addNewColumnsToTable(List<String> rows, List<List<Double>> values, List<Integer> channelIdList, String date){
         String text = "";
 
         // add headers
@@ -336,7 +344,7 @@ public class LocalSender implements Sender{
             }
         }
         return text;
-    }
+    }*/
 
 
     /**

@@ -1,7 +1,6 @@
 package ch.epfl.biop.senders;
 
 import ch.epfl.biop.utils.IJLogger;
-import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.utils.Tools;
 import fr.igred.omero.Client;
@@ -20,11 +19,10 @@ import ij.ImagePlus;
 import ij.Prefs;
 import ij.gui.Roi;
 import ij.io.FileSaver;
+import ij.process.ImageStatistics;
 import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
-import omero.gateway.facility.TablesFacility;
 import omero.gateway.model.EllipseData;
-import omero.gateway.model.FileAnnotationData;
 import omero.gateway.model.ImageData;
 import omero.gateway.model.ROIData;
 import omero.gateway.model.RectangleData;
@@ -35,36 +33,31 @@ import omero.gateway.model.TagAnnotationData;
 import omero.model.NamedValue;
 
 import java.io.File;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 public class OMEROSender implements Sender{
     final Client client;
     private ImageWrapper imageWrapper;
+    final private String date;
     final private static String PROCESSED_FEATURE = "feature";
     private final String datasetId;
 
     public OMEROSender(Client client, String datasetTarget){
         this.client = client;
         this.datasetId = datasetTarget;
+        this.date = Tools.getCurrentDateAndHour();
     } //TODO ajouter le boolean "local heat map saving"
 
     @Override
     public void initialize(ImageFile imageFile, ImageWrapper imageWrapper) {
-     this.imageWrapper = imageWrapper;
+        this.imageWrapper = imageWrapper;
     }
 
     @Override
@@ -138,7 +131,7 @@ public class OMEROSender implements Sender{
 
             // create a new MapAnnotation
             MapAnnotationWrapper newKeyValues = new MapAnnotationWrapper(namedValues);
-            newKeyValues.setNameSpace("openmicroscopy.org/omero/client/mapAnnotation");
+            newKeyValues.setNameSpace("ArgoLight analysis "+this.date); // "openmicroscopy.org/omero/client/mapAnnotation"
             try {
                 // upload key-values on OMERO
                 this.imageWrapper.link(this.client, newKeyValues);
@@ -152,12 +145,13 @@ public class OMEROSender implements Sender{
     public void sendGridPoints(List<Roi> rois, int channelId, String roiTitle) {
         // import ROIs on OMERO
         if (!(rois.isEmpty())) {
-            List<ShapeData> gridShapes = convertIJRoisToShapeData(rois, channelId, roiTitle);
+            List<ShapeData> gridShapes = convertIJRoisToShapeData(rois, channelId);
 
             ROIData roiGrid = new ROIData();
             gridShapes.forEach(roiGrid::addShapeData);
 
             List<ROIWrapper> omeroRois = new ArrayList<ROIWrapper>(){{add(new ROIWrapper(roiGrid));}};
+            omeroRois.get(0).setName(this.date + "_"+roiTitle);
             try {
                 // save ROIs
                 this.imageWrapper.saveROIs(this.client, omeroRois);
@@ -192,8 +186,8 @@ public class OMEROSender implements Sender{
             // send the omero Table
             try {
                 TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
-                tableWrapper.setName("PCC_table");
-                this.imageWrapper.addTable(client, tableWrapper);
+                tableWrapper.setName(this.date + "_PCC_table");
+                this.imageWrapper.addTable(this.client, tableWrapper);
                 IJLogger.info("Results table for image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId() + " has been uploaded");
             } catch (DSAccessException | ServiceException | ExecutionException e) {
                 IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
@@ -203,19 +197,17 @@ public class OMEROSender implements Sender{
 
     @Override
     public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean createNewTable, String tableName){
-        String date = Tools.getCurrentDateAndHour();
         TableWrapper tableWrapper;
-
         TableWrapper table = getOmeroTable(this.client, this.imageWrapper, tableName);
 
         if(!createNewTable && table != null)
-            tableWrapper = addNewColumnsToTable(table, values, channelIdList, date);
-        else tableWrapper = createNewTable(values, channelIdList, date);
+            tableWrapper = addNewColumnsToTable(table, values, channelIdList, this.date);
+        else tableWrapper = createNewTable(values, channelIdList, this.date);
 
         // send table to OMERO
         try {
             tableWrapper.setName(tableName);
-            this.imageWrapper.addTable(client, tableWrapper);
+            this.imageWrapper.addTable(this.client, tableWrapper);
             if(table != null) this.client.delete(table);
             IJLogger.info("Results table for image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId() + " has been uploaded");
         } catch (DSAccessException | ServiceException | ExecutionException | OMEROServerError | InterruptedException e) {
@@ -225,9 +217,6 @@ public class OMEROSender implements Sender{
 
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
-        // get the current date
-        String date = Tools.getCurrentDateAndHour();
-
         // format data
         List<Object[]> fullRows = new ArrayList<>();
         for (Map.Entry<ImageWrapper, List<List<Double>>> image : summary.entrySet()) {
@@ -251,14 +240,14 @@ public class OMEROSender implements Sender{
 
             if(populateExistingTable) {
                 // get existing table
-                TableWrapper tableWrapper = getLastOmeroTable(client, dataset);
+                TableWrapper tableWrapper = getLastOmeroTable(this.client, dataset);
 
                 // apply the adding/replacement policy
                 if(tableWrapper == null)
-                    addNewParentTable(fullRows, headers, dataset, date);
-                else replaceExistingParentTable(fullRows, dataset, tableWrapper, date);
+                    addNewParentTable(fullRows, headers, dataset, this.date);
+                else replaceExistingParentTable(fullRows, dataset, tableWrapper, this.date);
             } else
-                addNewParentTable(fullRows, headers, dataset, date);
+                addNewParentTable(fullRows, headers, dataset, this.date);
 
             IJLogger.info("Results table for dataset " + dataset.getName() + " : " + dataset.getId() + " has been uploaded");
         } catch (DSAccessException | ServiceException | ExecutionException e) {
@@ -395,27 +384,28 @@ public class OMEROSender implements Sender{
        return analysisImage_output_path;
     }
 
-    private List<ShapeData> convertIJRoisToShapeData(List<Roi> rois, int channelId, String comment){
+    private List<ShapeData> convertIJRoisToShapeData(List<Roi> rois, int channelId){
         List<ShapeData> shapes = new ArrayList<>();
 
         for(int i = 0; i< rois.size(); i++) {
             Roi roi = rois.get(i);
             int type = roi.getType();
+            ImageStatistics roiStat = roi.getStatistics();
             switch (type) {
                 case Roi.OVAL:
-                    EllipseData ellipse = new EllipseData(roi.getStatistics().xCentroid,
-                            roi.getStatistics().yCentroid,
-                            roi.getStatistics().roiWidth / 2,
-                            roi.getStatistics().roiHeight / 2);
-                    ellipse.setText(comment+":"+i+":child");
+                    EllipseData ellipse = new EllipseData(roiStat.xCentroid,
+                            roiStat.yCentroid,
+                            roiStat.roiWidth / 2,
+                            roiStat.roiHeight / 2);
+                    ellipse.setText(i+":child");
                     ellipse.setC(channelId);
                     shapes.add(ellipse);
                     break;
                 case Roi.RECTANGLE:
                     // Build the OMERO object
-                    RectangleData rectangle = new RectangleData(roi.getStatistics().roiX, roi.getStatistics().roiY, roi.getStatistics().roiWidth, roi.getStatistics().roiHeight);
+                    RectangleData rectangle = new RectangleData(roiStat.roiX, roiStat.roiY, roiStat.roiWidth, roiStat.roiHeight);
                     // Write in comments the type of PathObject as well as the assigned class if there is one
-                    rectangle.setText(comment+":"+i+":child");
+                    rectangle.setText(i+":child");
                     // set the ROI position in the image
                     rectangle.setC(channelId);
                     shapes.add(rectangle);

@@ -908,69 +908,6 @@ public class ArgoLightSwingGui implements Command {
     private void setDefaultProcessingParams(){
         Map<String, List<String>> defaultParams = getDefaultParams(processingFileName);
 
-        /*if(defaultParams.containsKey(sigmaKey) && !(defaultParams.get(sigmaKey).isEmpty() || defaultParams.get(sigmaKey).size() < 2)){
-            List<String> val = defaultParams.get(sigmaKey);
-            isDefaultSigma = Boolean.parseBoolean(val.get(0));
-            try {
-                userSigma = Double.parseDouble(val.get(1));
-                if(userSigma < 0 || userSigma > sigmaUpperBound) {
-                    userSigma = defaultSigma;
-                    IJLogger.warn("Read default processing params","The value of sigma "+val.get(1)+ " is not a range [0;"+sigmaUpperBound+"]. Default value is used instead.");
-                }
-            }catch(Exception e){
-                userSigma = defaultSigma;
-                IJLogger.warn("Read default processing params","The value of sigma "+val.get(1)+ " is not a numeric value. Default value is used instead.");
-            }
-        }else{
-            isDefaultSigma = true;
-            userSigma = defaultSigma;
-        }
-
-        if(defaultParams.containsKey(medianKey) && !(defaultParams.get(medianKey).isEmpty() || defaultParams.get(medianKey).size() < 2)){
-            List<String> val = defaultParams.get(medianKey);
-            isDefaultMedianRadius = Boolean.parseBoolean(val.get(0));
-            try {
-                userMedianRadius = Double.parseDouble(val.get(1));
-                if(userMedianRadius < 0 || userMedianRadius > sigmaUpperBound) {
-                    userMedianRadius = defaultMedianRadius;
-                    IJLogger.warn("Read default processing params","The value of median radius  "+val.get(1)+ " is not a range [0;"+sigmaUpperBound+"]. Default value is used instead.");
-                }
-            }catch(Exception e){
-                userMedianRadius = defaultMedianRadius;
-                IJLogger.warn("Read default processing params","The value of median radius "+val.get(1)+ " is not a numeric value. Default value is used instead.");
-            }
-        }else{
-            isDefaultMedianRadius = true;
-            userMedianRadius = defaultMedianRadius;
-        }
-
-        if(defaultParams.containsKey(segmentationKey) && !(defaultParams.get(segmentationKey).isEmpty() || defaultParams.get(segmentationKey).size() < 2)){
-            List<String> val = defaultParams.get(segmentationKey);
-            isDefaultThresholdMethod = Boolean.parseBoolean(val.get(0));
-            userThresholdMethod = val.get(1);
-        }else{
-            isDefaultThresholdMethod = true;
-            userThresholdMethod = defaultThresholdMethod;
-        }
-
-        if(defaultParams.containsKey(threshParticlesKey) && !(defaultParams.get(threshParticlesKey).isEmpty() || defaultParams.get(threshParticlesKey).size() < 2)){
-            List<String> val = defaultParams.get(threshParticlesKey);
-            isDefaultParticleThresh = Boolean.parseBoolean(val.get(0));
-            try {
-                userParticleThresh = Double.parseDouble(val.get(1));
-                if(userParticleThresh < 0 || userParticleThresh > particleThresholdUpperBound) {
-                    userParticleThresh = defaultParticleThresh;
-                    IJLogger.warn("Read default processing params","The value of particle threshold "+val.get(1)+ " is not a range [0;"+particleThresholdUpperBound+"]. Default value is used instead.");
-                }
-            }catch(Exception e){
-                userParticleThresh = defaultParticleThresh;
-                IJLogger.warn("Read default processing params","The value of particle threshold "+val.get(1)+ " is not a numeric value. Default value is used instead.");
-            }
-        }else{
-            isDefaultParticleThresh = true;
-            userParticleThresh = defaultParticleThresh;
-        }*/
-
         double val = checkAndSetValidityOfReadMetric(defaultParams, sigmaKey, defaultSigma, sigmaUpperBound);
         isDefaultSigma = val > 0;
         userSigma = Math.abs(val);
@@ -995,24 +932,6 @@ public class ArgoLightSwingGui implements Command {
         val = checkAndSetValidityOfReadMetric(defaultParams, ringRadiusKey, defaultRingRadius, ringRadiusUpperBound);
         isDefaultRingRadius = val > 0;
         userRingRadius = Math.abs(val);
-
-       /* if(defaultParams.containsKey(ringRadiusKey) && !(defaultParams.get(ringRadiusKey).isEmpty() || defaultParams.get(ringRadiusKey).size() < 2)){
-            List<String> val = defaultParams.get(ringRadiusKey);
-            isDefaultRingRadius = Boolean.parseBoolean(val.get(0));
-            try {
-                userRingRadius = Double.parseDouble(val.get(1));
-                if(userRingRadius < 0 || userRingRadius > ringRadiusUpperBound) {
-                    userRingRadius = defaultRingRadius;
-                    IJLogger.warn("Read default processing params","The value of particle threshold "+val.get(1)+ " is not a range [0;"+particleThresholdUpperBound+"]. Default value is used instead.");
-                }
-            }catch(Exception e){
-                userRingRadius = defaultRingRadius;
-                IJLogger.warn("Read default processing params","The value of ring radius "+val.get(1)+ " is not a numeric value. Default value is used instead.");
-            }
-        }else{
-            isDefaultRingRadius = true;
-            userRingRadius = defaultRingRadius;
-        }*/
     }
 
 
