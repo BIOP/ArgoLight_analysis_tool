@@ -123,11 +123,9 @@ public class ImageFile {
             this.acquisitionDate = matcher.group("date");
 
             this.keyValues.put("Microscope", this.microscope);
-            this.keyValues.put("Objective", this.objective);
             this.keyValues.put("Immersion", this.immersionMedium);
-            this.keyValues.put("ArgoSlide_name", this.argoSlideName);
             this.keyValues.put("ArgoSlide_pattern", this.argoSlidePattern);
-            addTags(this.imagedFoV);
+            addTags(this.imagedFoV, this.objective, this.argoSlideName);
 
         } else {
             IJLogger.error("The name "+imgName+ "is not correctly formatted. Please format it like : "+
