@@ -48,15 +48,15 @@ public class Processing {
                 IJLogger.info("Working on image "+imp.getTitle());
                 // create a new ImageFile object
                 ImageFile imageFile = new ImageFile(imp, imageWrapper.getId());
-                boolean isSGL482 = false;
+                boolean isOldProtocol = false;
 
                 // choose the right ArgoLight processing
-                if (imageFile.getArgoSlideName().contains("SGL482")) {
-                    ArgoSGL482Processing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
+                if (!imageFile.getArgoSlideName().contains("ArgoSimOld")) {
+                    ArgoSlideProcessing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
                             userParticleThreshold, userRingRadius);
-                    isSGL482 = true;
                 } else {
-                    ArgoSGL511Processing.run(imageFile);
+                    ArgoSlideOldProcessing.run(imageFile);
+                    isOldProtocol = true;
                 }
 
                 IJLogger.info("End of processing");
@@ -64,7 +64,7 @@ public class Processing {
                 // send image results (metrics, rings, tags, key-values)
                 sender.initialize(imageFile, imageWrapper);
                 sender.sendTags(imageFile.getTags(), imageWrapper, retriever.getClient());
-                sendResults(sender, imageFile, savingHeatMaps, isSGL482);
+                sendResults(sender, imageFile, savingHeatMaps, isOldProtocol);
 
                 // metrics summary to populate parent table
                 Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
@@ -72,7 +72,7 @@ public class Processing {
                 if (!allChannelMetrics.values().isEmpty())
                     summaryMap.put(imageWrapper, allChannelMetrics.values().iterator().next());
             }catch (Exception e){
-                IJLogger.error("An error occured during processing ; cannot analyse the image "+retriever.getImage(i).getTitle());
+                IJLogger.error("An error occurred during processing ; cannot analyse the image "+retriever.getImage(i).getTitle());
             }
         }
 
@@ -85,9 +85,9 @@ public class Processing {
      * @param sender
      * @param imageFile
      * @param savingHeatMaps
-     * @param is482SGL
+     * @param isOldProtocol
      */
-    private static void sendResults(Sender sender, ImageFile imageFile, boolean savingHeatMaps, boolean is482SGL){
+    private static void sendResults(Sender sender, ImageFile imageFile, boolean savingHeatMaps, boolean isOldProtocol){
         Map<String, String> keyValues = imageFile.getKeyValues();
 
         // send PCC table
@@ -115,16 +115,16 @@ public class Processing {
 
             // send heat maps
             if (savingHeatMaps) {
-                if(is482SGL && imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()));
-                if(is482SGL && imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()));
-                if(is482SGL && !imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(!isOldProtocol && imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(!isOldProtocol && imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(!isOldProtocol && !imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()));
             }
         }
 
         // send results table
-        if(is482SGL && imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(distortionValues, chIds, false, "Field_distortion");
-        if(is482SGL && imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
-        if(is482SGL && !imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(fwhmValues, chIds, false, "FWHM");
+        if(!isOldProtocol && imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(distortionValues, chIds, false, "Field_distortion");
+        if(!isOldProtocol && imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
+        if(!isOldProtocol && !imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(fwhmValues, chIds, false, "FWHM");
 
         // send key values
         if(sender instanceof LocalSender)

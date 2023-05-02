@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class ArgoSGL511Processing {
+public class ArgoSlideOldProcessing {
     final private static int argoSpacing = 5; // um
     final private static int argoFOV = 100; // um
     final private static int argoNPoints = 21; // on each row/column

@@ -54,7 +54,7 @@ import java.util.stream.IntStream;
  * </ul>
  * <p>
  */
-public class ArgoSGL482Processing {
+public class ArgoSlideProcessing {
 
     final private static int argoSpacing = 15; // um
     final private static int argoFOV = 570; // um
