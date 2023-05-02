@@ -41,6 +41,7 @@ public class Tools {
         try {
             try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
                 bw.write(text);
+                IJLogger.info("Saving csv file","File successfully saved in " + file.getAbsolutePath());
                 return true;
             }
         }catch (IOException e){

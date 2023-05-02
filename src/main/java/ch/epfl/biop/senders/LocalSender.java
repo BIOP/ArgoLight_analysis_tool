@@ -1,7 +1,6 @@
 package ch.epfl.biop.senders;
 
 import ch.epfl.biop.utils.IJLogger;
-import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.utils.Tools;
 import fr.igred.omero.Client;
@@ -17,20 +16,12 @@ import ij.io.RoiEncoder;
 import omero.gateway.model.TagAnnotationData;
 
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -62,28 +53,34 @@ public class LocalSender implements Sender{
 
                 if (microscopeList.isEmpty()){
                     // create the microscope folder if it doesn't exist
-                    String microscopeFolderPath = target.getAbsolutePath() + File.separator + microscopeName;
-                    if(new File(microscopeFolderPath).mkdir())
-                        this.parentFolder = microscopeFolderPath;
-                    else{
-                        IJLogger.error("Cannot create folder "+microscopeFolderPath+ ". Use this folder instead "+target.getAbsolutePath());
-                        this.parentFolder = target.getAbsolutePath();
-                    }
+                    IJLogger.info("Initialization","Create a new folder");
+                    this.parentFolder = createMicroscopeFolder(target,microscopeName);
                 }else{
                     // select the existing microscope folder
+                    IJLogger.info("Initialization","Select folder "+microscopeList.get(0).getAbsolutePath());
                     this.parentFolder = microscopeList.get(0).getAbsolutePath();
                 }
             }else{
-                // create the microscope folder if it doesn't exist
-                String microscopeFolderPath = target.getAbsolutePath() + File.separator + microscopeName;
-                if(new File(microscopeFolderPath).mkdir())
-                    this.parentFolder = microscopeFolderPath;
-                else{
-                    IJLogger.error("Cannot create folder "+microscopeFolderPath+ ". Use this folder instead "+target.getAbsolutePath());
-                    this.parentFolder = target.getAbsolutePath();
-                }
+                IJLogger.info("Initialization","Create a new folder");
+                this.parentFolder = createMicroscopeFolder(target,microscopeName);
             }
-        }else this.parentFolder = target.getAbsolutePath();
+        }else {
+            IJLogger.info("Initialization","Select folder "+target.getAbsolutePath());
+            this.parentFolder = target.getAbsolutePath();
+        }
+    }
+
+    private String createMicroscopeFolder(File target, String microscopeName){
+        // create the microscope folder if it doesn't exist
+        String microscopeFolderPath = target.getAbsolutePath() + File.separator + microscopeName;
+        if(new File(microscopeFolderPath).mkdir()) {
+            IJLogger.info("Folder "+microscopeFolderPath+ " has been successfully created");
+            return microscopeFolderPath;
+        }
+        else{
+            IJLogger.error("Cannot create folder "+microscopeFolderPath+ ". Use this folder instead "+target.getAbsolutePath());
+            return target.getAbsolutePath();
+        }
     }
 
     @Override
@@ -110,6 +107,7 @@ public class LocalSender implements Sender{
 
     @Override
     public void sendHeatMaps(ImagePlus imp) {
+        IJLogger.info("Sending heatmap");
         FileSaver fs = new FileSaver(imp);
         // create an image file in the given folder, with the given imageName
         File analysisImage_output_path = new File(this.imageFolder,imp.getTitle() + ".tif");
@@ -118,12 +116,13 @@ public class LocalSender implements Sender{
         boolean hasBeenSaved = fs.saveAsTiff(analysisImage_output_path.toString());
 
          //check if the image was correctly saved
-        if(hasBeenSaved) IJLogger.info("Saving heatmaps locally",imp.getTitle()+".tif"+" was saved in : "+ this.imageFolder);
-        else IJLogger.error("Saving heatmaps locally","Cannot save "+imp.getTitle()+ " in " + this.imageFolder);
+        if(hasBeenSaved) IJLogger.info("Sending heatmap",imp.getTitle()+".tif"+" was saved in : "+ this.imageFolder);
+        else IJLogger.error("Sending heatmap", "Cannot save "+imp.getTitle()+ " in " + this.imageFolder);
     }
 
     @Override
     public void sendKeyValues(Map<String, String> keyValues) {
+        IJLogger.info("Sending Key-values");
         if(!keyValues.isEmpty()) {
             String text = "key,value\n";
             for (Map.Entry<String, String> keyValue : keyValues.entrySet()) {
@@ -132,11 +131,13 @@ public class LocalSender implements Sender{
 
             File file = new File(this.imageFolder + File.separator + "Key_values.csv");
             Tools.saveCsvFile(file, text);
+            IJLogger.info("Sending Key-values","Key-values have been successfully saved in " + file.getAbsolutePath());
         }else IJLogger.warn("Sending Key-Values", "There is no key-values to send !");
     }
 
     @Override
     public void sendGridPoints(List<Roi> rois,  int channelId, String roiTitle) {
+        IJLogger.info("Sending "+roiTitle + " ROIs");
         if(!rois.isEmpty()) {
             String path = this.imageFolder + File.separator + roiTitle + "_ch" + channelId + ".zip";
             DataOutputStream out = null;
@@ -154,8 +155,9 @@ public class LocalSender implements Sender{
                     out.flush();
                 }
                 out.close();
+                IJLogger.info("Sending "+roiTitle + " ROIs","The ROIs have been successfully saved in " + path);
             } catch (IOException e) {
-                IJLogger.error("Saving ROIs", "An error occurs during saving process");
+                IJLogger.error("Sending "+roiTitle + " ROIs", "An error occurs during zip saving process");
             } finally {
                 if (out != null)
                     try {
@@ -163,29 +165,23 @@ public class LocalSender implements Sender{
                     } catch (IOException e) {
                     }
             }
-        } else IJLogger.warn("Saving annotations","There is no annotations to save");
+        } else IJLogger.warn("Sending "+roiTitle + " ROIs", "There is no annotations to save");
     }
 
     @Override
     public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean createNewTable, String tableName){
+        IJLogger.info("Sending "+tableName+" table");
         String text = createNewTable(values, channelIdList);
 
-        /*if(!createNewTable){
-            File csvTable = new File(this.imageFolder + File.separator + tableName+"_table.csv");
-            if(csvTable.exists()) {
-                List<String> rows = Tools.readCsvFile(csvTable);
-                text = addNewColumnsToTable(rows, values, channelIdList, date);
-            }
-            else text = createNewTable(values, channelIdList, date);
-        } else text = createNewTable(values, channelIdList, date);*/
-
-
         File file = new File(this.imageFolder + File.separator + tableName+"_table.csv");
-        Tools.saveCsvFile(file, text);
+        if(Tools.saveCsvFile(file, text))
+            IJLogger.info("Sending "+tableName+" table",tableName+" table has been successfully saved in " + file.getAbsolutePath());
+
     }
 
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
+        IJLogger.info("Update parent table...");
         // get the current date
         File lastTable = getLastLocalParentTable(this.parentFolder);
         String text = "";
@@ -210,16 +206,22 @@ public class LocalSender implements Sender{
         File file = new File(this.parentFolder + File.separator + this.date + "_" + microscopeName + "_table.csv");
 
         if(!populateExistingTable || lastTable == null || !lastTable.exists()) {
-            Tools.saveCsvFile(file, text);
+            if(Tools.saveCsvFile(file, text))
+                IJLogger.info("Update parent table","New analysis summaries have been saved in " + file.getAbsolutePath());
         } else {
-            boolean success = Tools.appendCsvFile(lastTable, text);
-            if(success)
-                if(!lastTable.renameTo(file)) IJLogger.warn("Cannot rename "+lastTable.getName() + " to " +file.getName());
+            if(Tools.appendCsvFile(lastTable, text)) {
+                if (!lastTable.renameTo(file))
+                    IJLogger.warn("Cannot rename " + lastTable.getName() + " to " + file.getName());
+                else
+                    IJLogger.info("Update parent table", "Existing table "+ lastTable.getName()+" has been renamed to " + file.getName());
+            }
+
         }
     }
 
     @Override
     public void sendPCCTable(List<List<Double>> pccValues, int nChannels) {
+        IJLogger.info("Sending PCC table");
         List<Integer> chs1 = new ArrayList<>();
         List<Integer> chs2 = new ArrayList<>();
 
@@ -240,7 +242,9 @@ public class LocalSender implements Sender{
         }
 
         File file = new File(this.imageFolder + File.separator + "PCC_table.csv");
-        Tools.saveCsvFile(file, text);
+        if(Tools.saveCsvFile(file, text))
+            IJLogger.info("Sending PCC table"," PCC table has been successfully saved in " + file.getAbsolutePath());
+
     }
 
 
@@ -252,6 +256,7 @@ public class LocalSender implements Sender{
      */
     @Override
     public void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client) {
+        IJLogger.info("Adding tag");
         for(String tag : tags) {
             try {
                 // get the corresponding tag in the list of available tags if exists
@@ -277,21 +282,32 @@ public class LocalSender implements Sender{
 
     @Override
     public void clean() {
+        IJLogger.info("Cleaning target...");
         File parent = new File(this.imageFolder);
         File[] children = parent.listFiles();
 
+        IJLogger.info("Cleaning target", "Removing all documents located in  "+parent.getAbsolutePath());
         if(children != null)
-            for (File child : children) child.delete();
+            for (File child : children)
+                if(!child.delete())
+                    IJLogger.warn("Cleaning target", "Cannot delete  "+child.getAbsolutePath());
+
+        IJLogger.info("Cleaning target", "Documents deleted");
 
         if(this.cleanParent){
+            IJLogger.info("Cleaning target", "Removing parent table from  "+this.parentFolder);
             this.cleanParent = false;
             File file = new File(this.parentFolder);
             String microscope = file.getName();
             children = file.listFiles();
             if(children != null)
                 for (File child : children)
-                    if(child.isFile() && child.getName().contains(microscope+"_table") && child.getName().endsWith(".csv"))
-                        child.delete();
+                    if(child.isFile() && child.getName().contains(microscope+"_table") && child.getName().endsWith(".csv")) {
+                        if (!child.delete())
+                            IJLogger.warn("Cleaning target", "Cannot delete  " + child.getAbsolutePath());
+                        else
+                            IJLogger.info("Cleaning target", "Parent table "+child.getAbsolutePath()+" deleted");
+                    }
         }
     }
 
@@ -325,62 +341,13 @@ public class LocalSender implements Sender{
         return text;
     }
 
-   /* private String addNewColumnsToTable(List<String> rows, List<List<Double>> values, List<Integer> channelIdList, String date){
-        String text = "";
-
-        // add headers
-        text += rows.get(0) + ",";
-        for (Integer ignored : channelIdList) text += date + ",";
-        text = text.substring(0, text.length()-1) + "\n" + rows.get(1) + ",";
-        for (Integer channelId : channelIdList) text += "ch_" + channelId + ",";
-        text = text.substring(0, text.length()-1) + "\n";
-
-        if (values.size() > 0) {
-            int nRings = Math.min(values.get(0).size(), rows.size()-2);
-
-            // check if all channels have the same number of detected rings
-            for (int i = 0; i < values.size() - 1; i++)
-                if (values.get(i).size() != values.get(i + 1).size()) {
-                    IJLogger.error("Cannot save Uniformity table because the size of detected rings is not the same for each channel");
-                    return "";
-                }
-
-            // add metrics to new columns (i.e. at the end of each row)
-            for (int i = 0; i < nRings; i++) {
-                text += rows.get(i+2) + ",";
-                for (List<Double> doubles : values) text += doubles.get(i) + ",";
-                text = text.substring(0, text.length()-1) + "\n";
-            }
-
-            // if there is more values than existing rows
-            if(values.get(0).size() > rows.size()-2){
-                int nVal = rows.get(0).split(",").length;
-                for(int i = rows.size()-2; i < values.get(0).size(); i++) {
-                    for (int j = 0; j < nVal-1; j++) text += ",";
-                    for (List<Double> doubles : values) text += doubles.get(i) + ",";
-                    text = text.substring(0, text.length()-1) + "\n";
-                }
-            }
-            // if there is more existing rows than values
-            else if(values.get(0).size() < rows.size()-2){
-                for(int i = values.get(0).size(); i < rows.size()-2; i++) {
-                    text += rows.get(i) + ",";
-                    for (int j = 0; j < channelIdList.size()-1; j++) text += ",";
-                    text += "\n";
-                }
-            }
-        }
-        return text;
-    }*/
-
-
     /**
      * get the last table in the specified folder that correspond to the current microscope
      *
      * @param folderPath
      * @return
      */
-    public static File getLastLocalParentTable(String folderPath){
+    private static File getLastLocalParentTable(String folderPath){
         // list all files within the folder
         File folder = new File(folderPath);
         File[] childFiles = folder.listFiles();

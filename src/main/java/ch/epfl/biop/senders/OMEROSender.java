@@ -14,7 +14,6 @@ import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.GenericRepositoryObjectWrapper;
 import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.roi.ROIWrapper;
-import ij.IJ;
 import ij.ImagePlus;
 import ij.Prefs;
 import ij.gui.Roi;
@@ -22,8 +21,6 @@ import ij.io.FileSaver;
 import ij.process.ImageStatistics;
 import omero.gateway.exception.DSAccessException;
 import omero.gateway.exception.DSOutOfServiceException;
-import omero.gateway.facility.MetadataFacility;
-import omero.gateway.model.AnnotationData;
 import omero.gateway.model.EllipseData;
 import omero.gateway.model.ImageData;
 import omero.gateway.model.MapAnnotationData;
@@ -159,7 +156,7 @@ public class OMEROSender implements Sender{
      * target : dataset ID
      */
     public void sendHeatMaps(ImagePlus imp) {
-        IJLogger.info("Sending heatmaps");
+        IJLogger.info("Sending heatmap");
         String home = Prefs.getHomeDir();
 
         // save the image on the computer first and get the generate file
@@ -173,7 +170,7 @@ public class OMEROSender implements Sender{
             // Import image on OMERO
             List<Long> analysisImage_omeroID = this.client.getDataset(Long.parseLong(this.datasetId)).importImage(this.client, localImageFile.toString());
             ImageWrapper analysisImage_wpr = this.client.getImage(analysisImage_omeroID.get(0));
-            IJLogger.info("Upload heatMap", imp.getTitle() + ".tif" + " was uploaded to OMERO with ID : " + analysisImage_omeroID);
+            IJLogger.info("Sending heatmap", imp.getTitle() + ".tif" + " was uploaded to OMERO with ID : " + analysisImage_omeroID);
 
             List<String> tags = new ArrayList<String>(){{
                 add("processed");
@@ -183,7 +180,7 @@ public class OMEROSender implements Sender{
             sendTags(tags, analysisImage_wpr, this.client);
 
         } catch (ServiceException | AccessException | ExecutionException | OMEROServerError e) {
-            IJLogger.error("Upload heatMap", "Cannot upload heat maps on OMERO");
+            IJLogger.error("Sending heatmap", "Cannot upload heat maps on OMERO");
         }
 
         // delete the file after upload
@@ -195,7 +192,7 @@ public class OMEROSender implements Sender{
 
     @Override
     public void sendKeyValues(Map<String, String> keyValues) {
-        IJLogger.info("Sending key-values");
+        IJLogger.info("Sending Key-values");
         if(!keyValues.isEmpty()) {
             List<NamedValue> namedValues = new ArrayList<>();
             keyValues.forEach((key, value) -> namedValues.add(new NamedValue(key, value)));
@@ -206,7 +203,7 @@ public class OMEROSender implements Sender{
             try {
                 // upload key-values on OMERO
                 this.imageWrapper.link(this.client, newKeyValues);
-                IJLogger.info("Sending key values","Key-values have been successfully applied on the image " + imageWrapper.getId());
+                IJLogger.info("Sending Key-values","Key-values have been successfully applied on the image " + imageWrapper.getId());
             } catch (ServiceException | AccessException | ExecutionException e) {
                 IJLogger.error("Sending Key-Values", "Key-values could not be uploaded and linked to the image " + this.imageWrapper.getId());
             }
@@ -403,7 +400,6 @@ public class OMEROSender implements Sender{
             // add the table to OMERO
             repo.addTable(client, tableWrapper);
 
-            IJLogger.info("Results table for image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId() + " has been uploaded");
         } catch (DSAccessException | ServiceException | ExecutionException e) {
             IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
         }
@@ -432,7 +428,6 @@ public class OMEROSender implements Sender{
             // delete the previous table
             client.deleteFile(tableWrapper.getId());
 
-            IJ.log("[INFO] [DataManagement][replaceTable] -- Table successfully updated for " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
         } catch (ServiceException | AccessException | ExecutionException e) {
             IJLogger.error("Cannot add results to previous table " + tableWrapper.getName() + " : " + tableWrapper.getId());
         } catch (OMEROServerError | InterruptedException e ){
