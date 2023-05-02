@@ -49,7 +49,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
+/**
+ * This plugin runs image analysis pipeline on ArgoLight slide, pattern B, to measure the quality of objectives over
+ * time. Three metrics (field distortion, field uniformity and full width at half maximum) are computed on a grid of
+ * rings. Images have to be located on an OMERO server but you have the possibility to save results either on OMERO
+ * or locally.
+ */
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
 public class ArgoLightSwingGui implements Command {
     private String userHost;
@@ -69,10 +74,8 @@ public class ArgoLightSwingGui implements Command {
     private boolean isDefaultParticleThresh;
     private boolean isDefaultRingRadius;
 
-
     final private String defaultHost = "localHost";
     final private String defaultPort = "4064";
-
     final private double defaultSigma = 0.2;
     final private double defaultMedianRadius = 0.2;
     final private String defaultThresholdMethod = "Li";
@@ -81,7 +84,6 @@ public class ArgoLightSwingGui implements Command {
     final private int sigmaUpperBound = 10;
     final private int particleThresholdUpperBound = 30;
     final private int ringRadiusUpperBound = 5;
-
     final private static List<String> thresholdingMethods = Arrays.asList("Default", "Huang", "Intermodes",
             "IsoData",  "IJ_IsoData", "Li", "MaxEntropy", "Mean", "MinError(I)", "Minimum", "Moments", "Otsu", "Percentile",
             "RenyiEntropy", "Shanbhag" , "Triangle", "Yen");
@@ -105,6 +107,20 @@ public class ArgoLightSwingGui implements Command {
     final private Font titleFont = new Font("Calibri", Font.BOLD, 22);
 
 
+    /**
+     * Handle OMERO connection, run processing on all images and send results back to the initial location
+     *
+     * @param isOmeroRetriever
+     * @param username
+     * @param password
+     * @param rootFolderPath
+     * @param microscope
+     * @param isOmeroSender
+     * @param savingFolderPath
+     * @param saveHeatMaps
+     * @param allImages
+     * @param cleanTargetSelection
+     */
     private void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
                                String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps,
                                boolean allImages, boolean cleanTargetSelection){
@@ -167,18 +183,21 @@ public class ArgoLightSwingGui implements Command {
     }
 
 
-
-    public void createGui(){
+    /**
+     * build the main user interface
+     */
+    private void createGui(){
         String title = "Metrology with ArgoLight plugin";
         JDialog generalPane = new JDialog();
 
-        setDefaultParams();
+        setDefaultGeneralParams();
         setDefaultProcessingParams();
 
-        // label and text field for OMERO credentials and host
+        // label host and port for OMERO retriever
         JLabel labHost = new JLabel (userHost +":"+ userPort);
         labHost.setFont(stdFont);
 
+        // OMERO credentials for OMERO retriever
         JLabel  labUsername = new JLabel ("Username");
         labUsername.setFont(stdFont);
         JTextField tfUsername = new JTextField();
@@ -191,13 +210,14 @@ public class ArgoLightSwingGui implements Command {
         tfPassword.setFont(stdFont);
         tfPassword.setColumns(15);
 
+        // OMERO parent project for OMERO retriever
         JLabel labProjectID = new JLabel("Project ID");
         labProjectID.setFont(stdFont);
         JTextField tfProjectID = new JTextField(userProjectID);
         tfProjectID.setFont(stdFont);
         tfProjectID.setColumns(15);
 
-        // label and textField to choose root folder in case of local retriever
+        // Root folder selection for local retriever
         JLabel labRootFolder  = new JLabel("Root Folder");
         labRootFolder.setFont(stdFont);
         JTextField tfRootFolder = new JTextField(userRootFolder);
@@ -222,15 +242,15 @@ public class ArgoLightSwingGui implements Command {
 
         bRootFolder.setEnabled(false);
 
+        // Microscope choice
         JLabel labMicroscope = new JLabel("Microscope");
         labMicroscope.setFont(stdFont);
-        // build project combo model
         DefaultComboBoxModel<String> modelCmbMicroscope = new DefaultComboBoxModel<>();
         JComboBox<String> cbMicroscope = new JComboBox<>(modelCmbMicroscope);
         cbMicroscope.setFont(stdFont);
         userMicroscopes.forEach(cbMicroscope::addItem);
 
-        // label and textField to choose root folder in case of local retriever
+        // Root folder selection for local sender
         JLabel labSavingFolder  = new JLabel("Saving Folder");
         labSavingFolder.setFont(stdFont);
         JTextField tfSavingFolder = new JTextField(userSaveFolder);
@@ -255,20 +275,22 @@ public class ArgoLightSwingGui implements Command {
         });
         bSavingFolder.setEnabled(false);
 
+        // checkbox to save heatmaps
         JCheckBox chkSaveHeatMap = new JCheckBox("Save heat maps");
         chkSaveHeatMap.setSelected(false);
         chkSaveHeatMap.setFont(stdFont);
 
+        // checkbox to remove previous data
         JCheckBox chkRemovePreviousRun = new JCheckBox("Remove previous runs");
         chkRemovePreviousRun.setSelected(false);
         chkRemovePreviousRun.setFont(stdFont);
         chkRemovePreviousRun.setEnabled(false);
 
+        // checkbox to process again all images within the dataset/folder
         JCheckBox chkAllImages = new JCheckBox("Process again existing images");
         chkAllImages.setSelected(false);
         chkAllImages.setFont(stdFont);
         chkAllImages.addActionListener(e->{
-            //chkRemovePreviousRun.setSelected(chkAllImages.isSelected());
             chkRemovePreviousRun.setEnabled(chkAllImages.isSelected());
         });
 
@@ -347,12 +369,12 @@ public class ArgoLightSwingGui implements Command {
             bSavingFolder.setEnabled(rbLocalRetriever.isSelected());
         });
 
-        // button to choose root folder
+        // button to configure general settings
         JButton bGeneralSettings = new JButton("General Settings");
         bGeneralSettings.setFont(stdFont);
         bGeneralSettings.addActionListener(e->{
             createSettingsPane();
-            setDefaultParams();
+            setDefaultGeneralParams();
             labHost.setText(userHost +":"+ userPort);
             cbMicroscope.setSelectedItem(userMicroscopes);
             tfProjectID.setText(userProjectID);
@@ -360,13 +382,14 @@ public class ArgoLightSwingGui implements Command {
             tfSavingFolder.setText(userSaveFolder);
         });
 
-        // button to choose root folder
+        // button to configure processing settings
         JButton bProcessingSettings = new JButton("Processing Settings");
         bProcessingSettings.setFont(stdFont);
         bProcessingSettings.addActionListener(e->{
             createProcessingSettingsPane();
         });
 
+        // build everything together
         GridBagConstraints constraints = new GridBagConstraints( );
         constraints.fill = GridBagConstraints.BOTH;
         constraints.insets = new Insets(5,5,5,5);
@@ -375,7 +398,6 @@ public class ArgoLightSwingGui implements Command {
         int omeroRetrieverRow = 0;
         omeroPane.setLayout(new GridBagLayout());
 
-        // label and text field for OMERO credentials and host
         JLabel  retrieverTitle = new JLabel ("Get images from");
         retrieverTitle.setFont(titleFont);
 
@@ -441,7 +463,6 @@ public class ArgoLightSwingGui implements Command {
         omeroPane.add(new JSeparator(), constraints);
         constraints.gridwidth = 1; // set it back
 
-        // label and text field for OMERO credentials and host
         JLabel  microscopyTitle = new JLabel ("Choose your microscope");
         microscopyTitle.setFont(titleFont);
 
@@ -465,7 +486,6 @@ public class ArgoLightSwingGui implements Command {
         omeroPane.add(new JSeparator(), constraints);
         constraints.gridwidth = 1; // set it back
 
-        // label and text field for OMERO credentials and host
         JLabel  senderTitle = new JLabel ("Where to save results");
         senderTitle.setFont(titleFont);
 
@@ -536,6 +556,7 @@ public class ArgoLightSwingGui implements Command {
         constraints.gridy = omeroRetrieverRow;
         omeroPane.add(bProcessingSettings, constraints);
 
+        // create the general pane
         int opt = JOptionPane.showConfirmDialog(null, omeroPane, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if(opt == JOptionPane.OK_OPTION){
             char[] password = tfPassword.getPassword();
@@ -554,38 +575,45 @@ public class ArgoLightSwingGui implements Command {
     }
 
 
+    /**
+     * Build the general settings user interface
+     */
     private void createSettingsPane(){
         JDialog generalPane = new JDialog();
 
-        // label and text field for OMERO credentials and host
+        // OMERO host
         JLabel labHost = new JLabel("OMERO host");
         labHost.setFont(stdFont);
         JTextField tfHost = new JTextField(userHost);
         tfHost.setFont(stdFont);
         tfHost.setColumns(15);
 
+        // OMERO port
         JLabel labPort = new JLabel("OMERO port");
         labPort.setFont(stdFont);
         JTextField tfPort = new JTextField(userPort);
         tfPort.setFont(stdFont);
         tfPort.setColumns(15);
 
+        // OMERO parent project id
         JLabel labProject = new JLabel("OMERO Project ID");
         labProject.setFont(stdFont);
         JTextField tfProject = new JTextField(userProjectID);
         tfProject.setFont(stdFont);
         tfProject.setColumns(15);
 
+        // list of tested microscopes
         JLabel labMicroscope = new JLabel("Microscopes");
         labMicroscope.setFont(stdFont);
         JTextField tfMicroscope = new JTextField(String.join(",", userMicroscopes));
         tfMicroscope.setFont(stdFont);
         tfMicroscope.setColumns(15);
 
-        // button to choose root folder
+        // button to select a csv file containing all microscopes
         JButton bChooseMicroscope = new JButton("Open file");
         bChooseMicroscope.setFont(stdFont);
         bChooseMicroscope.addActionListener(e->{
+            // define the file chooser
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
             fileChooser.setDialogTitle("Choose the microscopes' csv file");
@@ -605,19 +633,21 @@ public class ArgoLightSwingGui implements Command {
             }
         });
 
+        // Root folder for local retriever
         JLabel labRootFolder = new JLabel("Root folder");
         labRootFolder.setFont(stdFont);
         JTextField tfRootFolder = new JTextField(userRootFolder);
         tfRootFolder.setFont(stdFont);
         tfRootFolder.setColumns(15);
 
+        // saving folder for local sender
         JLabel labSaveFolder = new JLabel("Saving folder");
         labSaveFolder.setFont(stdFont);
         JTextField tfSaveFolder = new JTextField(userSaveFolder);
         tfSaveFolder.setFont(stdFont);
         tfSaveFolder.setColumns(15);
 
-        // button to choose root folder
+        // button to choose root folder for local retriever
         JButton bChooseRootFolder = new JButton("Open folder");
         bChooseRootFolder.setFont(stdFont);
         bChooseRootFolder.addActionListener(e->{
@@ -630,7 +660,7 @@ public class ArgoLightSwingGui implements Command {
                 tfRootFolder.setText(fileChooser.getSelectedFile().getAbsolutePath());
         });
 
-        // button to choose root folder
+        // button to choose saving folder for local sender
         JButton bChooseSaveFolder = new JButton("Open folder");
         bChooseSaveFolder.setFont(stdFont);
         bChooseSaveFolder.addActionListener(e->{
@@ -643,6 +673,7 @@ public class ArgoLightSwingGui implements Command {
                 tfSaveFolder.setText(fileChooser.getSelectedFile().getAbsolutePath());
         });
 
+        // build everything together
         GridBagConstraints constraints = new GridBagConstraints( );
         constraints.fill = GridBagConstraints.BOTH;
         constraints.insets = new Insets(5,5,5,5);
@@ -651,7 +682,6 @@ public class ArgoLightSwingGui implements Command {
         int settingsRow = 0;
         settingsPane.setLayout(new GridBagLayout());
 
-        // label and text field for OMERO credentials and host
         JLabel  retrieverTitle = new JLabel ("Get images from");
         retrieverTitle.setFont(titleFont);
 
@@ -719,6 +749,7 @@ public class ArgoLightSwingGui implements Command {
         if(opt == JOptionPane.OK_OPTION){
             String badEntries = "";
 
+            // test the validity of all user entries
             try {
                 Double.parseDouble(tfPort.getText());
                 userPort = tfPort.getText();
@@ -736,7 +767,8 @@ public class ArgoLightSwingGui implements Command {
             userRootFolder = tfRootFolder.getText();
             userSaveFolder = tfSaveFolder.getText();
 
-            saveDefaultParams(userHost,
+            // save a csv file with the user defined parameters
+            saveUserDefinedGeneralParams(userHost,
                     userPort,
                     userProjectID,
                     tfMicroscope.getText(),
@@ -749,9 +781,12 @@ public class ArgoLightSwingGui implements Command {
     }
 
 
+    /**
+     * Build processing settings user interface
+     */
     private void createProcessingSettingsPane(){
 
-        // label and text field for OMERO credentials and host
+        // Sigma for gaussian blurring
         JLabel labSigma = new JLabel("Gaussian blur sigma (um)");
         labSigma.setFont(stdFont);
         SpinnerModel spModelSigma = new SpinnerNumberModel(userSigma,0.01,10,0.01);
@@ -759,6 +794,7 @@ public class ArgoLightSwingGui implements Command {
         spSigma.setFont(stdFont);
         spSigma.setEnabled(!isDefaultSigma);
 
+        // median radius for median filtering
         JLabel labMedian = new JLabel("Median filter radius (um)");
         labMedian.setFont(stdFont);
         SpinnerModel spModelMedian = new SpinnerNumberModel(userMedianRadius,0.01,10,0.01);
@@ -766,9 +802,9 @@ public class ArgoLightSwingGui implements Command {
         spMedian.setFont(stdFont);
         spMedian.setEnabled(!isDefaultMedianRadius);
 
+        // thresholding method
         JLabel labThreshSeg = new JLabel("Thresholding method for segmentation");
         labThreshSeg.setFont(stdFont);
-        // build project combo model
         DefaultComboBoxModel<String> modelCmbSegmentation = new DefaultComboBoxModel<>();
         JComboBox<String> cbSegmentation = new JComboBox<>(modelCmbSegmentation);
         cbSegmentation.setFont(stdFont);
@@ -776,6 +812,7 @@ public class ArgoLightSwingGui implements Command {
         cbSegmentation.setSelectedItem(userThresholdMethod);
         cbSegmentation.setEnabled(!isDefaultThresholdMethod);
 
+        // threshold on particle size
         JLabel labThreshParticles = new JLabel("Threshold on segmented particles (um^2)");
         labThreshParticles.setFont(stdFont);
         SpinnerModel spModelThreshParticles = new SpinnerNumberModel(userParticleThresh,0.001,20,0.001);
@@ -783,6 +820,7 @@ public class ArgoLightSwingGui implements Command {
         spThreshParticles.setFont(stdFont);
         spThreshParticles.setEnabled(!isDefaultParticleThresh);
 
+        // analyzed ring radius
         JLabel labRingRadius = new JLabel("Analyzed ring radius (um)");
         labRingRadius.setFont(stdFont);
         SpinnerModel spModelRingRadius = new SpinnerNumberModel(userRingRadius,0.01,3,0.01);
@@ -790,6 +828,7 @@ public class ArgoLightSwingGui implements Command {
         spRingRadius.setFont(stdFont);
         spRingRadius.setEnabled(!isDefaultRingRadius);
 
+        // checkbox to activate default parameters
         JCheckBox chkSigma = new JCheckBox("default");
         chkSigma.setSelected(isDefaultSigma);
         chkSigma.setFont(stdFont);
@@ -825,6 +864,7 @@ public class ArgoLightSwingGui implements Command {
             spRingRadius.setEnabled(!chkRingRadius.isSelected());
         });
 
+        // build everything together
         GridBagConstraints constraints = new GridBagConstraints( );
         constraints.fill = GridBagConstraints.BOTH;
         constraints.insets = new Insets(5,5,5,5);
@@ -833,7 +873,6 @@ public class ArgoLightSwingGui implements Command {
         int settingsRow = 0;
         settingsPane.setLayout(new GridBagLayout());
 
-        // label and text field for OMERO credentials and host
         JLabel  retrieverTitle = new JLabel ("Get images from");
         retrieverTitle.setFont(titleFont);
 
@@ -910,7 +949,7 @@ public class ArgoLightSwingGui implements Command {
             userParticleThresh = (double)spThreshParticles.getValue();
             userRingRadius = (double)spRingRadius.getValue();
 
-            saveDefaultProcessingParams(isDefaultSigma,
+            saveUserDefinedProcessingParams(isDefaultSigma,
                     isDefaultMedianRadius,
                     isDefaultThresholdMethod,
                     isDefaultParticleThresh,
@@ -924,9 +963,14 @@ public class ArgoLightSwingGui implements Command {
     }
 
 
+    /**
+     * set the default values for each metrics use for processing by reading the corresponding csv file
+     */
     private void setDefaultProcessingParams(){
-        Map<String, List<String>> defaultParams = getDefaultParams(processingFileName);
+        // read the csv file for processing settings
+        Map<String, List<String>> defaultParams = getUserDefinedParams(processingFileName);
 
+        // check and set the validity of each metrics
         Double val = checkAndSetValidityOfReadMetric(defaultParams, sigmaKey, defaultSigma, sigmaUpperBound);
         isDefaultSigma = val > 0;
         userSigma = Math.abs(val);
@@ -953,13 +997,24 @@ public class ArgoLightSwingGui implements Command {
         userRingRadius = Math.abs(val);
     }
 
-
+    /**
+     * Test if the metric exists and if it is a {@link Double} value. In case it's not, then default value are
+     * assigned instead of the read one.
+     *
+     * @param metrics list of metrics
+     * @param key metric to test
+     * @param defaultVal default value in case of bad read
+     * @param upperBound maximum allowable value for the metric
+     * @return the value of the metric read ; positive if "default" check box was ON, negative otherwise.
+     */
     private Double checkAndSetValidityOfReadMetric(Map<String, List<String>> metrics, String key, double defaultVal, int upperBound){
         boolean isDefault;
         double userVal;
+        // if the metric exists
         if(metrics.containsKey(key) && !(metrics.get(key).isEmpty() || metrics.get(key).size() < 2)){
             List<String> val = metrics.get(key);
             isDefault = Boolean.parseBoolean(val.get(0));
+            // test if the metric is a double value
             try {
                 userVal = Double.parseDouble(val.get(1));
                 if(userVal < 0 || userVal > upperBound) {
@@ -978,8 +1033,14 @@ public class ArgoLightSwingGui implements Command {
         return (isDefault ? userVal : -userVal);
     }
 
-    private void setDefaultParams(){
-        Map<String, List<String>> defaultParams = getDefaultParams(fileName);
+    /**
+     * set the default values for each metrics use for retrieve and saving data by reading the corresponding csv file
+     */
+    private void setDefaultGeneralParams(){
+        // read the csv file
+        Map<String, List<String>> defaultParams = getUserDefinedParams(fileName);
+
+        // assign default or read value
         userHost = defaultParams.containsKey(hostKey) ?
                 (defaultParams.get(hostKey).isEmpty() ? defaultHost : defaultParams.get(hostKey).get(0)) :
                 defaultHost;
@@ -997,7 +1058,12 @@ public class ArgoLightSwingGui implements Command {
     }
 
 
-    private Map<String, List<String>> getDefaultParams(String fileName){
+    /**
+     * read the specified csv file
+     * @param fileName
+     * @return a map of read metrics and the values attached to them.
+     */
+    private Map<String, List<String>> getUserDefinedParams(String fileName){
         File file = new File(folderName + File.separator + fileName);
         Map<String, List<String>> default_params = new HashMap<>();
 
@@ -1042,6 +1108,13 @@ public class ArgoLightSwingGui implements Command {
         JOptionPane.showMessageDialog(new JFrame(), content, title, type);
     }
 
+    /**
+     * read the csv file containing a list of microscopes used.
+     * The format should be : one microscope per line
+     *
+     * @param file
+     * @return
+     */
     private List<String> parseMicroscopesCSV(File file){
         List<String> items = new ArrayList<>();
         try {
@@ -1059,7 +1132,17 @@ public class ArgoLightSwingGui implements Command {
         }
     }
 
-    private void saveDefaultParams(String host, String port, String projectID, String microscopes, String rootFolder, String savingFolder) {
+    /**
+     * Write a csv file containing all user-defined general parameters
+     *
+     * @param host
+     * @param port
+     * @param projectID
+     * @param microscopes
+     * @param rootFolder
+     * @param savingFolder
+     */
+    private void saveUserDefinedGeneralParams(String host, String port, String projectID, String microscopes, String rootFolder, String savingFolder) {
         File directory = new File(folderName);
 
         if(!directory.exists())
@@ -1084,10 +1167,24 @@ public class ArgoLightSwingGui implements Command {
         }
     }
 
-    private void saveDefaultProcessingParams(boolean isDefaultSigma, boolean isDefaultMedian, boolean isDefaultSegMed,
-                                             boolean isDefaultParticleThresh, boolean isDefaultRingRadius, double sigma,
-                                             double median, String thresholdingMethod, double particleThreshold,
-                                             double ringRadius) {
+    /**
+     * Write a csv file containing all user-defined processing parameters
+     *
+     * @param isDefaultSigma
+     * @param isDefaultMedian
+     * @param isDefaultSegMed
+     * @param isDefaultParticleThresh
+     * @param isDefaultRingRadius
+     * @param sigma
+     * @param median
+     * @param thresholdingMethod
+     * @param particleThreshold
+     * @param ringRadius
+     */
+    private void saveUserDefinedProcessingParams(boolean isDefaultSigma, boolean isDefaultMedian, boolean isDefaultSegMed,
+                                                 boolean isDefaultParticleThresh, boolean isDefaultRingRadius, double sigma,
+                                                 double median, String thresholdingMethod, double particleThreshold,
+                                                 double ringRadius) {
         File directory = new File(folderName);
 
         if(!directory.exists())

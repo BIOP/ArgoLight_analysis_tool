@@ -30,12 +30,16 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * Class saving locally all processing results coming from the analysis of the grid ArgoSlide pattern.
+ */
 public class LocalSender implements Sender{
-    private final String parentFolder;
-    private String imageFolder;
-    private final boolean cleanTarget;
-    private boolean cleanParent;
+    final private String parentFolder;
+    final private boolean cleanTarget;
     final private String date;
+    private String imageFolder;
+    private boolean cleanParent;
+
 
     public LocalSender(File target, String microscopeName, boolean cleanTarget){
         this.date = Tools.getCurrentDateAndHour();
@@ -70,6 +74,12 @@ public class LocalSender implements Sender{
         }
     }
 
+    /**
+     * create a folder for a microscope to store processing results
+     * @param target parent folder
+     * @param microscopeName name of the folder
+     * @return
+     */
     private String createMicroscopeFolder(File target, String microscopeName){
         // create the microscope folder if it doesn't exist
         String microscopeFolderPath = target.getAbsolutePath() + File.separator + microscopeName;
@@ -95,9 +105,11 @@ public class LocalSender implements Sender{
                 return;
             }
 
+        // clean the folder
         if(this.cleanTarget)
             clean();
 
+        // create the date folder (one folder per run)
         String dateFolderPath = imageFileFolder.getAbsolutePath() + File.separator + this.date;
         if(new File(dateFolderPath).mkdir())
             this.imageFolder = dateFolderPath;
@@ -124,11 +136,13 @@ public class LocalSender implements Sender{
     public void sendKeyValues(Map<String, String> keyValues) {
         IJLogger.info("Sending Key-values");
         if(!keyValues.isEmpty()) {
+            // create the formatted text
             String text = "key,value\n";
             for (Map.Entry<String, String> keyValue : keyValues.entrySet()) {
                 text += keyValue.getKey() + "," + keyValue.getValue() + "\n";
             }
 
+            // save the key values as csv file
             File file = new File(this.imageFolder + File.separator + "Key_values.csv");
             Tools.saveCsvFile(file, text);
             IJLogger.info("Sending Key-values","Key-values have been successfully saved in " + file.getAbsolutePath());
@@ -142,10 +156,12 @@ public class LocalSender implements Sender{
             String path = this.imageFolder + File.separator + roiTitle + "_ch" + channelId + ".zip";
             DataOutputStream out = null;
             try {
+                // create a zip file (copied from {@link RoiManager.saveMultiple() method})
                 ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path)));
                 out = new DataOutputStream(new BufferedOutputStream(zos));
                 RoiEncoder re = new RoiEncoder(out);
                 for (int i = 0; i < rois.size(); i++) {
+                    // set roi name
                     String label = roiTitle + ":" + i + ":child";
                     Roi roi = rois.get(i);
                     if (roi == null) continue;
@@ -182,10 +198,11 @@ public class LocalSender implements Sender{
     @Override
     public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
         IJLogger.info("Update parent table...");
-        // get the current date
+        // get the last parent summary table
         File lastTable = getLastLocalParentTable(this.parentFolder);
         String text = "";
 
+        // add header to new table
         if(!populateExistingTable || lastTable == null || !lastTable.exists()) {
             text = "Image ID,Label";
             for (String header : headers) {
@@ -194,6 +211,7 @@ public class LocalSender implements Sender{
             text += "\n";
         }
 
+        // populate table
         List<ImageWrapper> imageWrapperList = new ArrayList<>(summary.keySet());
         for (ImageWrapper imageWrapper : imageWrapperList)
             for (List<Double> metricsList : summary.get(imageWrapper)) {
@@ -202,6 +220,7 @@ public class LocalSender implements Sender{
                 text += "\n";
             }
 
+        // save the table
         String microscopeName = new File(this.parentFolder).getName();
         File file = new File(this.parentFolder + File.separator + this.date + "_" + microscopeName + "_table.csv");
 
@@ -215,7 +234,6 @@ public class LocalSender implements Sender{
                 else
                     IJLogger.info("Update parent table", "Existing table "+ lastTable.getName()+" has been renamed to " + file.getName());
             }
-
         }
     }
 
@@ -247,13 +265,6 @@ public class LocalSender implements Sender{
 
     }
 
-
-    /**
-     * To add tags on OMERO to the processed image
-     * @param tags
-     * @param imageWrapper
-     * @param client
-     */
     @Override
     public void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client) {
         IJLogger.info("Adding tag");
@@ -283,9 +294,11 @@ public class LocalSender implements Sender{
     @Override
     public void clean() {
         IJLogger.info("Cleaning target...");
+        // get the files
         File parent = new File(this.imageFolder);
         File[] children = parent.listFiles();
 
+        // delete all file within the folder
         IJLogger.info("Cleaning target", "Removing all documents located in  "+parent.getAbsolutePath());
         if(children != null)
             for (File child : children)
@@ -294,6 +307,7 @@ public class LocalSender implements Sender{
 
         IJLogger.info("Cleaning target", "Documents deleted");
 
+        // delete the parent summary table once
         if(this.cleanParent){
             IJLogger.info("Cleaning target", "Removing parent table from  "+this.parentFolder);
             this.cleanParent = false;
@@ -311,13 +325,17 @@ public class LocalSender implements Sender{
         }
     }
 
-
+    /**
+     * Create a new table
+     *
+     * @param values
+     * @param channelIdList
+     * @return
+     */
     private String createNewTable(List<List<Double>> values, List<Integer> channelIdList) {
         String text = "Ring ID";
 
         // add headers
-       // for (Integer ignored : channelIdList) text += "," + date;
-        //text += "\n";
         for (Integer channelId : channelIdList) text += ",ch_" + channelId ;
         text += "\n";
 

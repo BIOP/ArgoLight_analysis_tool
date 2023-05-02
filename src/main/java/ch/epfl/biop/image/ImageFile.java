@@ -15,8 +15,15 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Object containing all information and methods related to the image file.
+ * The image can be made of multiple channels
+ */
 public class ImageFile {
 
+    /**
+     * regex pattern for image name, depending on the file format
+     */
     public enum FILETYPE{
         SINGLE("Single file",
                 Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)_(?<fov>.*)_(?<serie>.*)\\.(?<extension>.*)"),
@@ -42,11 +49,12 @@ public class ImageFile {
         }
 
         boolean matchesType(String s) { return typeMatching.matcher(s).matches(); }
-
     }
 
-    private final String imgName;
-    private final String imgNameWithoutExtension;
+    final private String imgName;
+    final private String imgNameWithoutExtension;
+    final private ImagePlus image;
+    final private long id;
     private String microscope;
     private String objective;
     private String immersionMedium;
@@ -54,10 +62,8 @@ public class ImageFile {
     private String acquisitionDate;
     private String imagedFoV;
     private String argoSlidePattern;
-    private final ImagePlus image;
     private List<String> tags = new ArrayList<>();
     private Map<String, String> keyValues = new TreeMap<>();
-    private final long id;
     private List<List<Double>> pccValues = new ArrayList<>();
     public List<ImageChannel> channels = new ArrayList<>();
 
@@ -69,29 +75,80 @@ public class ImageFile {
         parseImageName(this.imgName);
     }
 
+    /**
+     * add an {@link ImageChannel} object
+     * @param imageChannel
+     */
     public void addChannel(ImageChannel imageChannel){
         channels.add(imageChannel);
     }
+
+    /**
+     * add new tags
+     * @param tags
+     */
     public void addTags(String... tags){
         this.tags.addAll(Arrays.asList(tags));
     }
+
+    /**
+     * add new key-value pair
+     * @param key
+     * @param value
+     */
     public void addKeyValue(String key, String value){
         this.keyValues.put(key, value);
     }
+
+    /**
+     * @return the number of channels for the current image
+     */
     public int getNChannels(){ return this.channels.size(); }
+
+    /**
+     * @return the image name without file extension
+     */
     public String getImgNameWithoutExtension() { return this.imgNameWithoutExtension; }
+
+    /**
+     * @return all key-values for the current image
+     */
     public Map<String,String> getKeyValues(){ return this.keyValues; }
-    public long getId(){
-        return this.id;
-    }
+
+    /**
+     * @return the OMERO image id
+     */
+    public long getId(){ return this.id; }
+
+    /**
+     * @return the ImagePlus object of the current image
+     */
     public ImagePlus getImage(){ return this.image; }
+
+    /**
+     * @return fullFoV or partialFoV
+     */
     public String getImagedFoV(){ return this.imagedFoV; }
-    public List<String> getTags(){
-        return this.tags;
-    }
+
+    /**
+     * @return tags attached to the current image
+     */
+    public List<String> getTags(){ return this.tags; }
+
+    /**
+     * @return the PCC values for all the channels
+     */
     public List<List<Double>> getPCC(){ return this.pccValues; }
+
+    /**
+     * @return the name of slide based on the image name
+     */
     public String getArgoSlideName(){ return this.argoSlideName; }
 
+    /**
+     * @param id channel id
+     * @return the ImageChannel object corresponding the channel id
+     */
     public ImageChannel getChannel(int id){
         if(id >= this.channels.size()) {
             IJLogger.error("Get image channel", "You try to access to channel "+id+ " that doesn't exists");
@@ -100,20 +157,34 @@ public class ImageFile {
         return this.channels.get(id);
     }
 
+    /**
+     * Use the regex pattern to match tokens in the image name and extract metadata. The image name must follow
+     * strict patterns
+     * <p>
+     * <ul>
+     * <li> MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension for single file
+     * (ex: lsm980_ArgoSLG482_b_d20230405_o63x_oil_fullFoV_1.czi) </li>
+     * <li> MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion.extension [FoV_serie] for fileset images
+     * (ex: sp8up1_ArgoSLG482_b_d20230405_o63x_oil.lif [fullFoV_1] </li>
+     * </ul>
+     * <p>
+     * @param imgName
+     */
     private void parseImageName(String imgName){
 
         Optional<FILETYPE> filePattern = Arrays.stream(FILETYPE.values()).filter(ft -> ft.matchesType(imgName)).findFirst();
 
         if(!filePattern.isPresent()) {
             IJLogger.error("The name "+imgName+ "is not correctly formatted. Please format it like : "+
-                    "\\n MicrosocpeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension for single file (ex: lsm980_ArgoSLG482_b_d20230405_o63x_oil_fullFoV_1.czi)"+
-                    "\\n MicrosocpeName_ArgoSlideName_pattern_dDate_oObjective_immersion.extension [FoV_serie] for fileset images (ex: sp8up1_ArgoSLG482_b_d20230405_o63x_oil.lif [fullFoV_1]");
+                    "\\n MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension for single file (ex: lsm980_ArgoSLG482_b_d20230405_o63x_oil_fullFoV_1.czi)"+
+                    "\\n MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion.extension [FoV_serie] for fileset images (ex: sp8up1_ArgoSLG482_b_d20230405_o63x_oil.lif [fullFoV_1]");
             return;
         }
 
         Matcher matcher = filePattern.get().pattern.matcher(imgName);
 
         if(matcher.find()) {
+            //populate variables
             this.microscope = matcher.group("microscope");
             this.objective = matcher.group("objective");
             this.imagedFoV = matcher.group("fov");
@@ -122,6 +193,7 @@ public class ImageFile {
             this.argoSlidePattern = matcher.group("pattern");
             this.acquisitionDate = matcher.group("date");
 
+            // add them to key-values and tags
             this.keyValues.put("Microscope", this.microscope);
             this.keyValues.put("Objective", this.objective);
             this.keyValues.put("Immersion", this.immersionMedium);
@@ -159,7 +231,7 @@ public class ImageFile {
     }
 
     /**
-     *
+     * Make a summary map for each metrics (key) and for all channels
      * @return
      */
     public Map<List<String>, List<List<Double>>> summaryForParentTable(){
@@ -180,6 +252,9 @@ public class ImageFile {
         return finalMap;
     }
 
+    /**
+     * compute the Pearson Correlation Coefficient (PCC) between the channels of the current image
+     */
     public void computePCC(){
         // compute PCC if there is more than 1 channel
         if(this.channels.size() > 1){
@@ -199,5 +274,4 @@ public class ImageFile {
             }
         } else IJLogger.warn("PCC computation", "Only one channel for image "+this.imgName +". Cannot compute PCC.");
     }
-
 }

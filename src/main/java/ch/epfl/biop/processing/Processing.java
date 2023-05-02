@@ -14,8 +14,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Intermediate class that process image and send results to the right place
+ */
 public class Processing {
 
+    /**
+     * Runs the processing on the current image and send results locally or to OMERO
+     *
+     * @param retriever retriever use to get data
+     * @param savingHeatMaps true if you want to save heatmaps
+     * @param sender sender object (local or OMERO sender)
+     * @param userSigma user defined value of sigma for gaussian blurring
+     * @param userMedianRadius user defined value of median radius for median filtering
+     * @param userThresholdingMethod user defined thresholding method used
+     * @param userParticleThreshold user defined value of the threshold on particle size
+     * @param userRingRadius user defined value of the analysis circle radius around each ring
+     */
     public static void run(OMERORetriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
                            double userParticleThreshold, double userRingRadius){
         Map<ImageWrapper, List<List<Double>>> summaryMap = new HashMap<>();
@@ -65,6 +80,13 @@ public class Processing {
         sender.populateParentTable(summaryMap, headers, !retriever.isProcessingAllRawImages());
     }
 
+    /**
+     * save processing results
+     * @param sender
+     * @param imageFile
+     * @param savingHeatMaps
+     * @param is482SGL
+     */
     private static void sendResults(Sender sender, ImageFile imageFile, boolean savingHeatMaps, boolean is482SGL){
         Map<String, String> keyValues = imageFile.getKeyValues();
 

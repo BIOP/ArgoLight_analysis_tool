@@ -43,14 +43,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
+/**
+ * Class sending to OMERO processing results coming from the analysis of the grid ArgoSlide pattern.
+ */
 public class OMEROSender implements Sender{
     final Client client;
-    private ImageWrapper imageWrapper;
     final private String date;
     final private boolean cleanTarget;
+    final private String PROCESSED_FEATURE = "feature";
+    final private String datasetId;
+    private ImageWrapper imageWrapper;
     private boolean cleanParent;
-    final private static String PROCESSED_FEATURE = "feature";
-    private final String datasetId;
 
     public OMEROSender(Client client, String datasetTarget, boolean cleanTarget){
         this.client = client;
@@ -58,10 +61,11 @@ public class OMEROSender implements Sender{
         this.date = Tools.getCurrentDateAndHour();
         this.cleanTarget = cleanTarget;
         this.cleanParent = cleanTarget;
-    } //TODO ajouter le boolean "local heat map saving"
+    }
 
     @Override
     public void initialize(ImageFile imageFile, ImageWrapper imageWrapper) {
+        // save the new image wrapper and clean this image on OMERO if specified
         this.imageWrapper = imageWrapper;
         if(this.cleanTarget)
             clean();
@@ -96,6 +100,7 @@ public class OMEROSender implements Sender{
     @Override
     public void clean() {
         IJLogger.info("Cleaning target...");
+
         // delete key-value pairs
         try {
             IJLogger.info("Cleaning target", "Removing key-values from image "+this.imageWrapper.getId());
@@ -111,8 +116,8 @@ public class OMEROSender implements Sender{
             IJLogger.error("Cleaning target", "Cannot delete key-values for image "+this.imageWrapper.getId());
         }
 
+        // delete tables
         try {
-            // delete tables
             IJLogger.info("Cleaning target", "Removing tables from image "+this.imageWrapper.getId());
             List<TableWrapper> tables = this.imageWrapper.getTables(this.client);
             for (TableWrapper table : tables)
@@ -135,6 +140,7 @@ public class OMEROSender implements Sender{
             IJLogger.error("Cleaning target", "Cannot delete ROIs for image "+this.imageWrapper.getId());
         }
 
+        // delete parent table once
         if(this.cleanParent){
             this.cleanParent = false;
             try {
@@ -159,7 +165,7 @@ public class OMEROSender implements Sender{
         IJLogger.info("Sending heatmap");
         String home = Prefs.getHomeDir();
 
-        // save the image on the computer first and get the generate file
+        // save the image on the computer first and get the generated file
         File localImageFile = saveHeatMapLocally(imp, home);
         if(localImageFile == null) {
             IJLogger.error("Saving temporary heatMap","Cannot save temporary image "+imp.getTitle()+" in " +home);
@@ -213,17 +219,18 @@ public class OMEROSender implements Sender{
     @Override
     public void sendGridPoints(List<Roi> rois, int channelId, String roiTitle) {
         IJLogger.info("Sending "+roiTitle + " ROIs");
-        // import ROIs on OMERO
         if (!(rois.isEmpty())) {
+            // create one shape per imageJ ROI
             List<ShapeData> gridShapes = convertIJRoisToShapeData(rois, channelId);
 
+            // add all individual shapes in the same OMERO ROI
             ROIData roiGrid = new ROIData();
             gridShapes.forEach(roiGrid::addShapeData);
 
             List<ROIWrapper> omeroRois = new ArrayList<ROIWrapper>(){{add(new ROIWrapper(roiGrid));}};
             omeroRois.get(0).setName(this.date + "_"+roiTitle);
             try {
-                // save ROIs
+                // save ROI on OMERO
                 this.imageWrapper.saveROIs(this.client, omeroRois);
                 IJLogger.info("Sending "+roiTitle + " ROIs","The ROIs have been successfully uploaded and linked to the image " + imageWrapper.getId());
             } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
@@ -236,6 +243,7 @@ public class OMEROSender implements Sender{
     @Override
     public void sendPCCTable(List<List<Double>> pccValues, int nChannels){
         IJLogger.info("Sending PCC table");
+        // build the table
         List<TableDataColumn> columns = new ArrayList<>();
         List<List<Object>> measurements = new ArrayList<>();
 
@@ -248,6 +256,7 @@ public class OMEROSender implements Sender{
                 chs2.add(j);
             }
 
+        // add headers and values
         int i = 0;
         for(List<Double> channelPair : pccValues){
             columns.add(new TableDataColumn("ch"+chs1.get(i)+"_ch"+chs2.get(i), i++, Double.class));
@@ -255,7 +264,7 @@ public class OMEROSender implements Sender{
         }
 
         if(!columns.isEmpty()) {
-            // send the omero Table
+            // send the table to OMERO
             try {
                 TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
                 tableWrapper.setName(this.date + "_PCC_table");
@@ -271,8 +280,10 @@ public class OMEROSender implements Sender{
     public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean createNewTable, String tableName){
         IJLogger.info("Sending "+tableName+" table");
         TableWrapper tableWrapper;
+        // get the last OMERO table
         TableWrapper table = getOmeroTable(this.client, this.imageWrapper, tableName);
 
+        // populate existing table or create a new one
         if(!createNewTable && table != null)
             tableWrapper = addNewColumnsToTable(table, values, channelIdList, this.date);
         else tableWrapper = createNewTable(values, channelIdList, this.date);
@@ -329,6 +340,13 @@ public class OMEROSender implements Sender{
         }
     }
 
+    /**
+     * Create a new OMERO table
+     * @param values data to send, formatted in a list of list (list of columns)
+     * @param channelIdList list of channels
+     * @param date current date of processing
+     * @return the new table wrapper
+     */
     private TableWrapper createNewTable(List<List<Double>> values, List<Integer> channelIdList, String date) {
         List<TableDataColumn> columns = new ArrayList<>();
         List<List<Object>> measurements = new ArrayList<>();
@@ -359,6 +377,15 @@ public class OMEROSender implements Sender{
     }
 
 
+    /**
+     * Populate an existing table with new columns of data
+     *
+     * @param tableToPopulate existing table
+     * @param values data to add
+     * @param channelIdList list of channels
+     * @param date current date of processing
+     * @return A new table wrapper containing all previous and new data
+     */
     private TableWrapper addNewColumnsToTable(TableWrapper tableToPopulate, List<List<Double>> values, List<Integer> channelIdList, String date){
         TableData tableData = tableToPopulate.createTable();
         List<TableDataColumn> columns = new ArrayList<>(Arrays.asList(tableData.getColumns()));
@@ -378,10 +405,17 @@ public class OMEROSender implements Sender{
     }
 
 
-    private void addNewParentTable(List<Object[]> fullRows, List<String> headers, GenericRepositoryObjectWrapper<?> repo, String date) {
+    /**
+     * create a new summary table
+     * @param fullRows metrics summary as a list of array (row)
+     * @param headers table headers
+     * @param repoWrapper OMERO container (e.g DatasetData)
+     * @param date current date of processing
+     */
+    private void addNewParentTable(List<Object[]> fullRows, List<String> headers, GenericRepositoryObjectWrapper<?> repoWrapper, String date) {
         try {
             // create a new table
-            TableWrapper tableWrapper = new TableWrapper(headers.size() + 2, date + "_" + repo.getName() + "_Table");
+            TableWrapper tableWrapper = new TableWrapper(headers.size() + 2, date + "_" + repoWrapper.getName() + "_Table");
 
             // set headers
             tableWrapper.setColumn(0, "Image", ImageData.class);
@@ -398,13 +432,21 @@ public class OMEROSender implements Sender{
             for (Object[] row : fullRows) tableWrapper.addRow(row);
 
             // add the table to OMERO
-            repo.addTable(client, tableWrapper);
+            repoWrapper.addTable(this.client, tableWrapper);
 
         } catch (DSAccessException | ServiceException | ExecutionException e) {
             IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
         }
     }
 
+    /**
+     * read the existing summary parent table and append new summary results at the bottom.
+     *
+     * @param fullRows metrics summary as a list of array (row)
+     * @param repoWrapper OMERO container (e.g DatasetData)
+     * @param tableWrapper the existing
+     * @param date current date of processing
+     */
     private void replaceExistingParentTable(List<Object[]> fullRows, GenericRepositoryObjectWrapper<?> repoWrapper, TableWrapper tableWrapper, String date){
         try {
             // get the table size
@@ -423,10 +465,10 @@ public class OMEROSender implements Sender{
             newTable.setName(date + "_" + repoWrapper.getName() + "_Table");
 
             // add the new table
-            repoWrapper.addTable(client, newTable);
+            repoWrapper.addTable(this.client, newTable);
 
             // delete the previous table
-            client.deleteFile(tableWrapper.getId());
+            this.client.deleteFile(tableWrapper.getId());
 
         } catch (ServiceException | AccessException | ExecutionException e) {
             IJLogger.error("Cannot add results to previous table " + tableWrapper.getName() + " : " + tableWrapper.getId());
@@ -438,9 +480,9 @@ public class OMEROSender implements Sender{
     /**
      * save an image locally on the computer and returns the saved file
      *
-     * @param imp
-     * @param folder
-     * @return
+     * @param imp the imagePlus to save
+     * @param folder the location where to save it
+     * @return the saved file
      */
     public static File saveHeatMapLocally(ImagePlus imp, String folder){
         FileSaver fs = new FileSaver(imp);
@@ -456,6 +498,13 @@ public class OMEROSender implements Sender{
        return analysisImage_output_path;
     }
 
+    /**
+     * Convert imageJ circles and rectangle ROI to ellipse and rectangle OMERO ROI
+     *
+     * @param rois to convert
+     * @param channelId channel id where they rely on
+     * @return the converted ROIs
+     */
     private List<ShapeData> convertIJRoisToShapeData(List<Roi> rois, int channelId){
         List<ShapeData> shapes = new ArrayList<>();
 
@@ -520,6 +569,14 @@ public class OMEROSender implements Sender{
         }
     }
 
+    /**
+     * Read an OMERO table attached to container
+     *
+     * @param client
+     * @param repoWrapper
+     * @param tableName
+     * @return
+     */
     private static TableWrapper getOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper, String tableName){
         try {
             List<TableWrapper> tableList = repoWrapper.getTables(client).stream().filter(e -> e.getName().contains(tableName)).collect(Collectors.toList());

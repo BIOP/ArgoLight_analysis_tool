@@ -23,16 +23,57 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+/**
+ * This class runs a processing on ArgoLight slide images.
+ * The protocol has to implement the following rules
+ * <p>
+ * <ul>
+ * <li> The image should be centered on the grid pattern (pattern B) </li>
+ * <li> The ArgoSlide should be designed for low-magnification objectives </li>
+ * <li> The dynamic range should be as large as possible, but without any saturation </li>
+ * <li> The rotation angle should be minimized </li>
+ * <li> The image name must follow a specific pattern : </li>
+ *      <p>
+ *      <ul>
+ *      <li> MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension for single file
+ *      (ex: lsm980_ArgoSLG482_b_d20230405_o63x_oil_fullFoV_1.czi) </li>
+ *      <li> MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion.extension [FoV_serie] for fileset images
+ *      (ex: sp8up1_ArgoSLG482_b_d20230405_o63x_oil.lif [fullFoV_1] </li>
+ *      </ul>
+ *      <p>
+ * </ul>
+ * <p>
+ *
+ * Two different images are allowed with this protocol
+ * <p>
+ * <ul>
+ * <li> One image where the grid covers the entire field of view of the camera.
+ *  Field distortion and field uniformity are computed from this image </li>
+ * <li> One image with only 2 rows / columns of rings around the central cross.
+ * Full Width at Half Maximum is computed from this image.</li>
+ * </ul>
+ * <p>
+ */
 public class ArgoSGL482Processing {
 
     final private static int argoSpacing = 15; // um
     final private static int argoFOV = 570; // um
     final private static int argoNPoints = 39; // on each row/column
 
+    /**
+     * Run the analysis on the current image.
+     *
+     * @param imageFile image to process
+     * @param userSigma value of sigma for gaussian blurring
+     * @param userMedianRadius value of median radius for median filtering
+     * @param userThresholdingMethod thresholding method used
+     * @param userParticleThreshold value of the threshold on particle size
+     * @param userRingRadius value of the analysis circle radius around each ring
+     */
     public static void run(ImageFile imageFile, double userSigma, double userMedianRadius, String userThresholdingMethod,
                            double userParticleThreshold, double userRingRadius){
 
-        ImagePlus imp = imageFile.getImage();
+        final ImagePlus imp = imageFile.getImage();
         // pixel size of the image
         final double pixelSizeImage = imp.getCalibration().pixelWidth;
         // spot radius to compute the FWHM
@@ -41,9 +82,12 @@ public class ArgoSGL482Processing {
         final int ovalRadius = lineLength;
         // Number of channels
         final int NChannels = imp.getNChannels();
+        // sigma for gaussian blurring
         final double sigma = userSigma / pixelSizeImage;
-        final double medianRadius = userMedianRadius / pixelSizeImage  ;
-        final double particleThreshold = userParticleThreshold / pixelSizeImage ;
+        // median radius for median filtering
+        final double medianRadius = userMedianRadius / pixelSizeImage;
+        // threshold on the size of particles to filter
+        final double particleThreshold = userParticleThreshold / pixelSizeImage;
 
         // add tags
         imageFile.addTags("raw", "argolight");
@@ -233,8 +277,6 @@ public class ArgoSGL482Processing {
         IJ.run(imp2, "Gaussian Blur...", "sigma="+sigma);
 
         // threshold the image
-        //double medianValue = imp2.getStatistics().median;
-        //IJ.setThreshold(imp2, medianValue+1, 255);
         IJ.setAutoThreshold(imp2, segMethod+" dark");
         IJ.run(imp2, "Convert to Mask", "");
 
@@ -472,6 +514,7 @@ public class ArgoSGL482Processing {
             int nAngles = 30;
             double[] fwhmRingValues = new double[nAngles];
 
+            // compute FWHM for different angles
             for(int angle = 0; angle < nAngles; angle++){
                 double angleRad = angle * Math.PI / nAngles;
                 double[] avgProfile = new double[lineLength];
@@ -491,11 +534,13 @@ public class ArgoSGL482Processing {
                 fwhmRingValues[angle] = fwhm_val*pixelSize;
             }
 
+            // sort and filter FWHM values computed on all the angles for the same ring
             Arrays.sort(fwhmRingValues);
             int q1Pos = (int) (fwhmRingValues.length * 0.25);
             int q3Pos = (int) (fwhmRingValues.length * 0.75);
             double avgFWHM = 0;
 
+            // make the average FWHM
             for(int i = q1Pos; i <= q3Pos; i++)
                 avgFWHM += fwhmRingValues[i];
 

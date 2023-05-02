@@ -24,6 +24,10 @@ public class Tools {
     final private static int HEAT_MAP_SIZE = 256;
     final private static String HEAT_MAP_BIT_DEPTH = "32-bit black";
 
+    /**
+     * Generate the current date and hour in the format aaaammdd-hhHmmMss
+     * @return
+     */
     public static String getCurrentDateAndHour(){
         LocalDateTime localDateTime = LocalDateTime.now();
         LocalTime localTime = localDateTime.toLocalTime();
@@ -37,6 +41,14 @@ public class Tools {
 
     }
 
+    /**
+     * Create and save a new csv file.
+     * It overwrites existing file
+     *
+     * @param file
+     * @param text
+     * @return
+     */
     public static boolean saveCsvFile(File file, String text){
         try {
             try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
@@ -50,6 +62,12 @@ public class Tools {
         }
     }
 
+    /**
+     * read a csv file
+     *
+     * @param table
+     * @return
+     */
     public static List<String> readCsvFile(File table){
         try{
             List<String> rows = new ArrayList<>();
@@ -66,6 +84,12 @@ public class Tools {
     }
 
 
+    /**
+     * write at the end of an existing file without deleting previous data
+     * @param file
+     * @param text
+     * @return
+     */
     public static boolean appendCsvFile(File file, String text){
         try {
             try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, true))) {
@@ -78,6 +102,12 @@ public class Tools {
         }
     }
 
+    /**
+     * Compute the mean, max, min and std of a series of values
+     *
+     * @param values
+     * @return
+     */
     public static double[] computeStatistics(List<Double> values){
         if(values.isEmpty())
             return new double[]{0, 0, 0, 0};
@@ -97,6 +127,14 @@ public class Tools {
         return new double[]{average, std, min, max};
     }
 
+    /**
+     * Generate an image of a measured metric.
+     * The number of value for this metrics should satisfy sqrt(nValue + 1) = integer value
+     *
+     * @param values of the metric
+     * @param title of the heatmap
+     * @return the corresponding imagePlus
+     */
     public static ImagePlus computeHeatMap(List<Double> values, String title){
         int nPoints = (int) Math.sqrt(values.size() + 1);
         ImagePlus imp = IJ.createImage(title, HEAT_MAP_BIT_DEPTH, nPoints, nPoints, 1);
