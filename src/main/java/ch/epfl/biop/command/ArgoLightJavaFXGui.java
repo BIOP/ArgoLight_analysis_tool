@@ -6,10 +6,8 @@ import ch.epfl.biop.senders.LocalSender;
 import ch.epfl.biop.senders.OMEROSender;
 import ch.epfl.biop.senders.Sender;
 import ch.epfl.biop.utils.IJLogger;
-import com.sun.javafx.application.PlatformImpl;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
-import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
@@ -32,9 +30,6 @@ import javafx.scene.text.Font;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
-import net.imagej.ImageJ;
-import org.scijava.command.Command;
-import org.scijava.plugin.Plugin;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -52,7 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 //@Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight gui")
-public class ArgoLightGui /*implements Command*/{
+public class ArgoLightJavaFXGui /*implements Command*/{
 
     private static String defaultHost;
     private static String defaultPort;
