@@ -1,5 +1,6 @@
 package ch.epfl.biop.command;
 
+import ch.epfl.biop.processing.ArgoSlideLivePreview;
 import ch.epfl.biop.processing.Processing;
 import ch.epfl.biop.retrievers.OMERORetriever;
 import ch.epfl.biop.senders.LocalSender;
@@ -8,6 +9,10 @@ import ch.epfl.biop.senders.Sender;
 import ch.epfl.biop.utils.IJLogger;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
+import fr.igred.omero.repository.ImageWrapper;
+import ij.IJ;
+import ij.ImagePlus;
+import ij.WindowManager;
 import net.imagej.ImageJ;
 import org.scijava.command.Command;
 import org.scijava.plugin.Plugin;
@@ -31,9 +36,11 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerModel;
 import javax.swing.SpinnerNumberModel;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Point;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -106,6 +113,9 @@ public class ArgoLightCommand implements Command {
     final private Font stdFont = new Font("Calibri", Font.PLAIN, 17);
     final private Font titleFont = new Font("Calibri", Font.BOLD, 22);
 
+    final private Client client = new Client();
+    private ImagePlus imageForLivePreview = null;
+
 
     /**
      * Handle OMERO connection, run processing on all images and send results back to the initial location
@@ -135,20 +145,23 @@ public class ArgoLightCommand implements Command {
             return;
         }
 
-        Client client = new Client();
+        // client = new Client();
 
         // connect to OMERO
-        try {
+        if(!this.client.isConnected())
+            if(!connectToOmero(this.client, username, password))
+                return;
+       /* try {
             client.connect(userHost, Integer.parseInt(userPort), username, password);
             IJLogger.info("Successful connection to OMERO");
         } catch (ServiceException e) {
             IJLogger.error("Cannot connect to OMERO");
             showErrorMessage("OMERO connections", "OMERO connection fails. Please check host, port and credentials");
             return;
-        }
+        }*/
 
         try {
-            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(Long.parseLong(userProjectID), microscope, allImages);
+            OMERORetriever omeroRetriever = new OMERORetriever(this.client).loadRawImages(Long.parseLong(userProjectID), microscope, allImages);
             int nImages = omeroRetriever.getNImages();
 
             boolean cleanTarget = allImages && cleanTargetSelection;
@@ -158,7 +171,7 @@ public class ArgoLightCommand implements Command {
                 File savingFolder = new File(savingFolderPath);
                 sender = new LocalSender(savingFolder, microscope, cleanTarget);
             } else
-                sender = new OMEROSender(client, omeroRetriever.getParentTarget(), cleanTarget);
+                sender = new OMEROSender(this.client, omeroRetriever.getParentTarget(), cleanTarget);
 
             // run analysis
             if (nImages > 0)
@@ -173,12 +186,24 @@ public class ArgoLightCommand implements Command {
         } catch (Exception e){
             finalPopupMessage = false;
         } finally {
-            client.disconnect();
+            this.client.disconnect();
             IJLogger.info("Disconnected from OMERO ");
         }
 
         if(finalPopupMessage) {
             showInfoMessage("Processing Done", "All images have been analyzed and results saved");
+        }
+    }
+
+    private boolean connectToOmero(Client client, String username, char[] password){
+        try {
+            client.connect(userHost, Integer.parseInt(userPort), username, password);
+            IJLogger.info("Successful connection to OMERO");
+            return true;
+        } catch (ServiceException e) {
+            IJLogger.error("Cannot connect to OMERO");
+            showErrorMessage("OMERO connections", "OMERO connection fails. Please check host, port and credentials");
+            return false;
         }
     }
 
@@ -389,6 +414,20 @@ public class ArgoLightCommand implements Command {
             createProcessingSettingsPane();
         });
 
+        // button to do live
+        JButton bLivePreview = new JButton("Live preview");
+        bLivePreview.setFont(stdFont);
+        bLivePreview.addActionListener(e->{
+            boolean isOmeroImage = false;
+            if(rbOmeroRetriever.isSelected()) {
+                isOmeroImage = true;
+                if (!this.client.isConnected())
+                    if (!connectToOmero(this.client, tfUsername.getText(), tfPassword.getPassword()))
+                        return;
+            }
+            createLiveSettingsPane(isOmeroImage);
+        });
+
         // build everything together
         GridBagConstraints constraints = new GridBagConstraints( );
         constraints.fill = GridBagConstraints.BOTH;
@@ -556,6 +595,10 @@ public class ArgoLightCommand implements Command {
         constraints.gridy = omeroRetrieverRow;
         omeroPane.add(bProcessingSettings, constraints);
 
+        constraints.gridx = 3;
+        constraints.gridy = omeroRetrieverRow;
+        omeroPane.add(bLivePreview, constraints);
+
         // create the general pane
         int opt = JOptionPane.showConfirmDialog(null, omeroPane, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if(opt == JOptionPane.OK_OPTION){
@@ -571,6 +614,11 @@ public class ArgoLightCommand implements Command {
                     chkSaveHeatMap.isSelected(),
                     chkAllImages.isSelected(),
                     chkRemovePreviousRun.isSelected());
+        }else{
+            if(this.client.isConnected()) {
+                this.client.disconnect();
+                IJLogger.info("Disconnected from OMERO ");
+            }
         }
     }
 
@@ -962,6 +1010,229 @@ public class ArgoLightCommand implements Command {
         }
     }
 
+    private void createLiveSettingsPane(boolean isOmeroImage){
+        JDialog generalPane = new JDialog();
+
+        // OMERO image ID
+        JLabel labOmeroImage = new JLabel("Image ID");
+        labOmeroImage.setFont(stdFont);
+        JTextField tfOmeroImage = new JTextField();
+        tfOmeroImage.setFont(stdFont);
+        tfOmeroImage.setColumns(15);
+
+        // Image Path
+        JLabel labImage = new JLabel("Image path");
+        labImage.setFont(stdFont);
+        JTextField tfImage = new JTextField();
+        tfImage.setFont(stdFont);
+        tfImage.setColumns(15);
+
+        // Sigma for gaussian blurring
+        JLabel labSigma = new JLabel("Gaussian blur sigma (um)");
+        labSigma.setFont(stdFont);
+        SpinnerModel spModelSigma = new SpinnerNumberModel(userSigma,0.01,10,0.01);
+        JSpinner spSigma = new JSpinner(spModelSigma);
+        spSigma.setFont(stdFont);
+        spSigma.setEnabled(!isDefaultSigma);
+
+        // median radius for median filtering
+        JLabel labMedian = new JLabel("Median filter radius (um)");
+        labMedian.setFont(stdFont);
+        SpinnerModel spModelMedian = new SpinnerNumberModel(userMedianRadius,0.01,10,0.01);
+        JSpinner spMedian = new JSpinner(spModelMedian);
+        spMedian.setFont(stdFont);
+        spMedian.setEnabled(!isDefaultMedianRadius);
+
+        // thresholding method
+        JLabel labThreshSeg = new JLabel("Thresholding method for segmentation");
+        labThreshSeg.setFont(stdFont);
+        DefaultComboBoxModel<String> modelCmbSegmentation = new DefaultComboBoxModel<>();
+        JComboBox<String> cbSegmentation = new JComboBox<>(modelCmbSegmentation);
+        cbSegmentation.setFont(stdFont);
+        thresholdingMethods.forEach(cbSegmentation::addItem);
+        cbSegmentation.setSelectedItem(userThresholdMethod);
+        cbSegmentation.setEnabled(!isDefaultThresholdMethod);
+
+        // threshold on particle size
+        JLabel labThreshParticles = new JLabel("Threshold on segmented particles (um^2)");
+        labThreshParticles.setFont(stdFont);
+        SpinnerModel spModelThreshParticles = new SpinnerNumberModel(userParticleThresh,0.001,20,0.001);
+        JSpinner spThreshParticles = new JSpinner(spModelThreshParticles);
+        spThreshParticles.setFont(stdFont);
+        spThreshParticles.setEnabled(!isDefaultParticleThresh);
+
+        // analyzed ring radius
+        JLabel labRingRadius = new JLabel("Analyzed ring radius (um)");
+        labRingRadius.setFont(stdFont);
+        SpinnerModel spModelRingRadius = new SpinnerNumberModel(userRingRadius,0.01,3,0.01);
+        JSpinner spRingRadius = new JSpinner(spModelRingRadius);
+        spRingRadius.setFont(stdFont);
+        spRingRadius.setEnabled(!isDefaultRingRadius);
+
+        // button to select an image for live preview
+        JButton bChooseImageToTest = new JButton("Choose image");
+        bChooseImageToTest.setFont(stdFont);
+        bChooseImageToTest.addActionListener(e->{
+            // define the file chooser
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            fileChooser.setDialogTitle("Choose one image for test");
+            fileChooser.showDialog(generalPane,"Select");
+
+            if (fileChooser.getSelectedFile() != null) {
+                File imageFile = fileChooser.getSelectedFile();
+                tfImage.setText(imageFile.getAbsolutePath());
+            }
+        });
+
+        // button to load the image into the simulation
+        JButton bLoadImage = new JButton("Load");
+        bLoadImage.setFont(stdFont);
+        bLoadImage.addActionListener(e->{
+            IJ.run("Close All", "");
+            this.imageForLivePreview = null;
+            if(isOmeroImage){
+                String idString = tfOmeroImage.getText();
+                try {
+                    long imgId = Long.parseLong(idString);
+                    ImageWrapper image = this.client.getImage(imgId);
+                    this.imageForLivePreview = image.toImagePlus(this.client);
+                } catch (Exception ex){
+                    showErrorMessage("OMERO image", "Cannot read image "+idString+" from OMERO");
+                }
+            }else{
+                String imgPath = tfImage.getText();
+                File imgFile = new File(imgPath);
+                if(imgFile.exists() && imgFile.isFile())
+                    this.imageForLivePreview = IJ.openImage(imgPath);
+                else
+                    showErrorMessage("Local image", "Cannot read image "+imgPath);
+            }
+
+            if(this.imageForLivePreview != null){
+                spMedian.setEnabled(true);
+                spSigma.setEnabled(true);
+                spRingRadius.setEnabled(true);
+                spThreshParticles.setEnabled(true);
+                cbSegmentation.setEnabled(true);
+                this.imageForLivePreview.show();
+                int width = this.imageForLivePreview.getWindow().getWidth();
+                Point loc = this.imageForLivePreview.getWindow().getLocationOnScreen();
+                this.imageForLivePreview.getWindow().setLocation(IJ.getScreenSize().width-width,loc.y);
+            }else{
+                spMedian.setEnabled(false);
+                spSigma.setEnabled(false);
+                spRingRadius.setEnabled(false);
+                spThreshParticles.setEnabled(false);
+                cbSegmentation.setEnabled(false);
+            }
+        });
+
+        // build everything together
+        GridBagConstraints constraints = new GridBagConstraints( );
+        constraints.fill = GridBagConstraints.BOTH;
+        constraints.insets = new Insets(5,5,5,5);
+        JPanel settingsPane = new JPanel();
+
+        int settingsRow = 0;
+        settingsPane.setLayout(new GridBagLayout());
+
+        JLabel retrieverTitle = new JLabel ("Get images from");
+        retrieverTitle.setFont(titleFont);
+
+        if(isOmeroImage) {
+            constraints.gridx = 0;
+            constraints.gridy = settingsRow;
+            settingsPane.add(labOmeroImage, constraints);
+
+            constraints.gridx = 1;
+            constraints.gridy = settingsRow;
+            settingsPane.add(tfOmeroImage, constraints);
+        }else{
+            constraints.gridx = 0;
+            constraints.gridy = settingsRow;
+            settingsPane.add(labImage, constraints);
+
+            constraints.gridx = 1;
+            constraints.gridy = settingsRow;
+            settingsPane.add(tfImage, constraints);
+
+            constraints.gridx = 2;
+            constraints.gridy = settingsRow;
+            settingsPane.add(bChooseImageToTest, constraints);
+        }
+        settingsRow++;
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(bLoadImage, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labSigma, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(spSigma, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labMedian, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(spMedian, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labThreshSeg, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(cbSegmentation, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labThreshParticles, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(spThreshParticles, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labRingRadius, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(spRingRadius, constraints);
+
+        int opt = JOptionPane.showConfirmDialog(null, settingsPane, "Setup your default settings for processing", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if(opt == JOptionPane.OK_OPTION) {
+            if (showConfirmMessage("Confirm", "Do you want to use these settings for the analysis ? Previous settings will be overwritten.") == JOptionPane.YES_OPTION) {
+                userSigma = (double) spSigma.getValue();
+                userMedianRadius = (double) spMedian.getValue();
+                userThresholdMethod = (String) cbSegmentation.getSelectedItem();
+                userParticleThresh = (double) spThreshParticles.getValue();
+                userRingRadius = (double) spRingRadius.getValue();
+
+                saveUserDefinedProcessingParams(false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        userSigma,
+                        userMedianRadius,
+                        userThresholdMethod,
+                        userParticleThresh,
+                        userRingRadius);
+            }
+        }
+
+        this.imageForLivePreview.close();
+        this.imageForLivePreview = null;
+    }
+
 
     /**
      * set the default values for each metrics use for processing by reading the corresponding csv file
@@ -1097,6 +1368,15 @@ public class ArgoLightCommand implements Command {
 
     private void showWarningMessage(String title, String content){
         showMessage(title, content, JOptionPane.WARNING_MESSAGE);
+    }
+
+    private int showConfirmMessage(String title, String content){
+        if(title == null)
+            title = "";
+        if(content == null)
+            content = "";
+
+        return JOptionPane.showConfirmDialog(new JFrame(), content, title, JOptionPane.YES_NO_OPTION);
     }
 
     private void showMessage(String title, String content, int type){
