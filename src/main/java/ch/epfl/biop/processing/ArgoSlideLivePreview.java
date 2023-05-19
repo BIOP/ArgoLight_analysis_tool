@@ -21,30 +21,27 @@ public class ArgoSlideLivePreview {
     final private static int argoSpacing = 15; // um
     final private static int argoFOV = 570; // um
     final private static int argoNPoints = 39; // on each row/column
-
+    static private RoiManager roiManager = new RoiManager();
 
     /**
      * Run the analysis on the current image.
      *
-     * @param imageFile image to process
+     * @param imp image to process
      * @param userSigma value of sigma for gaussian blurring
      * @param userMedianRadius value of median radius for median filtering
      * @param userThresholdingMethod thresholding method used
      * @param userParticleThreshold value of the threshold on particle size
      * @param userRingRadius value of the analysis circle radius around each ring
      */
-    public static void run(ImageFile imageFile, double userSigma, double userMedianRadius, String userThresholdingMethod,
+    public static void run(ImagePlus imp, double userSigma, double userMedianRadius, String userThresholdingMethod,
                            double userParticleThreshold, double userRingRadius) {
 
-        final ImagePlus imp = imageFile.getImage();
         // pixel size of the image
         final double pixelSizeImage = imp.getCalibration().pixelWidth;
         // spot radius to compute the FWHM
         final int lineLength = (int) (userRingRadius / pixelSizeImage);
         // spot radius to compute other metrics
         final int ovalRadius = lineLength;
-        // Number of channels
-        final int NChannels = imp.getNChannels();
         // sigma for gaussian blurring
         final double sigma = userSigma / pixelSizeImage;
         // median radius for median filtering
@@ -52,29 +49,16 @@ public class ArgoSlideLivePreview {
         // threshold on the size of particles to filter
         final double particleThreshold = userParticleThreshold / pixelSizeImage;
 
-        RoiManager roiManager = new RoiManager();
-
-        // reset all windows
-        IJ.run("Close All", "");
         roiManager.reset();
 
-        //ImageChannel imageChannel = new ImageChannel(c, imp.getWidth(), imp.getHeight());
-
-        // extract the current channel
-        ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch0", imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
-        imp.setPosition(1, 1, 1);
-        channel.setProcessor(imp.getProcessor());
-        channel.show();
-
         // get the central cross
-        Roi crossRoi = Processing.getCentralCross(channel, roiManager, pixelSizeImage, "Huang dark", argoFOV);
-
+        Roi crossRoi = Processing.getCentralCross(imp, roiManager, pixelSizeImage, "Huang", argoFOV);
 
         // add the cross ROI on the image
         roiManager.addRoi(crossRoi);
-        channel.setRoi(crossRoi);
+        imp.setRoi(crossRoi);
 
-        List<Point2D> gridPoints = Processing.getGridPoint(channel, crossRoi, pixelSizeImage, sigma, medianRadius,
+        List<Point2D> gridPoints = Processing.getGridPoint(imp, crossRoi, pixelSizeImage, sigma, medianRadius,
                 particleThreshold, userThresholdingMethod, argoFOV, argoSpacing, argoNPoints);
 
         // display all points (grid and ideal)
@@ -93,7 +77,6 @@ public class ArgoSlideLivePreview {
 
         // get the rotation angle
         double rotationAngle = Processing.getRotationAngle(gridPoints, crossRoi);
-
 
         // create grid point ROIs
         gridPoints.forEach(pR -> {
@@ -118,9 +101,6 @@ public class ArgoSlideLivePreview {
         });
         idealGridPointsRoi.forEach(roiManager::addRoi);
 
-        roiManager.runCommand(channel, "Show All without labels");
-
-        roiManager.reset();
-        roiManager.close();
+        roiManager.runCommand(imp, "Show All without labels");
     }
 }

@@ -1069,6 +1069,16 @@ public class ArgoLightCommand implements Command {
         spRingRadius.setFont(stdFont);
         spRingRadius.setEnabled(!isDefaultRingRadius);
 
+        spSigma.addChangeListener(e->{
+            double sigmaPreview = (double) spSigma.getValue();
+            double medianRadiusPreview = (double) spMedian.getValue();
+            String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+            double particleThreshPreview = (double) spThreshParticles.getValue();
+            double ringRadiusPreview = (double) spRingRadius.getValue();
+            ArgoSlideLivePreview.run(this.imageForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                    particleThreshPreview, ringRadiusPreview);
+        });
+
         // button to select an image for live preview
         JButton bChooseImageToTest = new JButton("Choose image");
         bChooseImageToTest.setFont(stdFont);
@@ -1096,7 +1106,15 @@ public class ArgoLightCommand implements Command {
                 try {
                     long imgId = Long.parseLong(idString);
                     ImageWrapper image = this.client.getImage(imgId);
-                    this.imageForLivePreview = image.toImagePlus(this.client);
+                    ImagePlus imp = image.toImagePlus(this.client);
+                    if(imp.getNChannels() > 1){
+                        // extract the current channel
+                        ImagePlus channel = IJ.createHyperStack(imp.getTitle(), imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
+                        imp.setPosition(1,1,1);
+                        channel.setProcessor(imp.getProcessor());
+                        this.imageForLivePreview = channel;
+                    }else this.imageForLivePreview = imp;
+
                 } catch (Exception ex){
                     showErrorMessage("OMERO image", "Cannot read image "+idString+" from OMERO");
                 }
@@ -1229,8 +1247,10 @@ public class ArgoLightCommand implements Command {
             }
         }
 
-        this.imageForLivePreview.close();
-        this.imageForLivePreview = null;
+        if(this.imageForLivePreview != null) {
+            this.imageForLivePreview.close();
+            this.imageForLivePreview = null;
+        }
     }
 
 
