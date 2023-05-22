@@ -115,6 +115,7 @@ public class ArgoLightCommand implements Command {
 
     final private Client client = new Client();
     private ImagePlus imageForLivePreview = null;
+    private double pixelSizeForLivePreview;
 
 
     /**
@@ -1075,7 +1076,47 @@ public class ArgoLightCommand implements Command {
             String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
-            ArgoSlideLivePreview.run(this.imageForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+            ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                    particleThreshPreview, ringRadiusPreview);
+        });
+
+        spMedian.addChangeListener(e->{
+            double sigmaPreview = (double) spSigma.getValue();
+            double medianRadiusPreview = (double) spMedian.getValue();
+            String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+            double particleThreshPreview = (double) spThreshParticles.getValue();
+            double ringRadiusPreview = (double) spRingRadius.getValue();
+            ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                    particleThreshPreview, ringRadiusPreview);
+        });
+
+        spThreshParticles.addChangeListener(e->{
+            double sigmaPreview = (double) spSigma.getValue();
+            double medianRadiusPreview = (double) spMedian.getValue();
+            String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+            double particleThreshPreview = (double) spThreshParticles.getValue();
+            double ringRadiusPreview = (double) spRingRadius.getValue();
+            ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                    particleThreshPreview, ringRadiusPreview);
+        });
+
+        spRingRadius.addChangeListener(e->{
+            double sigmaPreview = (double) spSigma.getValue();
+            double medianRadiusPreview = (double) spMedian.getValue();
+            String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+            double particleThreshPreview = (double) spThreshParticles.getValue();
+            double ringRadiusPreview = (double) spRingRadius.getValue();
+            ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                    particleThreshPreview, ringRadiusPreview);
+        });
+
+        cbSegmentation.addItemListener(e->{
+            double sigmaPreview = (double) spSigma.getValue();
+            double medianRadiusPreview = (double) spMedian.getValue();
+            String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+            double particleThreshPreview = (double) spThreshParticles.getValue();
+            double ringRadiusPreview = (double) spRingRadius.getValue();
+            ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview);
         });
 
@@ -1107,13 +1148,13 @@ public class ArgoLightCommand implements Command {
                     long imgId = Long.parseLong(idString);
                     ImageWrapper image = this.client.getImage(imgId);
                     ImagePlus imp = image.toImagePlus(this.client);
-                    if(imp.getNChannels() > 1){
-                        // extract the current channel
-                        ImagePlus channel = IJ.createHyperStack(imp.getTitle(), imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
-                        imp.setPosition(1,1,1);
-                        channel.setProcessor(imp.getProcessor());
-                        this.imageForLivePreview = channel;
-                    }else this.imageForLivePreview = imp;
+
+                    // extract the current channel
+                    ImagePlus channel = IJ.createHyperStack(imp.getTitle(), imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
+                    imp.setPosition(1, 1, 1);
+                    channel.setProcessor(imp.getProcessor());
+                    this.imageForLivePreview = channel;
+                    this.pixelSizeForLivePreview = imp.getCalibration().pixelWidth;
 
                 } catch (Exception ex){
                     showErrorMessage("OMERO image", "Cannot read image "+idString+" from OMERO");
@@ -1137,6 +1178,15 @@ public class ArgoLightCommand implements Command {
                 int width = this.imageForLivePreview.getWindow().getWidth();
                 Point loc = this.imageForLivePreview.getWindow().getLocationOnScreen();
                 this.imageForLivePreview.getWindow().setLocation(IJ.getScreenSize().width-width,loc.y);
+
+                double sigmaPreview = (double) spSigma.getValue();
+                double medianRadiusPreview = (double) spMedian.getValue();
+                String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+                double particleThreshPreview = (double) spThreshParticles.getValue();
+                double ringRadiusPreview = (double) spRingRadius.getValue();
+                ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                        particleThreshPreview, ringRadiusPreview);
+
             }else{
                 spMedian.setEnabled(false);
                 spSigma.setEnabled(false);

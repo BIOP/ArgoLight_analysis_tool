@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -159,7 +160,7 @@ public class Processing {
 
         // make sure no ROI is left on the imp
         IJ.run(imp, "Select None", "");
-        IJ.run("Remove Overlay", "");
+        IJ.run(imp,"Remove Overlay", "");
 
         // Detect Cross in the center of the FOV
         ImagePlus mask_imp = imp.duplicate();
@@ -278,8 +279,14 @@ public class Processing {
      */
     protected static double getAverageStep(List<Double> values, double pixelSize, int argoSpacing){
         // get min/max values
-        double min = values.stream().min(Comparator.naturalOrder()).get();
-        double max = values.stream().max(Comparator.naturalOrder()).get();
+        Optional<Double> minOpt = values.stream().min(Comparator.naturalOrder());
+        Optional<Double> maxOpt = values.stream().max(Comparator.naturalOrder());
+
+        if(!minOpt.isPresent())
+            return 0;
+
+        double min = minOpt.get();
+        double max = maxOpt.get();
 
         // compute the raw step
         double step_calc = (max - min) / (int)Math.sqrt(values.size());

@@ -6,10 +6,12 @@ import ch.epfl.biop.utils.IJLogger;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
+import ij.gui.Overlay;
 import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
 
+import java.awt.Color;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,7 +23,7 @@ public class ArgoSlideLivePreview {
     final private static int argoSpacing = 15; // um
     final private static int argoFOV = 570; // um
     final private static int argoNPoints = 39; // on each row/column
-    static private RoiManager roiManager = new RoiManager();
+    //private static
 
     /**
      * Run the analysis on the current image.
@@ -33,11 +35,11 @@ public class ArgoSlideLivePreview {
      * @param userParticleThreshold value of the threshold on particle size
      * @param userRingRadius value of the analysis circle radius around each ring
      */
-    public static void run(ImagePlus imp, double userSigma, double userMedianRadius, String userThresholdingMethod,
+    public static void run(ImagePlus imp, double pixelSizeImage, double userSigma, double userMedianRadius, String userThresholdingMethod,
                            double userParticleThreshold, double userRingRadius) {
 
         // pixel size of the image
-        final double pixelSizeImage = imp.getCalibration().pixelWidth;
+        //final double pixelSizeImage = imp.getCalibration().pixelWidth;
         // spot radius to compute the FWHM
         final int lineLength = (int) (userRingRadius / pixelSizeImage);
         // spot radius to compute other metrics
@@ -49,20 +51,18 @@ public class ArgoSlideLivePreview {
         // threshold on the size of particles to filter
         final double particleThreshold = userParticleThreshold / pixelSizeImage;
 
+        IJ.run(imp,"Remove Overlay", "");
+
+        RoiManager roiManager = RoiManager.getInstance();
+        if(roiManager == null)  roiManager = new RoiManager();
         roiManager.reset();
 
         // get the central cross
-        Roi crossRoi = Processing.getCentralCross(imp, roiManager, pixelSizeImage, "Huang", argoFOV);
+        Roi crossRoi = Processing.getCentralCross(imp, roiManager, pixelSizeImage, userThresholdingMethod, argoFOV);
 
-        // add the cross ROI on the image
-        roiManager.addRoi(crossRoi);
-        imp.setRoi(crossRoi);
-
+        roiManager.reset();
         List<Point2D> gridPoints = Processing.getGridPoint(imp, crossRoi, pixelSizeImage, sigma, medianRadius,
                 particleThreshold, userThresholdingMethod, argoFOV, argoSpacing, argoNPoints);
-
-        // display all points (grid and ideal)
-        roiManager.reset();
 
         // reduced grid to compute average step
         List<Point2D> smallerGrid = gridPoints.stream()
@@ -79,28 +79,34 @@ public class ArgoSlideLivePreview {
         double rotationAngle = Processing.getRotationAngle(gridPoints, crossRoi);
 
         // create grid point ROIs
-        gridPoints.forEach(pR -> {
-            roiManager.addRoi(new OvalRoi((pR.getX() - 4 * ovalRadius + 0.5), pR.getY() - 4 * ovalRadius + 0.5, 8 * ovalRadius, 8 * ovalRadius));
-        });
+        List<Roi> gridPointRois = new ArrayList<>();
+        for(Point2D pR : gridPoints)
+            gridPointRois.add(new OvalRoi((pR.getX() - 4 * ovalRadius + 0.5), pR.getY() - 4 * ovalRadius + 0.5, 8 * ovalRadius, 8 * ovalRadius));
 
         // get the ideal grid
         List<Point2D> idealGridPoints = Processing.getIdealGridPoints(crossRoi, (int) Math.sqrt(gridPoints.size() + 1), xStepAvg, yStepAvg, rotationAngle);
 
         // sort the computed grid points according to ideal grid order
-        gridPoints = Processing.sortFromReference(Arrays.asList(roiManager.getRoisAsArray()), idealGridPoints);
+        gridPoints = Processing.sortFromReference(gridPointRois, idealGridPoints);
+        gridPointRois = new ArrayList<>();
 
-        // display all points (grid and ideal)
-        roiManager.reset();
-        gridPoints.forEach(pR -> {
-            roiManager.addRoi(new OvalRoi((pR.getX() - ovalRadius + 0.5), pR.getY() - ovalRadius + 0.5, 2 * ovalRadius, 2 * ovalRadius));
-        });
+        for(Point2D pR : gridPoints) {
+            OvalRoi roi = new OvalRoi((pR.getX() - ovalRadius + 0.5), pR.getY() - ovalRadius + 0.5, 2 * ovalRadius, 2 * ovalRadius);
+            roi.setStrokeColor(Color.RED);
+            gridPointRois.add(roi);
+        }
 
         List<Roi> idealGridPointsRoi = new ArrayList<>();
-        idealGridPoints.forEach(pR -> {
-            idealGridPointsRoi.add(new OvalRoi(pR.getX() - ovalRadius / 2 + 0.5, pR.getY() - ovalRadius / 2 + 0.5, ovalRadius, ovalRadius));
-        });
-        idealGridPointsRoi.forEach(roiManager::addRoi);
+        for(Point2D pR : idealGridPoints) {
+            OvalRoi roi = new OvalRoi(pR.getX() - ovalRadius / 2 + 0.5, pR.getY() - ovalRadius / 2 + 0.5, ovalRadius, ovalRadius);
+            roi.setStrokeColor(Color.GREEN);
+            idealGridPointsRoi.add(roi);
+        }
 
-        roiManager.runCommand(imp, "Show All without labels");
+        Overlay overlay = new Overlay();
+        idealGridPointsRoi.forEach(overlay::add);
+        gridPointRois.forEach(overlay::add);
+        overlay.add(crossRoi);
+        imp.setOverlay(overlay);
     }
 }
