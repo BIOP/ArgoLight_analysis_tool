@@ -12,7 +12,6 @@ import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.ImageWrapper;
 import ij.IJ;
 import ij.ImagePlus;
-import ij.WindowManager;
 import net.imagej.ImageJ;
 import org.scijava.command.Command;
 import org.scijava.plugin.Plugin;
@@ -35,8 +34,8 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerModel;
 import javax.swing.SpinnerNumberModel;
+import java.awt.Dialog;
 import java.awt.Font;
-import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -80,6 +79,11 @@ public class ArgoLightCommand implements Command {
     private boolean isDefaultThresholdMethod;
     private boolean isDefaultParticleThresh;
     private boolean isDefaultRingRadius;
+
+    private JDialog mainDialog;
+    private JDialog settingsDialog;
+    private JDialog processingDialog;
+    private JDialog livePreviewDialog;
 
     final private String defaultHost = "localHost";
     final private String defaultPort = "4064";
@@ -146,20 +150,10 @@ public class ArgoLightCommand implements Command {
             return;
         }
 
-        // client = new Client();
-
         // connect to OMERO
         if(!this.client.isConnected())
             if(!connectToOmero(this.client, username, password))
                 return;
-       /* try {
-            client.connect(userHost, Integer.parseInt(userPort), username, password);
-            IJLogger.info("Successful connection to OMERO");
-        } catch (ServiceException e) {
-            IJLogger.error("Cannot connect to OMERO");
-            showErrorMessage("OMERO connections", "OMERO connection fails. Please check host, port and credentials");
-            return;
-        }*/
 
         try {
             OMERORetriever omeroRetriever = new OMERORetriever(this.client).loadRawImages(Long.parseLong(userProjectID), microscope, allImages);
@@ -182,7 +176,7 @@ public class ArgoLightCommand implements Command {
                         isDefaultThresholdMethod ? defaultThresholdMethod : userThresholdMethod,
                         isDefaultParticleThresh ? defaultParticleThresh : userParticleThresh,
                         isDefaultRingRadius ? defaultRingRadius : userRingRadius);
-            else IJLogger.error("No images are available for project " + userProjectID + ", dataset " + microscope);
+            else IJLogger.warn("No images are available for project " + userProjectID + ", dataset " + microscope);
 
         } catch (Exception e){
             finalPopupMessage = false;
@@ -600,8 +594,22 @@ public class ArgoLightCommand implements Command {
         constraints.gridy = omeroRetrieverRow;
         omeroPane.add(bLivePreview, constraints);
 
+        JOptionPane pane = new JOptionPane(omeroPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
+                null, null);
+        mainDialog = pane.createDialog(null, title);
+
+        pane.selectInitialValue();
+        mainDialog.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
+        mainDialog.setVisible(true);
+        mainDialog.dispose();
+
+        Object selectedValue = pane.getValue();
+        int opt = JOptionPane.CLOSED_OPTION;
+
+        if(selectedValue instanceof Integer)
+            opt = (Integer) selectedValue;
+
         // create the general pane
-        int opt = JOptionPane.showConfirmDialog(null, omeroPane, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if(opt == JOptionPane.OK_OPTION){
             char[] password = tfPassword.getPassword();
 
@@ -794,7 +802,21 @@ public class ArgoLightCommand implements Command {
         constraints.gridy = settingsRow;
         settingsPane.add(bChooseSaveFolder, constraints);
 
-        int opt = JOptionPane.showConfirmDialog(null, settingsPane, "Setup your default settings", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        JOptionPane pane = new JOptionPane(settingsPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
+                null, null);
+        settingsDialog = pane.createDialog(mainDialog, "Setup your default settings");
+
+        pane.selectInitialValue();
+        settingsDialog.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
+        settingsDialog.setVisible(true);
+        settingsDialog.dispose();
+
+        Object selectedValue = pane.getValue();
+        int opt = JOptionPane.CLOSED_OPTION;
+
+        if(selectedValue instanceof Integer)
+            opt = (Integer) selectedValue;
+
         if(opt == JOptionPane.OK_OPTION){
             String badEntries = "";
 
@@ -985,7 +1007,21 @@ public class ArgoLightCommand implements Command {
         constraints.gridy = settingsRow;
         settingsPane.add(spRingRadius, constraints);
 
-        int opt = JOptionPane.showConfirmDialog(null, settingsPane, "Setup your default settings for processing", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        JOptionPane pane = new JOptionPane(settingsPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
+                null, null);
+        processingDialog = pane.createDialog(mainDialog, "Setup your default settings for processing");
+
+        pane.selectInitialValue();
+        processingDialog.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
+        processingDialog.setVisible(true);
+        processingDialog.dispose();
+
+        Object selectedValue = pane.getValue();
+        int opt = JOptionPane.CLOSED_OPTION;
+
+        if(selectedValue instanceof Integer)
+            opt = (Integer) selectedValue;
+
         if(opt == JOptionPane.OK_OPTION){
             isDefaultSigma = chkSigma.isSelected();
             isDefaultMedianRadius = chkMedian.isSelected();
@@ -1174,10 +1210,12 @@ public class ArgoLightCommand implements Command {
                 spRingRadius.setEnabled(true);
                 spThreshParticles.setEnabled(true);
                 cbSegmentation.setEnabled(true);
+
                 this.imageForLivePreview.show();
                 int width = this.imageForLivePreview.getWindow().getWidth();
                 Point loc = this.imageForLivePreview.getWindow().getLocationOnScreen();
                 this.imageForLivePreview.getWindow().setLocation(IJ.getScreenSize().width-width,loc.y);
+                this.imageForLivePreview.getWindow().setModalExclusionType(Dialog.ModalExclusionType.APPLICATION_EXCLUDE);
 
                 double sigmaPreview = (double) spSigma.getValue();
                 double medianRadiusPreview = (double) spMedian.getValue();
@@ -1200,10 +1238,10 @@ public class ArgoLightCommand implements Command {
         GridBagConstraints constraints = new GridBagConstraints( );
         constraints.fill = GridBagConstraints.BOTH;
         constraints.insets = new Insets(5,5,5,5);
-        JPanel settingsPane = new JPanel();
+        JPanel livePreviewPane = new JPanel();
 
         int settingsRow = 0;
-        settingsPane.setLayout(new GridBagLayout());
+        livePreviewPane.setLayout(new GridBagLayout());
 
         JLabel retrieverTitle = new JLabel ("Get images from");
         retrieverTitle.setFont(titleFont);
@@ -1211,71 +1249,85 @@ public class ArgoLightCommand implements Command {
         if(isOmeroImage) {
             constraints.gridx = 0;
             constraints.gridy = settingsRow;
-            settingsPane.add(labOmeroImage, constraints);
+            livePreviewPane.add(labOmeroImage, constraints);
 
             constraints.gridx = 1;
             constraints.gridy = settingsRow;
-            settingsPane.add(tfOmeroImage, constraints);
+            livePreviewPane.add(tfOmeroImage, constraints);
         }else{
             constraints.gridx = 0;
             constraints.gridy = settingsRow;
-            settingsPane.add(labImage, constraints);
+            livePreviewPane.add(labImage, constraints);
 
             constraints.gridx = 1;
             constraints.gridy = settingsRow;
-            settingsPane.add(tfImage, constraints);
+            livePreviewPane.add(tfImage, constraints);
 
             constraints.gridx = 2;
             constraints.gridy = settingsRow;
-            settingsPane.add(bChooseImageToTest, constraints);
+            livePreviewPane.add(bChooseImageToTest, constraints);
         }
         settingsRow++;
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow++;
-        settingsPane.add(bLoadImage, constraints);
+        livePreviewPane.add(bLoadImage, constraints);
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow;
-        settingsPane.add(labSigma, constraints);
+        livePreviewPane.add(labSigma, constraints);
 
         constraints.gridx = 1;
         constraints.gridy = settingsRow++;
-        settingsPane.add(spSigma, constraints);
+        livePreviewPane.add(spSigma, constraints);
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow;
-        settingsPane.add(labMedian, constraints);
+        livePreviewPane.add(labMedian, constraints);
 
         constraints.gridx = 1;
         constraints.gridy = settingsRow++;
-        settingsPane.add(spMedian, constraints);
+        livePreviewPane.add(spMedian, constraints);
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow;
-        settingsPane.add(labThreshSeg, constraints);
+        livePreviewPane.add(labThreshSeg, constraints);
 
         constraints.gridx = 1;
         constraints.gridy = settingsRow++;
-        settingsPane.add(cbSegmentation, constraints);
+        livePreviewPane.add(cbSegmentation, constraints);
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow;
-        settingsPane.add(labThreshParticles, constraints);
+        livePreviewPane.add(labThreshParticles, constraints);
 
         constraints.gridx = 1;
         constraints.gridy = settingsRow++;
-        settingsPane.add(spThreshParticles, constraints);
+        livePreviewPane.add(spThreshParticles, constraints);
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow;
-        settingsPane.add(labRingRadius, constraints);
+        livePreviewPane.add(labRingRadius, constraints);
 
         constraints.gridx = 1;
         constraints.gridy = settingsRow;
-        settingsPane.add(spRingRadius, constraints);
+        livePreviewPane.add(spRingRadius, constraints);
 
-        int opt = JOptionPane.showConfirmDialog(null, settingsPane, "Setup your default settings for processing", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        JOptionPane pane = new JOptionPane(livePreviewPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
+                null, null);
+        livePreviewDialog = pane.createDialog(mainDialog, "Live preview");
+
+        pane.selectInitialValue();
+        livePreviewDialog.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
+        livePreviewDialog.setVisible(true);
+        livePreviewDialog.dispose();
+
+        Object selectedValue = pane.getValue();
+        int opt = JOptionPane.CLOSED_OPTION;
+
+        if(selectedValue instanceof Integer)
+            opt = (Integer) selectedValue;
+
         if(opt == JOptionPane.OK_OPTION) {
             if (showConfirmMessage("Confirm", "Do you want to use these settings for the analysis ? Previous settings will be overwritten.") == JOptionPane.YES_OPTION) {
                 userSigma = (double) spSigma.getValue();
