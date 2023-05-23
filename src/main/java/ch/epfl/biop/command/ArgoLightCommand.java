@@ -327,7 +327,6 @@ public class ArgoLightCommand implements Command {
             bSavingFolder.setEnabled(rbLocalSender.isSelected());
         });
 
-
         // Radio button to choose OMERO retriever
         JRadioButton rbOmeroSender = new JRadioButton("OMERO");
         rbOmeroSender.setAlignmentX(JPanel.RIGHT_ALIGNMENT);
@@ -389,6 +388,8 @@ public class ArgoLightCommand implements Command {
             labSavingFolder.setEnabled(rbLocalRetriever.isSelected());
             bSavingFolder.setEnabled(rbLocalRetriever.isSelected());
         });
+
+        rbLocalRetriever.setEnabled(false);
 
         // button to configure general settings
         JButton bGeneralSettings = new JButton("General Settings");
