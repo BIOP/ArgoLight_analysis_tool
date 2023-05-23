@@ -492,6 +492,11 @@ public class ArgoLightCommand implements Command {
         constraints.gridy = omeroRetrieverRow++;
         omeroPane.add(tfProjectID, constraints);
 
+        constraints.gridwidth = 2; // span two rows
+        constraints.gridx = 1;
+        constraints.gridy = omeroRetrieverRow++;
+        omeroPane.add(bLivePreview, constraints);
+
         constraints.gridwidth = 4; // span two rows
         constraints.gridx = 0;
         constraints.gridy = omeroRetrieverRow++;
@@ -590,10 +595,6 @@ public class ArgoLightCommand implements Command {
         constraints.gridx = 1;
         constraints.gridy = omeroRetrieverRow;
         omeroPane.add(bProcessingSettings, constraints);
-
-        constraints.gridx = 3;
-        constraints.gridy = omeroRetrieverRow;
-        omeroPane.add(bLivePreview, constraints);
 
         JOptionPane pane = new JOptionPane(omeroPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
                 null, null);
