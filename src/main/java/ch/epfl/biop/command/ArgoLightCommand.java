@@ -34,6 +34,7 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerModel;
 import javax.swing.SpinnerNumberModel;
+import java.awt.Color;
 import java.awt.Dialog;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -1106,6 +1107,29 @@ public class ArgoLightCommand implements Command {
         spRingRadius.setFont(stdFont);
         spRingRadius.setEnabled(!isDefaultRingRadius);
 
+        JLabel labXAverageStepLeg = new JLabel("Average horizontal step (pix)");
+        labXAverageStepLeg.setFont(stdFont);
+        JLabel labXAverageStep = new JLabel("");
+        labXAverageStep.setFont(stdFont);
+
+        JLabel labYAverageStepLeg = new JLabel("Average vertical step (pix)");
+        labYAverageStepLeg.setFont(stdFont);
+        JLabel labYAverageStep = new JLabel("");
+        labYAverageStep.setFont(stdFont);
+
+        JLabel labRotationAngleLeg = new JLabel("Rotation angle (°)");
+        labRotationAngleLeg.setFont(stdFont);
+        JLabel labRotationAngle = new JLabel("");
+        labRotationAngle.setFont(stdFont);
+
+        JLabel labIdealGrid = new JLabel("Ideal grid");
+        labIdealGrid.setFont(stdFont);
+        labIdealGrid.setForeground(Color.GREEN);
+
+        JLabel labDetectedGrid = new JLabel("Measured grid");
+        labDetectedGrid.setFont(stdFont);
+        labDetectedGrid.setForeground(Color.RED);
+
         spSigma.addChangeListener(e->{
             double sigmaPreview = (double) spSigma.getValue();
             double medianRadiusPreview = (double) spMedian.getValue();
@@ -1114,6 +1138,9 @@ public class ArgoLightCommand implements Command {
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview);
+            labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
+            labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
+            labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
         });
 
         spMedian.addChangeListener(e->{
@@ -1124,6 +1151,9 @@ public class ArgoLightCommand implements Command {
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview);
+            labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
+            labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
+            labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
         });
 
         spThreshParticles.addChangeListener(e->{
@@ -1134,6 +1164,9 @@ public class ArgoLightCommand implements Command {
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview);
+            labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
+            labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
+            labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
         });
 
         spRingRadius.addChangeListener(e->{
@@ -1144,6 +1177,9 @@ public class ArgoLightCommand implements Command {
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview);
+            labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
+            labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
+            labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
         });
 
         cbSegmentation.addItemListener(e->{
@@ -1154,6 +1190,9 @@ public class ArgoLightCommand implements Command {
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview);
+            labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
+            labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
+            labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
         });
 
         // button to select an image for live preview
@@ -1224,7 +1263,9 @@ public class ArgoLightCommand implements Command {
                 double ringRadiusPreview = (double) spRingRadius.getValue();
                 ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                         particleThreshPreview, ringRadiusPreview);
-
+                labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
+                labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
+                labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
             }else{
                 spMedian.setEnabled(false);
                 spSigma.setEnabled(false);
@@ -1233,6 +1274,7 @@ public class ArgoLightCommand implements Command {
                 cbSegmentation.setEnabled(false);
             }
         });
+
 
         // build everything together
         GridBagConstraints constraints = new GridBagConstraints( );
@@ -1310,8 +1352,46 @@ public class ArgoLightCommand implements Command {
         livePreviewPane.add(labRingRadius, constraints);
 
         constraints.gridx = 1;
-        constraints.gridy = settingsRow;
+        constraints.gridy = settingsRow++;
         livePreviewPane.add(spRingRadius, constraints);
+
+        constraints.gridwidth = 4; // span two rows
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow++;
+        livePreviewPane.add(new JSeparator(), constraints);
+        constraints.gridwidth = 1; // set it back
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        livePreviewPane.add(labXAverageStepLeg, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        livePreviewPane.add(labXAverageStep, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        livePreviewPane.add(labYAverageStepLeg, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        livePreviewPane.add(labYAverageStep, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        livePreviewPane.add(labRotationAngleLeg, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        livePreviewPane.add(labRotationAngle, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow++;
+        livePreviewPane.add(labDetectedGrid, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        livePreviewPane.add(labIdealGrid, constraints);
 
         JOptionPane pane = new JOptionPane(livePreviewPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
                 null, null);

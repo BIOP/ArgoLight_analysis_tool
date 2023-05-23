@@ -1,20 +1,15 @@
 package ch.epfl.biop.processing;
 
-import ch.epfl.biop.image.ImageChannel;
-import ch.epfl.biop.image.ImageFile;
-import ch.epfl.biop.utils.IJLogger;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
 import ij.gui.Overlay;
-import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
 
 import java.awt.Color;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,7 +18,9 @@ public class ArgoSlideLivePreview {
     final private static int argoSpacing = 15; // um
     final private static int argoFOV = 570; // um
     final private static int argoNPoints = 39; // on each row/column
-    //private static
+    private static double xStepAvg = -1;
+    private static double yStepAvg = -1;
+    private static double rotationAngle = -1;
 
     /**
      * Run the analysis on the current image.
@@ -38,8 +35,6 @@ public class ArgoSlideLivePreview {
     public static void run(ImagePlus imp, double pixelSizeImage, double userSigma, double userMedianRadius, String userThresholdingMethod,
                            double userParticleThreshold, double userRingRadius) {
 
-        // pixel size of the image
-        //final double pixelSizeImage = imp.getCalibration().pixelWidth;
         // spot radius to compute the FWHM
         final int lineLength = (int) (userRingRadius / pixelSizeImage);
         // spot radius to compute other metrics
@@ -70,13 +65,13 @@ public class ArgoSlideLivePreview {
                 .collect(Collectors.toList());
 
         // get the average x step
-        double xStepAvg = Processing.getAverageStep(smallerGrid.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage, argoSpacing);
+        xStepAvg = Processing.getAverageStep(smallerGrid.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage, argoSpacing);
 
         // get the average y step
-        double yStepAvg = Processing.getAverageStep(smallerGrid.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage, argoSpacing);
+        yStepAvg = Processing.getAverageStep(smallerGrid.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage, argoSpacing);
 
         // get the rotation angle
-        double rotationAngle = Processing.getRotationAngle(gridPoints, crossRoi);
+        rotationAngle = Processing.getRotationAngle(gridPoints, crossRoi);
 
         // create grid point ROIs
         List<Roi> gridPointRois = new ArrayList<>();
@@ -108,5 +103,17 @@ public class ArgoSlideLivePreview {
         gridPointRois.forEach(overlay::add);
         overlay.add(crossRoi);
         imp.setOverlay(overlay);
+    }
+
+    public static double getXAvgStep(){
+        return xStepAvg;
+    }
+
+    public static double getYAvgStep(){
+        return yStepAvg;
+    }
+
+    public static double getRotationAngle(){
+        return rotationAngle * 180 / Math.PI;
     }
 }

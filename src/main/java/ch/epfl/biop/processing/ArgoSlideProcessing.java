@@ -89,7 +89,6 @@ public class ArgoSlideProcessing {
         imageFile.addKeyValue("Pixel_size_(um)",""+pixelSizeImage);
         imageFile.addKeyValue("Profile_length_for_FWHM_(pix)",""+lineLength);
         imageFile.addKeyValue("Oval_radius_(pix)",""+ovalRadius);
-        imageFile.addKeyValue("thresholding_method_central_cross", "Huang dark");
         imageFile.addKeyValue("Thresholding_method", userThresholdingMethod);
         imageFile.addKeyValue("Sigma_(pix)",""+sigma);
         imageFile.addKeyValue("Median_radius_(pix)",""+medianRadius);
@@ -117,7 +116,7 @@ public class ArgoSlideProcessing {
             channel.show();
 
             // get the central cross
-            Roi crossRoi = Processing.getCentralCross(channel, roiManager, pixelSizeImage, "Huang dark", argoFOV);
+            Roi crossRoi = Processing.getCentralCross(channel, roiManager, pixelSizeImage, userThresholdingMethod, argoFOV);
             imageChannel.setCenterCross(crossRoi);
             IJLogger.info("Channel "+c,"Cross = " +crossRoi);
 
