@@ -1606,7 +1606,7 @@ public class ArgoLightCommand implements Command {
             BufferedReader br = new BufferedReader(new FileReader(file));
             String line;
             while ((line = br.readLine()) != null){   //returns a Boolean value
-                items.add(line.replace("\ufeff", ""));
+                items.add(line.replaceAll("\ufeff", "").replaceAll("ï»¿",""));
             }
             br.close();
             return items;

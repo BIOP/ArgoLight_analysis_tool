@@ -1,6 +1,6 @@
 OMERO Host,omero-poc.epfl.ch
 OMERO Port,4064
 Project ID,2004
-Microscopes,SP8_UP1,SP8_UP2,SP8_INT1,TEST_MIC
+Microscopes,SP8_UP1,SP8_UP2,SP8_INT1
 Root folder,
 Saving folder,D:\Remy\ArgoLight\test
