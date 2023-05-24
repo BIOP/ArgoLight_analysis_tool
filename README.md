@@ -79,5 +79,21 @@ A live preview mode enable you to set dynamically the processing parameters and 
 3. On the popup, add the OMERO ID of a typical image.
 4. Click on `Load`. The image should display in Fiji.
 5. Each time you modify one parameter, the segmentation result updates
+6. When satisfied with the results, click on `OK`
+7. Confirm that these new parameters will be used for the current simulation as well as for new default settings.
+
+## Analysis results
+
+- 5 tags are linked to the raw image on OMERO, even if results are saved locally : `raw`, `argolight`, `slideName`, `objective` and `FoV`.
+- Processing parameters are saved in the form of key-value pairs.
+- Detected rings, as well as ideal ring positions are saved as ROIs, grouped by ring type (i.e. ideal or detected).
+- Computed metrics are saved as OMERO.table attach to the image.
+- A per-image summary is finally attached to the parent dataset. It groups relevant information that may be used to follow in time the different metrics and therefore assess objective quality.
+
+In case of local saving, the same outputs are saved in a results folder, with .txt file for the key-value pairs, .csv files for the tables and .zip for ROIs (readable on Fiji).
+
+## OMERO.Parade
+
+
 
 
