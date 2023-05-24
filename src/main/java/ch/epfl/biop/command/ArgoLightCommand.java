@@ -443,11 +443,11 @@ public class ArgoLightCommand implements Command {
         omeroPane.add(retrieverTitle, constraints);
         constraints.gridwidth = 1; // set it back
 
-        constraints.gridx = 0;
+        constraints.gridx = 1;
         constraints.gridy = omeroRetrieverRow;
         omeroPane.add(rbOmeroRetriever, constraints);
 
-        constraints.gridx = 3;
+        constraints.gridx = 2;
         constraints.gridy = omeroRetrieverRow++;
         omeroPane.add(rbLocalRetriever, constraints);
 
