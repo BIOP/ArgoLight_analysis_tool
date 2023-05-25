@@ -4,3 +4,6 @@ Project ID,2004
 Microscopes,sp8_UP1,SP8_UP2,sp8_Int1
 Root folder,
 Saving folder,D:\Remy\ArgoLight\test
+Ring Spacing,15
+Rings FoV,570
+Number rings per line,39

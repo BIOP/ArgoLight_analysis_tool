@@ -47,7 +47,7 @@ public class Processing {
      * @param userRingRadius user defined value of the analysis circle radius around each ring
      */
     public static void run(OMERORetriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
-                           double userParticleThreshold, double userRingRadius){
+                           double userParticleThreshold, double userRingRadius, int argoSpacing, int argoFOV, int argoNPoints){
         Map<ImageWrapper, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
 
@@ -68,7 +68,7 @@ public class Processing {
                 // choose the right ArgoLight processing
                 if (!imageFile.getArgoSlideName().contains("ArgoSimOld")) {
                     ArgoSlideProcessing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
-                            userParticleThreshold, userRingRadius);
+                            userParticleThreshold, userRingRadius, argoSpacing, argoFOV, argoNPoints);
                 } else {
                     ArgoSlideOldProcessing.run(imageFile);
                     isOldProtocol = true;

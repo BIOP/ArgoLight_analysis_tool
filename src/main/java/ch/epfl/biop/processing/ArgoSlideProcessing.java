@@ -50,9 +50,9 @@ import java.util.stream.Collectors;
  */
 public class ArgoSlideProcessing {
 
-    final private static int argoSpacing = 15; // um
+   /* final private static int argoSpacing = 15; // um
     final private static int argoFOV = 570; // um
-    final private static int argoNPoints = 39; // on each row/column
+    final private static int argoNPoints = 39; // on each row/column*/
 
     /**
      * Run the analysis on the current image.
@@ -65,7 +65,7 @@ public class ArgoSlideProcessing {
      * @param userRingRadius value of the analysis circle radius around each ring
      */
     public static void run(ImageFile imageFile, double userSigma, double userMedianRadius, String userThresholdingMethod,
-                           double userParticleThreshold, double userRingRadius){
+                           double userParticleThreshold, double userRingRadius, int argoSpacing, int argoFOV, int argoNPoints){
 
         final ImagePlus imp = imageFile.getImage();
         // pixel size of the image

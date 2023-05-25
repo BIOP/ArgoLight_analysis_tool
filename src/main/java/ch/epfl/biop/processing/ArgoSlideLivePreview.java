@@ -15,9 +15,9 @@ import java.util.stream.Collectors;
 
 public class ArgoSlideLivePreview {
 
-    final private static int argoSpacing = 15; // um
+   /* final private static int argoSpacing = 15; // um
     final private static int argoFOV = 570; // um
-    final private static int argoNPoints = 39; // on each row/column
+    final private static int argoNPoints = 39; // on each row/column*/
     private static double xStepAvg = -1;
     private static double yStepAvg = -1;
     private static double rotationAngle = -1;
@@ -33,7 +33,7 @@ public class ArgoSlideLivePreview {
      * @param userRingRadius value of the analysis circle radius around each ring
      */
     public static void run(ImagePlus imp, double pixelSizeImage, double userSigma, double userMedianRadius, String userThresholdingMethod,
-                           double userParticleThreshold, double userRingRadius) {
+                           double userParticleThreshold, double userRingRadius, int argoSpacing, int argoFOV, int argoNPoints) {
 
         // spot radius to compute the FWHM
         final int lineLength = (int) (userRingRadius / pixelSizeImage);

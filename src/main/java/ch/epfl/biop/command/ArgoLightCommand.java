@@ -70,6 +70,9 @@ public class ArgoLightCommand implements Command {
     private List<String> userMicroscopes;
     private String userRootFolder;
     private String userSaveFolder;
+    private int userArgoSpacing;
+    private int userArgoFoV;
+    private int userArgoNRings;
     private double userSigma;
     private double userMedianRadius;
     private String userThresholdMethod;
@@ -88,6 +91,9 @@ public class ArgoLightCommand implements Command {
 
     final private String defaultHost = "localHost";
     final private String defaultPort = "4064";
+    final private int defaultArgoSpacing = 15;
+    final private int defaultArgoFoV = 570;
+    final private int defaultArgoNRings = 39;
     final private double defaultSigma = 0.2;
     final private double defaultMedianRadius = 0.2;
     final private String defaultThresholdMethod = "Li";
@@ -105,6 +111,9 @@ public class ArgoLightCommand implements Command {
     final private String microscopeKey = "Microscopes";
     final private String saveFolderKey = "Saving folder";
     final private String rootFolderKey = "Root folder";
+    final private String argoSpacingKey = "Ring Spacing";
+    final private String argoFoVKey = "Rings FoV";
+    final private String argoNRingsKey = "Number rings per line";
     final private String sigmaKey = "Sigma";
     final private String medianKey = "Median radius";
     final private String segmentationKey = "Segmentation method";
@@ -176,7 +185,8 @@ public class ArgoLightCommand implements Command {
                         isDefaultMedianRadius ? defaultMedianRadius : userMedianRadius,
                         isDefaultThresholdMethod ? defaultThresholdMethod : userThresholdMethod,
                         isDefaultParticleThresh ? defaultParticleThresh : userParticleThresh,
-                        isDefaultRingRadius ? defaultRingRadius : userRingRadius);
+                        isDefaultRingRadius ? defaultRingRadius : userRingRadius,
+                        userArgoSpacing, userArgoFoV, userArgoNRings);
             else IJLogger.warn("No images are available for project " + userProjectID + ", dataset " + microscope);
 
         } catch (Exception e){
@@ -735,6 +745,27 @@ public class ArgoLightCommand implements Command {
                 tfSaveFolder.setText(fileChooser.getSelectedFile().getAbsolutePath());
         });
 
+        // median radius for median filtering
+        JLabel labArgoSpacing = new JLabel("Distance between two horizontal rings (um)");
+        labArgoSpacing.setFont(stdFont);
+        SpinnerModel spModelArgoSpacing = new SpinnerNumberModel(userArgoSpacing,1,1000,1);
+        JSpinner spArgoSpacing = new JSpinner(spModelArgoSpacing);
+        spArgoSpacing.setFont(stdFont);
+
+        // thresholding method
+        JLabel labArgoFoV  = new JLabel("Field of view (um)");
+        labArgoFoV.setFont(stdFont);
+        SpinnerModel spModelArgoFoV = new SpinnerNumberModel(userArgoFoV,10,10000,1);
+        JSpinner spArgoFoV = new JSpinner(spModelArgoFoV);
+        spArgoFoV.setFont(stdFont);
+
+        // threshold on particle size
+        JLabel labArgoNRings = new JLabel("Number of rings along one line");
+        labArgoNRings.setFont(stdFont);
+        SpinnerModel spModelArgoNRings = new SpinnerNumberModel(userArgoNRings,1,10000,1);
+        JSpinner spArgoNRings = new JSpinner(spModelArgoNRings);
+        spArgoNRings.setFont(stdFont);
+
         // build everything together
         GridBagConstraints constraints = new GridBagConstraints( );
         constraints.fill = GridBagConstraints.BOTH;
@@ -804,8 +835,47 @@ public class ArgoLightCommand implements Command {
         settingsPane.add(tfSaveFolder, constraints);
 
         constraints.gridx = 2;
-        constraints.gridy = settingsRow;
+        constraints.gridy = settingsRow++;
         settingsPane.add(bChooseSaveFolder, constraints);
+
+        constraints.gridwidth = 3; // span two rows
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(new JSeparator(), constraints);
+        constraints.gridwidth = 1; // set it back
+
+        JLabel settingsHeader = new JLabel("ArgoLight field-of-rings pattern settings");
+        settingsHeader.setFont(titleFont);
+
+        constraints.gridwidth = 3; // span two rows
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(settingsHeader, constraints);
+        constraints.gridwidth = 1; // set it back
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labArgoSpacing, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(spArgoSpacing, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labArgoFoV, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(spArgoFoV, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labArgoNRings, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(spArgoNRings, constraints);
 
         JOptionPane pane = new JOptionPane(settingsPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
                 null, null);
@@ -842,6 +912,9 @@ public class ArgoLightCommand implements Command {
             userHost = tfHost.getText();
             userRootFolder = tfRootFolder.getText();
             userSaveFolder = tfSaveFolder.getText();
+            userArgoSpacing = (int)spArgoSpacing.getValue();
+            userArgoNRings = (int)spArgoNRings.getValue();
+            userArgoFoV = (int)spArgoFoV.getValue();
 
             // save a csv file with the user defined parameters
             saveUserDefinedGeneralParams(userHost,
@@ -849,7 +922,10 @@ public class ArgoLightCommand implements Command {
                     userProjectID,
                     tfMicroscope.getText(),
                     userRootFolder,
-                    userSaveFolder);
+                    userSaveFolder,
+                    userArgoSpacing,
+                    userArgoFoV,
+                    userArgoNRings);
 
             if(!badEntries.isEmpty())
                 showWarningMessage("Bad entries", "The following entries require numeric values : "+badEntries);
@@ -1141,7 +1217,7 @@ public class ArgoLightCommand implements Command {
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview);
+                    particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
             labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
             labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
             labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
@@ -1154,7 +1230,7 @@ public class ArgoLightCommand implements Command {
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview);
+                    particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
             labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
             labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
             labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
@@ -1167,7 +1243,7 @@ public class ArgoLightCommand implements Command {
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview);
+                    particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
             labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
             labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
             labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
@@ -1180,7 +1256,7 @@ public class ArgoLightCommand implements Command {
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview);
+                    particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
             labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
             labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
             labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
@@ -1193,7 +1269,7 @@ public class ArgoLightCommand implements Command {
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview);
+                    particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
             labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
             labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
             labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
@@ -1266,7 +1342,7 @@ public class ArgoLightCommand implements Command {
                 double particleThreshPreview = (double) spThreshParticles.getValue();
                 double ringRadiusPreview = (double) spRingRadius.getValue();
                 ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                        particleThreshPreview, ringRadiusPreview);
+                        particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
                 labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
                 labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
                 labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
@@ -1532,6 +1608,36 @@ public class ArgoLightCommand implements Command {
                 (defaultParams.get(rootFolderKey).isEmpty() ? "" : defaultParams.get(rootFolderKey).get(0)) : "";
         userSaveFolder = defaultParams.containsKey(saveFolderKey) ?
                 (defaultParams.get(saveFolderKey).isEmpty() ? "" : defaultParams.get(saveFolderKey).get(0)) : "";
+
+        if(defaultParams.containsKey(argoSpacingKey) && !defaultParams.get(argoSpacingKey).isEmpty()) {
+            try {
+                userArgoSpacing = Integer.parseInt(defaultParams.get(argoSpacingKey).get(0));
+            } catch (Exception e) {
+                userArgoSpacing = defaultArgoSpacing;
+                IJLogger.warn("Read default ArgoSlide params", "The value of " + argoSpacingKey + " " +
+                        defaultParams.get(argoSpacingKey).get(0) + " is not a numeric value. Default value is used instead.");
+            }
+        } else userArgoSpacing = defaultArgoSpacing;
+
+        if(defaultParams.containsKey(argoFoVKey) && !defaultParams.get(argoFoVKey).isEmpty()) {
+            try {
+                userArgoFoV = Integer.parseInt(defaultParams.get(argoFoVKey).get(0));
+            } catch (Exception e) {
+                userArgoFoV = defaultArgoFoV;
+                IJLogger.warn("Read default ArgoSlide params", "The value of " + argoFoVKey + " " +
+                        defaultParams.get(argoFoVKey).get(0) + " is not a numeric value. Default value is used instead.");
+            }
+        } else userArgoFoV = defaultArgoFoV;
+
+        if(defaultParams.containsKey(argoNRingsKey) && !defaultParams.get(argoNRingsKey).isEmpty()) {
+            try {
+                userArgoNRings = Integer.parseInt(defaultParams.get(argoNRingsKey).get(0));
+            } catch (Exception e) {
+                userArgoNRings = defaultArgoNRings;
+                IJLogger.warn("Read default ArgoSlide params", "The value of " + argoNRingsKey + " " +
+                        defaultParams.get(argoNRingsKey).get(0) + " is not a numeric value. Default value is used instead.");
+            }
+        } else userArgoNRings = defaultArgoNRings;
     }
 
 
@@ -1628,7 +1734,9 @@ public class ArgoLightCommand implements Command {
      * @param rootFolder
      * @param savingFolder
      */
-    private void saveUserDefinedGeneralParams(String host, String port, String projectID, String microscopes, String rootFolder, String savingFolder) {
+    private void saveUserDefinedGeneralParams(String host, String port, String projectID, String microscopes,
+                                              String rootFolder, String savingFolder, int argoSpacing, int argoFov,
+                                              int argoNRings) {
         File directory = new File(folderName);
 
         if(!directory.exists())
@@ -1644,6 +1752,9 @@ public class ArgoLightCommand implements Command {
             buffer.write(microscopeKey+","+microscopes + "\n");
             buffer.write(rootFolderKey+","+rootFolder + "\n");
             buffer.write(saveFolderKey+","+savingFolder + "\n");
+            buffer.write(argoSpacingKey+","+argoSpacing + "\n");
+            buffer.write(argoFoVKey+","+argoFov + "\n");
+            buffer.write(argoNRingsKey+","+argoNRings + "\n");
 
             // close the file
             buffer.close();
