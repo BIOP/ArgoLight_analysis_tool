@@ -1413,13 +1413,13 @@ public class ArgoLightCommand implements Command {
             opt = (Integer) selectedValue;
 
         if(opt == JOptionPane.OK_OPTION) {
-            if (showConfirmMessage("Confirm", "Do you want to use these settings for the analysis ? Previous settings will be overwritten.") == JOptionPane.YES_OPTION) {
                 userSigma = (double) spSigma.getValue();
                 userMedianRadius = (double) spMedian.getValue();
                 userThresholdMethod = (String) cbSegmentation.getSelectedItem();
                 userParticleThresh = (double) spThreshParticles.getValue();
                 userRingRadius = (double) spRingRadius.getValue();
 
+            if (showConfirmMessage("Confirm", "Do you want to use these settings as default ones ? Previous default settings will be overwritten.") == JOptionPane.YES_OPTION) {
                 saveUserDefinedProcessingParams(false,
                         false,
                         false,
