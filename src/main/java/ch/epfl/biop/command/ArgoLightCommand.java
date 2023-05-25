@@ -622,7 +622,7 @@ public class ArgoLightCommand implements Command {
                     tfUsername.getText(),
                     password,
                     tfRootFolder.getText(),
-                    (String)cbMicroscope.getSelectedItem(),
+                    ((String)cbMicroscope.getSelectedItem()).toLowerCase(),
                     rbOmeroSender.isSelected(),
                     tfSavingFolder.getText(),
                     chkSaveHeatMap.isSelected(),

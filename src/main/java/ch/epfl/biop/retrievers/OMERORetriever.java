@@ -70,7 +70,7 @@ public class OMERORetriever implements Retriever {
             ProjectWrapper project_wpr = this.client.getProject(projectId);
 
             // get the specified dataset
-            List<DatasetWrapper> datasetWrapperList = project_wpr.getDatasets().stream().filter(e -> e.getName().contains(datasetName)).collect(Collectors.toList());
+            List<DatasetWrapper> datasetWrapperList = project_wpr.getDatasets().stream().filter(e -> e.getName().toLowerCase().contains(datasetName)).collect(Collectors.toList());
 
             if (datasetWrapperList.size() == 1) {
                 DatasetWrapper datasetWrapper = datasetWrapperList.get(0);

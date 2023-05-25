@@ -46,13 +46,13 @@ public class LocalSender implements Sender{
         this.cleanTarget = cleanTarget;
         this.cleanParent = cleanTarget;
         //Check if the selected folder is the microscope folder
-        if(!target.getName().contains(microscopeName)){
+        if(!target.getName().toLowerCase().contains(microscopeName)){
             // list files in the folder
             File[] files = target.listFiles();
             if(files != null) {
                 // find the one with the microscope name
                 List<File> microscopeList = Arrays.stream(files)
-                        .filter(e -> e.isDirectory() && e.getName().contains(microscopeName))
+                        .filter(e -> e.isDirectory() && e.getName().toLowerCase().contains(microscopeName))
                         .collect(Collectors.toList());
 
                 if (microscopeList.isEmpty()){

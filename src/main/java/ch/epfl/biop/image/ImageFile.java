@@ -195,7 +195,7 @@ public class ImageFile {
 
             // add them as tags
             addTags(this.imagedFoV, this.objective, this.argoSlideName,
-                    this.microscope, this.immersionMedium, this.argoSlidePattern);
+                    this.microscope.toLowerCase(), this.immersionMedium, this.argoSlidePattern);
 
         } else {
             IJLogger.error("The name "+imgName+ "is not correctly formatted. Please format it like : "+
