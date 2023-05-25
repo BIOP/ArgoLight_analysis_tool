@@ -10,6 +10,7 @@ import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
 
+import java.awt.Color;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -162,11 +163,21 @@ public class ArgoSlideProcessing {
 
                 // display all points (grid and ideal)
                 roiManager.reset();
-                gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi((pR.getX()-ovalRadius+0.5), pR.getY()-ovalRadius+0.5, 2*ovalRadius, 2*ovalRadius));});
+                for(Point2D pR : gridPoints) {
+                    OvalRoi roi = new OvalRoi((pR.getX() - ovalRadius + 0.5), pR.getY() - ovalRadius + 0.5, 2 * ovalRadius, 2 * ovalRadius);
+                    roi.setStrokeColor(Color.RED);
+                    roiManager.addRoi(roi);
+                }
                 imageChannel.addGridRings(Arrays.asList(roiManager.getRoisAsArray()));
 
                 List<Roi> idealGridPointsRoi = new ArrayList<>();
-                idealGridPoints.forEach(pR-> {idealGridPointsRoi.add(new OvalRoi(pR.getX()-ovalRadius/2 +0.5, pR.getY()-ovalRadius/2 +0.5, ovalRadius, ovalRadius));});
+                double idealSize = 0.4/pixelSizeImage;
+                for(Point2D pR : idealGridPoints) {
+                    OvalRoi roi = new OvalRoi(pR.getX() - idealSize + 0.5, pR.getY() - idealSize + 0.5, 2*idealSize, 2*idealSize);
+                    roi.setStrokeColor(Color.GREEN);
+                    roi.setFillColor(Color.GREEN);
+                    idealGridPointsRoi.add(roi);
+                }
                 idealGridPointsRoi.forEach(roiManager::addRoi);
                 imageChannel.addIdealRings(idealGridPointsRoi);
 
@@ -176,7 +187,11 @@ public class ArgoSlideProcessing {
 
             }else {
                 // create grid point ROIs
-                gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi((pR.getX()-ovalRadius+0.5), pR.getY()-ovalRadius+0.5, 2*ovalRadius, 2*ovalRadius));});
+                for(Point2D pR : gridPoints) {
+                    OvalRoi roi = new OvalRoi((pR.getX() - ovalRadius + 0.5), pR.getY() - ovalRadius + 0.5, 2 * ovalRadius, 2 * ovalRadius);
+                    roi.setStrokeColor(Color.RED);
+                    roiManager.addRoi(roi);
+                }
                 // save ROIs
                 imageChannel.addGridRings(Arrays.asList(roiManager.getRoisAsArray()));
                 // add grid point centers

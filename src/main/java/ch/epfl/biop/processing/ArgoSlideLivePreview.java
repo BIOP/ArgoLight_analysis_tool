@@ -92,9 +92,11 @@ public class ArgoSlideLivePreview {
         }
 
         List<Roi> idealGridPointsRoi = new ArrayList<>();
+        double idealSize = 0.4/pixelSizeImage;
         for(Point2D pR : idealGridPoints) {
-            OvalRoi roi = new OvalRoi(pR.getX() - ovalRadius / 2 + 0.5, pR.getY() - ovalRadius / 2 + 0.5, ovalRadius, ovalRadius);
+            OvalRoi roi = new OvalRoi(pR.getX() - idealSize + 0.5, pR.getY() - idealSize + 0.5, 2*idealSize, 2*idealSize);
             roi.setStrokeColor(Color.GREEN);
+            roi.setFillColor(Color.GREEN);
             idealGridPointsRoi.add(roi);
         }
 

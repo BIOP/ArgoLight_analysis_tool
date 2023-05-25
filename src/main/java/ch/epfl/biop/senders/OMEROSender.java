@@ -520,6 +520,8 @@ public class OMEROSender implements Sender{
                             roiStat.roiHeight / 2);
                     ellipse.setText(i+":child");
                     ellipse.setC(channelId);
+                    ellipse.getShapeSettings().setStroke(roi.getStrokeColor());
+                    ellipse.getShapeSettings().setFill(roi.getFillColor());
                     shapes.add(ellipse);
                     break;
                 case Roi.RECTANGLE:
