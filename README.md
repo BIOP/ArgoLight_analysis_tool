@@ -8,6 +8,10 @@
 ## Requirements
 - You need to have access to an OMERO database where the images to analyze are located.
 - Your images should be separated according to the microscope used (i.e. one dataset per microscope). All the datasets should be located under the same project.
+- Your slide should be an ArgoLight Slide. The slide must contain the field-of-rings patterns because it is the one used for the analysis.
+- 2 different type of images are expected :
+  - One image with pixel size = 200 nm, centered on the middle cross, with minimal rotation, to catch the entire objective FoV (preferentially at zoom factor = 1). It corresponds to the fullFoV image.
+  - One image with pixel size = 60 nm, centered on the middle cross, with minimal rotation, to be able to measure the FWHM. It corresponds to the partialFoV image.
 - Images have to be named according the following structure
   - For fileset images
     - *microscopeName*\_*ArgoSlideName*\_*patternImaged*\_**d***AcquisitionDate*\_**o***Objective*\_*ImmersionMedium*.extension [*FOV*\_*Serie*]
@@ -25,8 +29,6 @@
 
 Launch the plugin by hitting `Plugins -> BIOP -> Argolight analysis tool`
 
-*Image of the main gui*
-
 ### Basic configurations -- To do the first time you use the plugin
 
 This step set the by-default values for input-output communication. These values are saved for your future use of the plugin ; you'll have to do it once.
@@ -37,10 +39,11 @@ This step set the by-default values for input-output communication. These values
 4. Enter the list of microscopes you may want to process (manually or by browsing a csv file)
 In the csv file, you should have one microscope name by line.
 
-**Be careful : the microscopes' name should match extactly the datasets name on OMERO, contained in the specified project.**
+**Be careful : the microscopes' name should match extactly (but not case sensitive) the datasets name on OMERO, contained in the specified project.**
 
 5. Optionnally, and IF you want to save results locally (see below), you can add the folder path where you want to save results.
-6. Then, press OK. 
+6. Set your ArgoSlide specifications (spacing between 2 rings, full pattern FoV and number of rings per line)
+7. Then, press OK. 
 
 
 ### Quick start
@@ -79,16 +82,16 @@ A live preview mode enable you to set dynamically the processing parameters and 
 3. On the popup, add the OMERO ID of a typical image.
 4. Click on `Load`. The image should display in Fiji.
 5. Each time you modify one parameter, the segmentation result updates
-6. When satisfied with the results, click on `OK`
-7. Confirm that these new parameters will be used for the current simulation as well as for new default settings.
+6. When satisfied with the results, click on `OK`. The new parameters will be used for the current simulation.
+7. Confirm if you want the new parameters to become default settings.
 
 ## Analysis results
 
-- 5 tags are linked to the raw image on OMERO, even if results are saved locally : `raw`, `argolight`, `slideName`, `objective` and `FoV`.
+- 8 tags are linked to the raw image on OMERO, even if results are saved locally : `raw`, `argolight`, `slideName`, `objective`, `immersion`, `microscope`, `pattern` and `FoV`.
 - Processing parameters are saved in the form of key-value pairs.
-- Detected rings, as well as ideal ring positions are saved as ROIs, grouped by ring type (i.e. ideal or detected).
-- Computed metrics are saved as OMERO.table attach to the image.
-- A per-image summary is finally attached to the parent dataset. It groups relevant information that may be used to follow in time the different metrics and therefore assess objective quality.
+- Detected rings, as well as ideal ring positions, are saved as ROIs, grouped by ring type (i.e. ideal or detected).
+- Computed metrics are saved as OMERO.table attach to the image and, if specified, in the form of heat maps.
+- A per-image summary is finally attached to the parent dataset. It groups relevant information that may be used to follow, in time, the different metrics and therefore assess objective quality.
 
 In case of local saving, the same outputs are saved in a results folder, with .txt file for the key-value pairs, .csv files for the tables and .zip for ROIs (readable on Fiji).
 
