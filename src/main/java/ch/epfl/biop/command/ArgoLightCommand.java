@@ -398,6 +398,8 @@ public class ArgoLightCommand implements Command {
             createSettingsPane();
             setDefaultGeneralParams();
             labHost.setText(userHost +":"+ userPort);
+            cbMicroscope.removeAllItems();
+            userMicroscopes.forEach(cbMicroscope::addItem);
             cbMicroscope.setSelectedItem(userMicroscopes);
             tfProjectID.setText(userProjectID);
             tfRootFolder.setText(userRootFolder);
