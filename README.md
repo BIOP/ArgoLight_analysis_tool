@@ -15,10 +15,21 @@ tags and OMERO.table.
 ## Requirements
 - You need to have access to an OMERO database where the images to analyze are located.
 - Your images should be separated according to the microscope used (i.e. one dataset per microscope). All the datasets should be located under the same project.
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/f14307d9-a0ff-411a-b73c-1efe4f9f7817" width="20%">
+</p>
+
 - Your slide should be an ArgoLight Slide. The slide must contain the field-of-rings patterns because it is the one used for the analysis.
 - 2 different type of images are expected :
-  - One image with pixel size = 200 nm, centered on the middle cross, with minimal rotation, to catch the entire objective FoV (preferentially at zoom factor = 1). It corresponds to the fullFoV image.
-  - One image with pixel size = 60 nm, centered on the middle cross, with minimal rotation, to be able to measure the FWHM. It corresponds to the partialFoV image.
+  - One image with pixel size = 200 nm, centered on the middle cross, with minimal rotation, to catch the entire objective FoV (preferentially at zoom factor = 1). It corresponds to the fullFoV image. This image is used to compute field distortion and field uniformity.
+  - One image with pixel size = 60 nm, centered on the middle cross, with minimal rotation, to be able to measure the FWHM. It corresponds to the partialFoV image. This image is used to compute FWHM.
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/6cbb1dd5-6b21-41a2-9095-1a71f325886c" width="60%">
+</p>
+
+
 - Images have to be named according the following structure
   - For fileset images
     - *microscopeName*\_*ArgoSlideName*\_*patternImaged*\_**d***AcquisitionDate*\_**o***Objective*\_*ImmersionMedium*.extension [*FOV*\_*Serie*]
@@ -36,6 +47,10 @@ tags and OMERO.table.
 
 Launch the plugin by hitting `Plugins -> BIOP -> Argolight analysis tool`
 
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/aee6fec8-2f01-4397-a025-26b9f402b359" width="50%">
+</p>
+
 ### Basic configurations -- To do the first time you use the plugin
 
 This step set the by-default values for input-output communication. These values are saved for your future use of the plugin ; you'll have to do it once.
@@ -52,6 +67,9 @@ In the csv file, you should have one microscope name by line.
 6. Set your ArgoSlide specifications (spacing between 2 rings, full pattern FoV and number of rings per line)
 7. Then, press OK. 
 
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/d7ddfff8-c90d-41f9-9f21-bf24d919a9ea" width="50%">
+</p>
 
 ### Quick start
 
@@ -72,6 +90,10 @@ If you choose to save results locally, you are asked to provide the parent folde
 3. Checking this box will process ALL images within the selected dataset, without any distinction between those that have previously been processed.
 4. You can choose, in case you would like to process all images, to remove all results from previous run(s).
 
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/0ca177bf-2ae4-411f-bc4b-6d1b73af6af9" width="50%">
+</p>
+
 ### Processing settings
 
 A few parameters used for segmentation and analysis can be manually set.
@@ -81,26 +103,63 @@ A few parameters used for segmentation and analysis can be manually set.
 4. Size of the thresholded particules to keep (> value) -> denoising
 5. Analyzed area around the ring (for FWHM) -> analysis
 
+If you chck the `default` box, then hard-coded default parameters are used.
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/228e43d4-f49f-473e-8b09-2a397d1319d1" width="40%">
+</p>
+
 ### Live preview
 
 A live preview mode enable you to set dynamically the processing parameters and to get direct visual feedback of the segmentation results only (the analysis results are not display).
 1. Enter your gaspar credentials
 2. Click on `Live preview` button
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/8a27b954-a032-4c21-b024-f6bd1d40cd10" width="80%">
+</p>
+
 3. On the popup, add the OMERO ID of a typical image.
 4. Click on `Load`. The image should display in Fiji.
 5. Each time you modify one parameter, the segmentation result updates
 6. When satisfied with the results, click on `OK`. The new parameters will be used for the current simulation.
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/9819b2bb-0f81-47df-9639-09dbc2599d2b" width="80%">
+</p>
+
 7. Confirm if you want the new parameters to become default settings.
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/14e5de27-85c5-45e0-9e2d-1def597b73a9" width="50%">
+</p>
 
 ## Analysis results
 
 - 8 tags are linked to the raw image on OMERO, even if results are saved locally : `raw`, `argolight`, `slideName`, `objective`, `immersion`, `microscope`, `pattern` and `FoV`.
 - Processing parameters are saved in the form of key-value pairs.
-- Detected rings, as well as ideal ring positions, are saved as ROIs, grouped by ring type (i.e. ideal or detected).
 - Computed metrics are saved as OMERO.table attach to the image and, if specified, in the form of heat maps.
-- A per-image summary is finally attached to the parent dataset. It groups relevant information that may be used to follow, in time, the different metrics and therefore assess objective quality.
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/08f18dbb-2bd0-4b74-a197-bb964001dc74" width="80%">
+</p>
+
+- Detected rings, as well as ideal ring positions, are saved as ROIs, grouped by ring type (i.e. ideal or detected).
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/fe9f7ab5-6751-4f28-8829-becb0b106b84" width="80%">
+</p>
+
+- A per-image summary is finally attached to the parent dataset. It groups relevant information that may be used to follow, in time, the different metrics and therefore assess objective quality. Because not all metrics are computed on all images, `-1` replaces the metric value for image on which this metrics is not computed (ex : `-1` for FWHM on all 200nm pixel size images).
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/6d29f95b-e68e-4cd4-97b9-f927b56c34d5" width="80%">
+</p>
+
 
 In case of local saving, the same outputs are saved in a results folder, with .txt file for the key-value pairs, .csv files for the tables and .zip for ROIs (readable on Fiji).
 
-## OMERO.Parade
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/01a566d9-7755-4ad3-ba4b-9542ad358315" width="80%">
+</p>
 
