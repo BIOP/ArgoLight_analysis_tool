@@ -163,3 +163,58 @@ In case of local saving, the same outputs are saved in a results folder, with .t
   <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/01a566d9-7755-4ad3-ba4b-9542ad358315" width="80%">
 </p>
 
+## Monitor data with OMERO.parade
+
+OMERO.parade is a plugin of OMERO.web for data mining. Fields coming from an OMERO.table are read, filtered and displayed as a graph. This plugin is helpful to monitor computed metrics over time.
+
+1. Move your OMERO dataset at the root (i.e. outside any project)
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/add1f4b8-deb2-44b8-a627-d4a69ec141d9" width="40%">
+</p>
+
+
+2. Select the dataset and switch to `Parade`
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/856c6dd2-5f70-4418-8ba1-83af24cec082" width="20%">
+</p>
+
+3. Click on the `graph mode`
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/8e582087-43a2-4c28-bee5-5e4f2ff67f41" width="40%">
+</p>
+
+
+4. Select different metrics to monitor like `Acquisition date`, `field distortion avg`, `field uniformity avg`...
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/7ef28813-fe16-4378-a696-8eafa15a0eec" width="30%">
+</p>
+
+
+5. Add tag filters for objctives, slide, FoV...
+  - For `field distortion` and `field uniformity` metrics, you must filter images with `fullFoV` tag 
+  - For `FWHM` metrics, you must filter images with `partialFoV` tag 
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/80432ed7-b292-448f-ac6c-6b60e7decba0" width="80%">
+</p>
+
+6. Select `Acquisition date` for the x-axis
+7. Select one metrics for the y-axis.
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/a157293e-9b08-44ee-a894-f4b7e8f6b85d" width="70%">
+</p>
+
+
+8. Each dot represent one image. Clicking on one of them highlights the corresponding image on the left tree and displays annotations/metadata attached on the right. This is particularly useful when you deal with outliers.
+
+![ArgoLight_Plugin_Parade_Graph_Image_Selection](https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/a842afa0-62ca-47d3-93f1-f41a8c460937)
+
+
+
+
+
