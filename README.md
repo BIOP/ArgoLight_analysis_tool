@@ -59,7 +59,7 @@ This step set the by-default values for input-output communication. These values
 2. On the popup, enter the host name and port of your OMERO server
 3. Optionnally, you can enter the ID of the OMERO project containing the images to analyze.
 4. Enter the list of microscopes you may want to process (manually or by browsing a csv file)
-In the csv file, you should have one microscope name by line.
+In the csv file, you should have one microscope name by line. If you enter microscopes manually, names must be separated by only comma.
 
 **Be careful : the microscopes' name should match extactly (but not case sensitive) the datasets name on OMERO, contained in the specified project.**
 
