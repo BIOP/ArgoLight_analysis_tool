@@ -77,6 +77,8 @@ In the csv file, you should have one microscope name by line. If you enter micro
 2. Enter the ID of the project that contains the microscopes datasets (if it has not been defined previously).
 3. Select the microscope dataset you want to process.
 4. Click OK
+5. The current steps / actions performed are logged in the Fiji Log window
+6. At the end of the processing, a popup indicates the user that all images within the selected dataset have been processed.
 
 Every images that are not tagged with `raw` tag are processed within the selected dataset.
 
