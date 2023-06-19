@@ -8,7 +8,7 @@ field uniformity, field distortion and full width at half maximum. Results are f
 tags and OMERO.table.
 
 ## Installation
-- Download the latest version of our plugin. Unzip it and copy both .jar files into the **Plugins** folder of Fiji
+- Download the latest version of our plugin. Unzip it and copy both .jar files into the **Plugins->BIOP** folder of Fiji
 - Activate the update site **OMERO 5.5-5.6** (On Fiji, go on `Help -> Update...`, then click on `Manage Update sites`)
 - Restart Fiji
 
