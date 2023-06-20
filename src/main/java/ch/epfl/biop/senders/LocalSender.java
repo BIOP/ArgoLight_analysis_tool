@@ -1,5 +1,7 @@
 package ch.epfl.biop.senders;
 
+import ch.epfl.biop.retrievers.OMERORetriever;
+import ch.epfl.biop.retrievers.Retriever;
 import ch.epfl.biop.utils.IJLogger;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.utils.Tools;
@@ -39,6 +41,8 @@ public class LocalSender implements Sender{
     final private String date;
     private String imageFolder;
     private boolean cleanParent;
+    private ImageWrapper imageWrapper;
+    private Client client;
 
 
     public LocalSender(File target, String microscopeName, boolean cleanTarget){
@@ -94,7 +98,17 @@ public class LocalSender implements Sender{
     }
 
     @Override
-    public void initialize(ImageFile imageFile, ImageWrapper imageWrapper) {
+    public void initialize(ImageFile imageFile, Retriever retriever) {
+        // get the imageWrapper in case of OMERO retriever
+        if(retriever instanceof OMERORetriever) {
+            OMERORetriever omeroRetriever = ((OMERORetriever) retriever);
+            this.imageWrapper = omeroRetriever.getImageWrapper(imageFile.getId());
+            this.client = omeroRetriever.getClient();
+        } else {
+            this.imageWrapper = null;
+            this.client = null;
+        }
+
         // create the image folder
         this.imageFolder = this.parentFolder + File.separator + imageFile.getImgNameWithoutExtension();
         File imageFileFolder = new File(this.imageFolder);
@@ -196,7 +210,7 @@ public class LocalSender implements Sender{
     }
 
     @Override
-    public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
+    public void populateParentTable(Retriever retriever, Map<Long, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
         IJLogger.info("Update parent table...");
         // get the last parent summary table
         File lastTable = getLastLocalParentTable(this.parentFolder);
@@ -212,10 +226,10 @@ public class LocalSender implements Sender{
         }
 
         // populate table
-        List<ImageWrapper> imageWrapperList = new ArrayList<>(summary.keySet());
-        for (ImageWrapper imageWrapper : imageWrapperList)
-            for (List<Double> metricsList : summary.get(imageWrapper)) {
-                text += "" + imageWrapper.getId() + "," + imageWrapper.getName();
+        List<Long> IdList = new ArrayList<>(summary.keySet());
+        for (Long Id : IdList)
+            for (List<Double> metricsList : summary.get(Id)) {
+                text += "" + Id + "," + retriever.getImage(Id).getTitle();
                 for (Double metric : metricsList) text += "," + metric;
                 text += "\n";
             }
@@ -266,27 +280,30 @@ public class LocalSender implements Sender{
     }
 
     @Override
-    public void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client) {
+    public void sendTags(List<String> tags) {
+        if(this.imageWrapper == null || this.client == null)
+            return;
+
         IJLogger.info("Adding tag");
         for(String tag : tags) {
             try {
                 // get the corresponding tag in the list of available tags if exists
-                List<TagAnnotationWrapper> rawTag = client.getTags().stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
+                List<TagAnnotationWrapper> rawTag = this.client.getTags().stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
 
                 // check if the tag is already applied to the current image
-                boolean isTagAlreadyExists = imageWrapper.getTags(client)
+                boolean isTagAlreadyExists = this.imageWrapper.getTags(this.client)
                         .stream()
                         .anyMatch(t -> t.getName().equals(tag));
 
                 // add the tag to the current image if it is not already the case
                 if (!isTagAlreadyExists) {
-                    imageWrapper.link(client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
-                    IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + imageWrapper.getId());
+                    this.imageWrapper.link(this.client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
+                    IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + this.imageWrapper.getId());
                 } else
-                    IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());
+                    IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + this.imageWrapper.getId());
 
             } catch (ServiceException | OMEROServerError | AccessException | ExecutionException e) {
-                IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + imageWrapper.getId());
+                IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + this.imageWrapper.getId());
             }
         }
     }

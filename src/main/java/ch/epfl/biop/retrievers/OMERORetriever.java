@@ -10,7 +10,9 @@ import fr.igred.omero.repository.ProjectWrapper;
 import ij.ImagePlus;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -19,7 +21,7 @@ import java.util.stream.Collectors;
  */
 public class OMERORetriever implements Retriever {
     final private Client client;
-    private List<ImageWrapper> images = new ArrayList<>();
+    private Map<Long,ImageWrapper> images = new HashMap<>();
     private long datasetId = -1;
     private boolean processAllRawImages = false;
 
@@ -98,33 +100,34 @@ public class OMERORetriever implements Retriever {
      *                            they have already been processed one.
      * @return the filtered list
      */
-    private List<ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages) {
+    private Map<Long,ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages) {
         // get all images without the tags "raw" nor "process" and remove macro images from vsi files.
-        return imageWrapperList.stream().filter(e-> {
+        List<ImageWrapper> filteredWrappers = imageWrapperList.stream().filter(e -> {
             try {
-                if(!processAllRawImages)
-                    return (e.getTags(this.client).stream().noneMatch(t->(t.getName().equals("raw")||t.getName().equals("processed")))
+                if (!processAllRawImages)
+                    return (e.getTags(this.client).stream().noneMatch(t -> (t.getName().equals("raw") || t.getName().equals("processed")))
                             && !(e.getName().contains("[macro image]")));
                 else
-                    return (e.getTags(this.client).stream().noneMatch(t->t.getName().equals("processed"))
+                    return (e.getTags(this.client).stream().noneMatch(t -> t.getName().equals("processed"))
                             && !(e.getName().contains("[macro image]")));
             } catch (ServiceException | AccessException | ExecutionException ex) {
                 throw new RuntimeException(ex);
             }
         }).collect(Collectors.toList());
+
+        Map<Long,ImageWrapper> imageWrapperMap = new HashMap<>();
+
+        filteredWrappers.forEach(e->imageWrapperMap.put(e.getId(),e));
+        return imageWrapperMap;
     }
 
 
     /**
-     * @param index image position in the list
+     * @param key image position in the list
      * @return the {@link ImageWrapper} object of an image picked from the list of image to process.
      */
-    public ImageWrapper getImageWrapper(int index){
-        if(index >= this.images.size()) {
-            IJLogger.error("Get image channel", "You try to access to channel "+index+ " that doesn't exists");
-            return null;
-        }
-        return this.images.get(index);
+    public ImageWrapper getImageWrapper(long key){
+        return this.images.get(key);
     }
 
     /**
@@ -134,17 +137,14 @@ public class OMERORetriever implements Retriever {
     public Client getClient(){ return this.client; }
 
     @Override
-    public ImagePlus getImage(int index) {
-        if(index >= this.images.size()) {
-            IJLogger.error("Get image channel", "You try to access to channel "+index+ " that doesn't exists");
-            return null;
-        }
-
+    public ImagePlus getImage(long key) {
         // open the image on ImageJ
-        ImagePlus imp;
         try {
-            imp = this.images.get(index).toImagePlus(this.client);
-            return imp;
+            ImageWrapper impWpr = this.images.get(key);
+            if(impWpr == null)
+                return null;
+            else
+                return impWpr.toImagePlus(this.client);
         }catch(AccessException | ServiceException | ExecutionException e){
             throw new RuntimeException(e);
         }
@@ -155,6 +155,10 @@ public class OMERORetriever implements Retriever {
         return this.images.size();
     }
 
+    @Override
+    public List<Long> getIDs() {
+        return new ArrayList<>(images.keySet());
+    }
 
     @Override
     public String getParentTarget() {

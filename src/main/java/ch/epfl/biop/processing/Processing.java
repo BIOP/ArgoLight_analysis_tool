@@ -2,11 +2,10 @@ package ch.epfl.biop.processing;
 
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
-import ch.epfl.biop.retrievers.OMERORetriever;
+import ch.epfl.biop.retrievers.Retriever;
 import ch.epfl.biop.senders.LocalSender;
 import ch.epfl.biop.senders.Sender;
 import ch.epfl.biop.utils.IJLogger;
-import fr.igred.omero.repository.ImageWrapper;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
@@ -46,23 +45,24 @@ public class Processing {
      * @param userParticleThreshold user defined value of the threshold on particle size
      * @param userRingRadius user defined value of the analysis circle radius around each ring
      */
-    public static void run(OMERORetriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
+    public static void run(Retriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
                            double userParticleThreshold, double userRingRadius, int argoSpacing, int argoFOV, int argoNPoints){
-        Map<ImageWrapper, List<List<Double>>> summaryMap = new HashMap<>();
+        Map<Long, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
+        List<Long> IDs = retriever.getIDs();
 
-        for (int i = 0; i < retriever.getNImages(); i++) {
+        for (int i = 0; i < IDs.size(); i++) {
             try {
+                long Id = IDs.get(i);
                 // get the image
-                ImagePlus imp = retriever.getImage(i);
-                // get the imageWrapper
-                ImageWrapper imageWrapper = retriever.getImageWrapper(i);
-                if (imp == null || imageWrapper == null)
+                ImagePlus imp = retriever.getImage(Id);
+                if (imp == null )
                     continue;
 
-                IJLogger.info("Working on image "+imp.getTitle());
                 // create a new ImageFile object
-                ImageFile imageFile = new ImageFile(imp, imageWrapper.getId());
+                IJLogger.info("Working on image "+imp.getTitle());
+                ImageFile imageFile = new ImageFile(imp, Id);
+
                 boolean isOldProtocol = false;
 
                 // choose the right ArgoLight processing
@@ -76,23 +76,24 @@ public class Processing {
 
                 IJLogger.info("End of processing");
                 IJLogger.info("Sending results ... ");
+
                 // send image results (metrics, rings, tags, key-values)
-                sender.initialize(imageFile, imageWrapper);
-                sender.sendTags(imageFile.getTags(), imageWrapper, retriever.getClient());
+                sender.initialize(imageFile, retriever);
+                sender.sendTags(imageFile.getTags());
                 sendResults(sender, imageFile, savingHeatMaps, isOldProtocol);
 
                 // metrics summary to populate parent table
                 Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
                 headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
                 if (!allChannelMetrics.values().isEmpty())
-                    summaryMap.put(imageWrapper, allChannelMetrics.values().iterator().next());
+                    summaryMap.put(Id, allChannelMetrics.values().iterator().next());
             }catch (Exception e){
-                IJLogger.error("An error occurred during processing ; cannot analyse the image "+retriever.getImage(i).getTitle());
+                IJLogger.error("An error occurred during processing ; cannot analyse the image "+retriever.getImage(IDs.get(i)).getTitle());
             }
         }
 
         // populate parent table with summary results
-        sender.populateParentTable(summaryMap, headers, !retriever.isProcessingAllRawImages());
+        sender.populateParentTable(retriever, summaryMap, headers, !retriever.isProcessingAllRawImages());
     }
 
     /**

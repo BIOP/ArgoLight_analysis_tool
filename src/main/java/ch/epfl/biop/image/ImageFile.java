@@ -51,7 +51,6 @@ public class ImageFile {
         boolean matchesType(String s) { return typeMatching.matcher(s).matches(); }
     }
 
-    final private String imgName;
     final private String imgNameWithoutExtension;
     final private ImagePlus image;
     final private long id;
@@ -70,9 +69,9 @@ public class ImageFile {
     public ImageFile(ImagePlus imp, long id){
         this.image = imp;
         this.id = id;
-        this.imgName = imp.getTitle();
-        this.imgNameWithoutExtension = getNameWithoutExtension(this.imgName);
-        parseImageName(this.imgName);
+        String imgName = imp.getTitle();
+        this.imgNameWithoutExtension = getNameWithoutExtension(imgName);
+        parseImageName(imgName);
     }
 
     /**
@@ -268,6 +267,6 @@ public class ImageFile {
                     pccValues.add(Tools.computePCC(ch1, ch2, rois));
                 }
             }
-        } else IJLogger.warn("PCC computation", "Only one channel for image "+this.imgName +". Cannot compute PCC.");
+        } else IJLogger.warn("PCC computation", "Only one channel for image "+this.image.getTitle() +". Cannot compute PCC.");
     }
 }

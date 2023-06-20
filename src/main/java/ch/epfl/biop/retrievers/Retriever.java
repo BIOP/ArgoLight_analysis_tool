@@ -1,6 +1,7 @@
 package ch.epfl.biop.retrievers;
 
 import ij.ImagePlus;
+import java.util.List;
 
 /**
  * Implements basic functionalities of an image retriever.
@@ -10,12 +11,17 @@ public interface Retriever {
      * @param index image position in the list
      * @return the {@link ImagePlus} object of an image picked from the list of image to process.
      */
-    ImagePlus getImage(int index);
+    ImagePlus getImage(long index);
 
     /**
      * @return the number of an images to process.
      */
     int getNImages();
+
+    /**
+     * @return the list of image IDs
+     */
+    List<Long> getIDs();
 
     /**
      * @return the container id (local folder path or OMERO dataset id) that is used to save processing results

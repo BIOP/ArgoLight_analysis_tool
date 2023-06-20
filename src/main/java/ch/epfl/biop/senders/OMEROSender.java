@@ -1,5 +1,7 @@
 package ch.epfl.biop.senders;
 
+import ch.epfl.biop.retrievers.OMERORetriever;
+import ch.epfl.biop.retrievers.Retriever;
 import ch.epfl.biop.utils.IJLogger;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.utils.Tools;
@@ -64,29 +66,33 @@ public class OMEROSender implements Sender{
     }
 
     @Override
-    public void initialize(ImageFile imageFile, ImageWrapper imageWrapper) {
+    public void initialize(ImageFile imageFile, Retriever retriever) {
         // save the new image wrapper and clean this image on OMERO if specified
-        this.imageWrapper = imageWrapper;
+        this.imageWrapper = ((OMERORetriever)retriever).getImageWrapper(imageFile.getId());
         if(this.cleanTarget)
             clean();
     }
 
     @Override
-    public void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client) {
+    public void sendTags(List<String> tags) {
+        sendTags(tags, this.imageWrapper);
+    }
+
+    private void sendTags(List<String> tags, ImageWrapper imageWrapper) {
         IJLogger.info("Adding tag");
         for(String tag : tags) {
             try {
                 // get the corresponding tag in the list of available tags if exists
-                List<TagAnnotationWrapper> rawTag = client.getTags().stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
+                List<TagAnnotationWrapper> rawTag = this.client.getTags().stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
 
                 // check if the tag is already applied to the current image
-                boolean isTagAlreadyExists = imageWrapper.getTags(client)
+                boolean isTagAlreadyExists = imageWrapper.getTags(this.client)
                         .stream()
                         .anyMatch(t -> t.getName().equals(tag));
 
                 // add the tag to the current image if it is not already the case
                 if (!isTagAlreadyExists) {
-                    imageWrapper.link(client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
+                    imageWrapper.link(this.client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
                     IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + imageWrapper.getId());
                 } else
                     IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());
@@ -183,7 +189,7 @@ public class OMEROSender implements Sender{
                 add("argolight");
                 add((String)imp.getProperty(PROCESSED_FEATURE));
             }};
-            sendTags(tags, analysisImage_wpr, this.client);
+            sendTags(tags, analysisImage_wpr);
 
         } catch (ServiceException | AccessException | ExecutionException | OMEROServerError e) {
             IJLogger.error("Sending heatmap", "Cannot upload heat maps on OMERO");
@@ -300,21 +306,22 @@ public class OMEROSender implements Sender{
     }
 
     @Override
-    public void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
+    public void populateParentTable(Retriever retriever, Map<Long, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
         IJLogger.info("Update parent table...");
         // format data
         List<Object[]> fullRows = new ArrayList<>();
-        for (Map.Entry<ImageWrapper, List<List<Double>>> image : summary.entrySet()) {
-            List<List<Double>> allChannelMetrics = image.getValue();
+        for (Map.Entry<Long, List<List<Double>>> IdEntry : summary.entrySet()) {
+            List<List<Double>> allChannelMetrics = IdEntry.getValue();
 
             // convert to Object type
             List<List<Object>> allChannelMetricsAsObject = new ArrayList<>();
             for (List<Double> objects : allChannelMetrics)
                 allChannelMetricsAsObject.add(new ArrayList<>(objects));
 
+            ImageWrapper image = ((OMERORetriever) retriever).getImageWrapper(IdEntry.getKey());
             for (List<Object> metrics : allChannelMetricsAsObject) {
-                metrics.add(0, image.getKey().getName());
-                metrics.add(0, image.getKey().asDataObject());
+                metrics.add(0, image.getName());
+                metrics.add(0, image.asDataObject());
                 fullRows.add(metrics.toArray());
             }
         }

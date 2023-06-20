@@ -1,8 +1,7 @@
 package ch.epfl.biop.senders;
 
 import ch.epfl.biop.image.ImageFile;
-import fr.igred.omero.Client;
-import fr.igred.omero.repository.ImageWrapper;
+import ch.epfl.biop.retrievers.Retriever;
 import ij.ImagePlus;
 import ij.gui.Roi;
 
@@ -17,9 +16,10 @@ public interface Sender {
     /**
      * Initialize the sender
      * @param imageFile Object containing information about the image
-     * @param imageWrapper Remote object {@link ImageWrapper} to handle OMERO image
+     * @param retriever Interface handling the raw images
+     * @param Id ID the image to retrieve
      */
-    void initialize(ImageFile imageFile, ImageWrapper imageWrapper);
+    void initialize(ImageFile imageFile, Retriever retriever);
 
     /**
      * Save heat maps of computed features
@@ -52,12 +52,13 @@ public interface Sender {
 
     /**
      * Save summary table and new entries if new images are acquired
+     * @param retriever Interface handling the raw images
      * @param summary summary metrics for each image
      * @param headers metrics names and other headers
      * @param populateExistingTable true if you want to add the current summary to the current table ;
      *                              false if you want to create a new file.
      */
-    void populateParentTable(Map<ImageWrapper, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable);
+    void populateParentTable(Retriever retriever, Map<Long, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable);
 
     /**
      * Save Pearson Correlation Coefficient analysis table
@@ -69,10 +70,8 @@ public interface Sender {
     /**
      * Send to OMERO all the tags created for the current image
      * @param tags
-     * @param imageWrapper
-     * @param client
      */
-    void sendTags(List<String> tags, ImageWrapper imageWrapper, Client client);
+    void sendTags(List<String> tags);
 
     /**
      * Delete all previous runs (ROIs, tables, key-value pairs...) except tags and heatmaps, both located on OMERO
