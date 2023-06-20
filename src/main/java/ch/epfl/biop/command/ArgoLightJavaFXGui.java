@@ -91,7 +91,8 @@ public class ArgoLightJavaFXGui /*implements Command*/{
         }
 
         try {
-            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(Long.parseLong(defaultProjectID), microscope, allImages);
+            OMERORetriever omeroRetriever = new OMERORetriever(client);
+            omeroRetriever.loadImages(defaultProjectID, microscope, allImages);
             int nImages = omeroRetriever.getNImages();
 
             Sender sender;
@@ -99,7 +100,7 @@ public class ArgoLightJavaFXGui /*implements Command*/{
                 File savingFolder = new File(savingFolderPath);
                 sender = new LocalSender(savingFolder, microscope, false);
             } else
-                sender = new OMEROSender(client, omeroRetriever.getParentTarget(), false);
+                sender = new OMEROSender(client, omeroRetriever.getMicroscopeTarget(), false);
 
             // run analysis
             if (nImages > 0)

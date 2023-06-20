@@ -32,47 +32,23 @@ public class OMERORetriever implements Retriever {
     /**
      * Retrieve from OMERO images that need to be processed.
      *
-     * @param datasetId where to look for images
+     * @param parentTarget where to look for images
+     * @param microscopeName name of the dataset where to look for images (corresponding to the microscope name)
      * @param processAllRawImages true if you want to process all images within the dataset, regardless if
      *                            they have already been processed one.
      * @return builder
      */
-    public OMERORetriever loadRawImages(long datasetId, boolean processAllRawImages) {
+    @Override
+    public void loadImages(String parentTarget, String microscopeName, boolean processAllRawImages) {
         this.processAllRawImages = processAllRawImages;
-        try {
-            // get dataset
-            DatasetWrapper datasetWrapper = this.client.getDataset(datasetId);
-            this.datasetId = datasetWrapper.getId();
+        long projectId = Long.parseLong(parentTarget);
 
-
-            // get children images
-            List<ImageWrapper> imageWrapperList = datasetWrapper.getImages(this.client);
-
-            // filter images
-            this.images = filterImages(imageWrapperList, processAllRawImages);
-        } catch(AccessException | ServiceException | ExecutionException e){
-            IJLogger.error("Retrieve OMERO images","Cannot retrieve images in dataset "+datasetId);
-        }
-        return this;
-    }
-
-    /**
-     * Retrieve from OMERO images that need to be processed.
-     *
-     * @param projectId where to look for images
-     * @param datasetName name of the dataset where to look for images (corresponding to the microscope name)
-     * @param processAllRawImages true if you want to process all images within the dataset, regardless if
-     *                            they have already been processed one.
-     * @return builder
-     */
-    public OMERORetriever loadRawImages(long projectId, String datasetName, boolean processAllRawImages) {
-        this.processAllRawImages = processAllRawImages;
         try {
             // get the ArgoSim project
             ProjectWrapper project_wpr = this.client.getProject(projectId);
 
             // get the specified dataset
-            List<DatasetWrapper> datasetWrapperList = project_wpr.getDatasets().stream().filter(e -> e.getName().toLowerCase().contains(datasetName)).collect(Collectors.toList());
+            List<DatasetWrapper> datasetWrapperList = project_wpr.getDatasets().stream().filter(e -> e.getName().toLowerCase().contains(microscopeName)).collect(Collectors.toList());
 
             if (datasetWrapperList.size() == 1) {
                 DatasetWrapper datasetWrapper = datasetWrapperList.get(0);
@@ -82,13 +58,12 @@ public class OMERORetriever implements Retriever {
                 List<ImageWrapper> imageWrapperList = datasetWrapper.getImages(this.client);
                 this.images = filterImages(imageWrapperList, processAllRawImages);
             } else if(datasetWrapperList.isEmpty())
-                IJLogger.warn("Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name *"+datasetName+"*");
-            else IJLogger.warn("More than one dataset refer to "+datasetName+" Please, group these datasets or change their name.");
+                IJLogger.warn("Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name *"+microscopeName+"*");
+            else IJLogger.warn("More than one dataset refer to "+microscopeName+" Please, group these datasets or change their name.");
 
         } catch(AccessException | ServiceException | ExecutionException e){
-            IJLogger.error("Retrieve OMERO images","Cannot retrieve images in project "+projectId+", dataset *"+datasetName+"*");
+            IJLogger.error("Retrieve OMERO images","Cannot retrieve images in project "+projectId+", dataset *"+microscopeName+"*");
         }
-        return this;
     }
 
     /**
@@ -161,7 +136,7 @@ public class OMERORetriever implements Retriever {
     }
 
     @Override
-    public String getParentTarget() {
+    public String getMicroscopeTarget() {
         return ""+this.datasetId;
     }
 

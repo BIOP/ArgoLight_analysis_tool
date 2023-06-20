@@ -166,7 +166,8 @@ public class ArgoLightCommand implements Command {
                 return;
 
         try {
-            OMERORetriever omeroRetriever = new OMERORetriever(this.client).loadRawImages(Long.parseLong(userProjectID), microscope, allImages);
+            OMERORetriever omeroRetriever = new OMERORetriever(this.client);
+            omeroRetriever.loadImages(userProjectID, microscope, allImages);
             int nImages = omeroRetriever.getNImages();
 
             boolean cleanTarget = allImages && cleanTargetSelection;
@@ -176,7 +177,7 @@ public class ArgoLightCommand implements Command {
                 File savingFolder = new File(savingFolderPath);
                 sender = new LocalSender(savingFolder, microscope, cleanTarget);
             } else
-                sender = new OMEROSender(this.client, omeroRetriever.getParentTarget(), cleanTarget);
+                sender = new OMEROSender(this.client, omeroRetriever.getMicroscopeTarget(), cleanTarget);
 
             // run analysis
             if (nImages > 0)
