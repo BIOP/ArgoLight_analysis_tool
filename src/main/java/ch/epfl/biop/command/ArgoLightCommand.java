@@ -2,7 +2,9 @@ package ch.epfl.biop.command;
 
 import ch.epfl.biop.processing.ArgoSlideLivePreview;
 import ch.epfl.biop.processing.Processing;
+import ch.epfl.biop.retrievers.LocalRetriever;
 import ch.epfl.biop.retrievers.OMERORetriever;
+import ch.epfl.biop.retrievers.Retriever;
 import ch.epfl.biop.senders.LocalSender;
 import ch.epfl.biop.senders.OMEROSender;
 import ch.epfl.biop.senders.Sender;
@@ -160,28 +162,35 @@ public class ArgoLightCommand implements Command {
             return;
         }
 
-        // connect to OMERO
-        if(!this.client.isConnected())
-            if(!connectToOmero(this.client, username, password))
-                return;
-
         try {
-            OMERORetriever omeroRetriever = new OMERORetriever(this.client);
-            omeroRetriever.loadImages(userProjectID, microscope, allImages);
-            int nImages = omeroRetriever.getNImages();
+            Retriever retriever;
+            if(isOmeroRetriever) {
+                // connect to OMERO
+                if(!this.client.isConnected())
+                    if(!connectToOmero(this.client, username, password))
+                        return;
+                retriever = new OMERORetriever(this.client);
+            }
+            else
+                retriever = new LocalRetriever();
+
+            retriever.loadImages(userProjectID, microscope, allImages);
+            int nImages = retriever.getNImages();
 
             boolean cleanTarget = allImages && cleanTargetSelection;
 
             Sender sender;
-            if (!isOmeroSender) {
+            if (isOmeroSender) {
+                sender = new OMEROSender(this.client, retriever.getMicroscopeTarget(), cleanTarget);
+            } else {
                 File savingFolder = new File(savingFolderPath);
                 sender = new LocalSender(savingFolder, microscope, cleanTarget);
-            } else
-                sender = new OMEROSender(this.client, omeroRetriever.getMicroscopeTarget(), cleanTarget);
+            }
+
 
             // run analysis
             if (nImages > 0)
-                Processing.run(omeroRetriever, saveHeatMaps, sender,
+                Processing.run(retriever, saveHeatMaps, sender,
                         isDefaultSigma ? defaultSigma : userSigma,
                         isDefaultMedianRadius ? defaultMedianRadius : userMedianRadius,
                         isDefaultThresholdMethod ? defaultThresholdMethod : userThresholdMethod,
@@ -400,7 +409,6 @@ public class ArgoLightCommand implements Command {
             bSavingFolder.setEnabled(rbLocalRetriever.isSelected());
         });
 
-        rbLocalRetriever.setEnabled(false);
 
         // button to configure general settings
         JButton bGeneralSettings = new JButton("General Settings");

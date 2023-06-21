@@ -57,7 +57,7 @@ public class ImageFile {
 
     final private String imgNameWithoutExtension;
     final private ImagePlus image;
-    final private long id;
+    final private String id;
     final private int serie;
     private String microscope;
     private String objective;
@@ -71,7 +71,7 @@ public class ImageFile {
     private List<List<Double>> pccValues = new ArrayList<>();
     public List<ImageChannel> channels = new ArrayList<>();
 
-    public ImageFile(ImagePlus imp, long id, int serie){
+    public ImageFile(ImagePlus imp, String id, int serie){
         this.image = imp;
         this.id = id;
         this.serie = serie;
@@ -123,12 +123,12 @@ public class ImageFile {
     /**
      * @return the image id
      */
-    public long getId(){ return this.id; }
+    public String getId(){ return this.id; }
 
     /**
      * @return the image serie
      */
-    public long getSerie(){ return this.serie; }
+    public int getSerie(){ return this.serie; }
 
     /**
      * @return the ImagePlus object of the current image

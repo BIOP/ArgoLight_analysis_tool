@@ -1,19 +1,10 @@
 package ch.epfl.biop.retrievers;
 
 import ch.epfl.biop.utils.IJLogger;
-import ij.CompositeImage;
-import ij.IJ;
 import ij.ImagePlus;
-import ij.process.LUT;
 import loci.formats.FormatException;
-import loci.formats.IFormatReader;
-import loci.formats.Memoizer;
-import loci.formats.MetadataTools;
-import loci.formats.meta.IMetadata;
 import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
-import ome.xml.model.enums.DimensionOrder;
-import ome.xml.model.primitives.Color;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -31,7 +22,7 @@ import java.util.stream.Collectors;
 public class LocalRetriever implements Retriever{
     private boolean processAllImages = false;
     private String microscopeFolderPath = "";
-    private Map<Long,File> filteredFiles;
+    private Map<String,File> filteredFiles;
 
     public LocalRetriever(){
     }
@@ -69,19 +60,19 @@ public class LocalRetriever implements Retriever{
         if(rawImgFiles == null)
             return false;
 
-        List<String> processedFiles = ListProcessedFiles(files, microscopeName);
+        List<String> processedFiles = listProcessedFiles(files, microscopeName);
         List<File> filteredImagesFile = filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()), processedFiles);
-        Map<Long,File> filteredImagesMap = new HashMap<>();
+        Map<String,File> filteredImagesMap = new HashMap<>();
         for(File file : filteredImagesFile){
             String uuid = UUID.randomUUID().toString().replace("-","");
-            filteredImagesMap.put(Long.parseLong(uuid),file);
+            filteredImagesMap.put(uuid,file);
         }
 
         this.filteredFiles = filteredImagesMap;
         return true;
     }
 
-    private List<String> ListProcessedFiles(File[] allFiles, String microscopeName){
+    private List<String> listProcessedFiles(File[] allFiles, String microscopeName){
         // find the one with the microscope name
         List<File> txtProcessedMicList = Arrays.stream(allFiles)
                 .filter(e -> e.isFile() && e.getName().endsWith(".txt") && e.getName().toLowerCase().contains(microscopeName))
@@ -120,7 +111,7 @@ public class LocalRetriever implements Retriever{
     }
 
     @Override
-    public List<ImagePlus> getImage(long index) {
+    public List<ImagePlus> getImage(String index) {
         File toProcess = this.filteredFiles.get(index);
 
         try {
@@ -142,7 +133,7 @@ public class LocalRetriever implements Retriever{
     }
 
     @Override
-    public List<Long> getIDs() {
+    public List<String> getIDs() {
         return new ArrayList<>(this.filteredFiles.keySet());
     }
 

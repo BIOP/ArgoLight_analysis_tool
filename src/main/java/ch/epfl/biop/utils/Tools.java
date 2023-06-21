@@ -24,6 +24,8 @@ public class Tools {
     final private static int HEAT_MAP_SIZE = 256;
     final private static String HEAT_MAP_BIT_DEPTH = "32-bit black";
 
+    final public static String SEPARATION_CHARACTER = "%";
+
     /**
      * Generate the current date and hour in the format aaaammdd-hhHmmMss
      * @return

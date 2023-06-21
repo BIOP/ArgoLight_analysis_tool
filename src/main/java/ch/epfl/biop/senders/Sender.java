@@ -58,7 +58,7 @@ public interface Sender {
      * @param populateExistingTable true if you want to add the current summary to the current table ;
      *                              false if you want to create a new file.
      */
-    void populateParentTable(Retriever retriever, Map<Long, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable);
+    void populateParentTable(Retriever retriever, Map<String, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable);
 
     /**
      * Save Pearson Correlation Coefficient analysis table

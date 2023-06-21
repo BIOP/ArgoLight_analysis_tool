@@ -6,6 +6,7 @@ import ch.epfl.biop.retrievers.Retriever;
 import ch.epfl.biop.senders.LocalSender;
 import ch.epfl.biop.senders.Sender;
 import ch.epfl.biop.utils.IJLogger;
+import ch.epfl.biop.utils.Tools;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
@@ -47,11 +48,11 @@ public class Processing {
      */
     public static void run(Retriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
                            double userParticleThreshold, double userRingRadius, int argoSpacing, int argoFOV, int argoNPoints){
-        Map<Long, List<List<Double>>> summaryMap = new HashMap<>();
+        Map<String, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
-        List<Long> IDs = retriever.getIDs();
+        List<String> IDs = retriever.getIDs();
 
-        for (long Id : IDs) {
+        for (String Id : IDs) {
             // get the image
             List<ImagePlus> impList = retriever.getImage(Id);
 
@@ -59,12 +60,14 @@ public class Processing {
                 ImagePlus imp = impList.get(serie);
                 if (imp == null)
                     continue;
+
                 String imgTitle = imp.getTitle();
+                String uniqueID = imgTitle + Tools.SEPARATION_CHARACTER + Id;
 
                 try {
                     // create a new ImageFile object
                     IJLogger.info("Working on image " + imgTitle);
-                    ImageFile imageFile = new ImageFile(imp, Id, serie + 1);
+                    ImageFile imageFile = new ImageFile(imp, uniqueID, serie + 1);
 
                     boolean isOldProtocol = false;
 
@@ -89,7 +92,7 @@ public class Processing {
                     Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
                     headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
                     if (!allChannelMetrics.values().isEmpty())
-                        summaryMap.put(Id, allChannelMetrics.values().iterator().next());
+                        summaryMap.put(uniqueID, allChannelMetrics.values().iterator().next());
 
                 } catch (Exception e) {
                     IJLogger.error("An error occurred during processing ; cannot analyse the image " + imgTitle);

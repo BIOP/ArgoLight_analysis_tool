@@ -19,7 +19,7 @@ public interface Retriever {
      * @param index image position in the list
      * @return the {@link ImagePlus} object of an image picked from the list of image to process.
      */
-    List<ImagePlus> getImage(long index);
+    List<ImagePlus> getImage(String index);
 
     /**
      * @return the number of an images to process.
@@ -29,7 +29,7 @@ public interface Retriever {
     /**
      * @return the list of image IDs
      */
-    List<Long> getIDs();
+    List<String> getIDs();
 
     /**
      * @return the container id (local folder path or OMERO dataset id) that is used to save processing results

@@ -102,7 +102,7 @@ public class LocalSender implements Sender{
         // get the imageWrapper in case of OMERO retriever
         if(retriever instanceof OMERORetriever) {
             OMERORetriever omeroRetriever = ((OMERORetriever) retriever);
-            this.imageWrapper = omeroRetriever.getImageWrapper(imageFile.getId());
+            this.imageWrapper = omeroRetriever.getImageWrapper(Long.parseLong(imageFile.getId()));
             this.client = omeroRetriever.getClient();
         } else {
             this.imageWrapper = null;
@@ -210,7 +210,7 @@ public class LocalSender implements Sender{
     }
 
     @Override
-    public void populateParentTable(Retriever retriever, Map<Long, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
+    public void populateParentTable(Retriever retriever, Map<String, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
         IJLogger.info("Update parent table...");
         // get the last parent summary table
         File lastTable = getLastLocalParentTable(this.parentFolder);
@@ -226,13 +226,15 @@ public class LocalSender implements Sender{
         }
 
         // populate table
-        List<Long> IdList = new ArrayList<>(summary.keySet());
-        for (Long Id : IdList)
+        List<String> IdList = new ArrayList<>(summary.keySet());
+        for (String Id : IdList) {
+            String[] ids = Id.split(Tools.SEPARATION_CHARACTER);
             for (List<Double> metricsList : summary.get(Id)) {
-                text += "" + Id + "," + retriever.getImage(Id).getTitle();
+                text += "" + ids[1] + "," + ids[0];
                 for (Double metric : metricsList) text += "," + metric;
                 text += "\n";
             }
+        }
 
         // save the table
         String microscopeName = new File(this.parentFolder).getName();

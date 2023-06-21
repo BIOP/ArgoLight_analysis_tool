@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  */
 public class OMERORetriever implements Retriever {
     final private Client client;
-    private Map<Long,ImageWrapper> images = new HashMap<>();
+    private Map<String,ImageWrapper> images = new HashMap<>();
     private long datasetId = -1;
     private boolean processAllRawImages = false;
 
@@ -79,7 +79,7 @@ public class OMERORetriever implements Retriever {
      *                            they have already been processed one.
      * @return the filtered list
      */
-    private Map<Long,ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages) {
+    private Map<String,ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages) {
         // get all images without the tags "raw" nor "process" and remove macro images from vsi files.
         List<ImageWrapper> filteredWrappers = imageWrapperList.stream().filter(e -> {
             try {
@@ -94,9 +94,9 @@ public class OMERORetriever implements Retriever {
             }
         }).collect(Collectors.toList());
 
-        Map<Long,ImageWrapper> imageWrapperMap = new HashMap<>();
+        Map<String,ImageWrapper> imageWrapperMap = new HashMap<>();
 
-        filteredWrappers.forEach(e->imageWrapperMap.put(e.getId(),e));
+        filteredWrappers.forEach(e->imageWrapperMap.put(""+e.getId(),e));
         return imageWrapperMap;
     }
 
@@ -116,7 +116,7 @@ public class OMERORetriever implements Retriever {
     public Client getClient(){ return this.client; }
 
     @Override
-    public List<ImagePlus> getImage(long key) {
+    public List<ImagePlus> getImage(String key) {
         // open the image on ImageJ
         try {
             ImageWrapper impWpr = this.images.get(key);
@@ -135,7 +135,7 @@ public class OMERORetriever implements Retriever {
     }
 
     @Override
-    public List<Long> getIDs() {
+    public List<String> getIDs() {
         return new ArrayList<>(images.keySet());
     }
 

@@ -68,7 +68,7 @@ public class OMEROSender implements Sender{
     @Override
     public void initialize(ImageFile imageFile, Retriever retriever) {
         // save the new image wrapper and clean this image on OMERO if specified
-        this.imageWrapper = ((OMERORetriever)retriever).getImageWrapper(imageFile.getId());
+        this.imageWrapper = ((OMERORetriever)retriever).getImageWrapper(Long.parseLong(imageFile.getId()));
         if(this.cleanTarget)
             clean();
     }
@@ -306,11 +306,11 @@ public class OMEROSender implements Sender{
     }
 
     @Override
-    public void populateParentTable(Retriever retriever, Map<Long, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
+    public void populateParentTable(Retriever retriever, Map<String, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
         IJLogger.info("Update parent table...");
         // format data
         List<Object[]> fullRows = new ArrayList<>();
-        for (Map.Entry<Long, List<List<Double>>> IdEntry : summary.entrySet()) {
+        for (Map.Entry<String, List<List<Double>>> IdEntry : summary.entrySet()) {
             List<List<Double>> allChannelMetrics = IdEntry.getValue();
 
             // convert to Object type
@@ -318,7 +318,8 @@ public class OMEROSender implements Sender{
             for (List<Double> objects : allChannelMetrics)
                 allChannelMetricsAsObject.add(new ArrayList<>(objects));
 
-            ImageWrapper image = ((OMERORetriever) retriever).getImageWrapper(IdEntry.getKey());
+            long omeroID = Long.parseLong(IdEntry.getKey().split(Tools.SEPARATION_CHARACTER)[1]);
+            ImageWrapper image = ((OMERORetriever) retriever).getImageWrapper(omeroID);
             for (List<Object> metrics : allChannelMetricsAsObject) {
                 metrics.add(0, image.getName());
                 metrics.add(0, image.asDataObject());
