@@ -10,6 +10,7 @@ import fr.igred.omero.repository.ProjectWrapper;
 import ij.ImagePlus;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,7 @@ public class OMERORetriever implements Retriever {
      * @return builder
      */
     @Override
-    public void loadImages(String parentTarget, String microscopeName, boolean processAllRawImages) {
+    public boolean loadImages(String parentTarget, String microscopeName, boolean processAllRawImages) {
         this.processAllRawImages = processAllRawImages;
         long projectId = Long.parseLong(parentTarget);
 
@@ -57,12 +58,15 @@ public class OMERORetriever implements Retriever {
 
                 List<ImageWrapper> imageWrapperList = datasetWrapper.getImages(this.client);
                 this.images = filterImages(imageWrapperList, processAllRawImages);
+                return true;
             } else if(datasetWrapperList.isEmpty())
                 IJLogger.warn("Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name *"+microscopeName+"*");
             else IJLogger.warn("More than one dataset refer to "+microscopeName+" Please, group these datasets or change their name.");
+            return false;
 
         } catch(AccessException | ServiceException | ExecutionException e){
             IJLogger.error("Retrieve OMERO images","Cannot retrieve images in project "+projectId+", dataset *"+microscopeName+"*");
+            return false;
         }
     }
 
@@ -112,14 +116,14 @@ public class OMERORetriever implements Retriever {
     public Client getClient(){ return this.client; }
 
     @Override
-    public ImagePlus getImage(long key) {
+    public List<ImagePlus> getImage(long key) {
         // open the image on ImageJ
         try {
             ImageWrapper impWpr = this.images.get(key);
             if(impWpr == null)
                 return null;
             else
-                return impWpr.toImagePlus(this.client);
+                return Collections.singletonList(impWpr.toImagePlus(this.client));
         }catch(AccessException | ServiceException | ExecutionException e){
             throw new RuntimeException(e);
         }

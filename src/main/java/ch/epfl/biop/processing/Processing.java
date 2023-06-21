@@ -51,44 +51,49 @@ public class Processing {
         List<String> headers = new ArrayList<>();
         List<Long> IDs = retriever.getIDs();
 
-        for (int i = 0; i < IDs.size(); i++) {
-            try {
-                long Id = IDs.get(i);
-                // get the image
-                ImagePlus imp = retriever.getImage(Id);
-                if (imp == null )
+        for (long Id : IDs) {
+            // get the image
+            List<ImagePlus> impList = retriever.getImage(Id);
+
+            for (int serie = 0; serie < impList.size(); serie++) {
+                ImagePlus imp = impList.get(serie);
+                if (imp == null)
                     continue;
+                String imgTitle = imp.getTitle();
 
-                // create a new ImageFile object
-                IJLogger.info("Working on image "+imp.getTitle());
-                ImageFile imageFile = new ImageFile(imp, Id);
+                try {
+                    // create a new ImageFile object
+                    IJLogger.info("Working on image " + imgTitle);
+                    ImageFile imageFile = new ImageFile(imp, Id, serie + 1);
 
-                boolean isOldProtocol = false;
+                    boolean isOldProtocol = false;
 
-                // choose the right ArgoLight processing
-                if (!imageFile.getArgoSlideName().contains("ArgoSimOld")) {
-                    ArgoSlideProcessing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
-                            userParticleThreshold, userRingRadius, argoSpacing, argoFOV, argoNPoints);
-                } else {
-                    ArgoSlideOldProcessing.run(imageFile);
-                    isOldProtocol = true;
+                    // choose the right ArgoLight processing
+                    if (!imageFile.getArgoSlideName().contains("ArgoSimOld")) {
+                        ArgoSlideProcessing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
+                                userParticleThreshold, userRingRadius, argoSpacing, argoFOV, argoNPoints);
+                    } else {
+                        ArgoSlideOldProcessing.run(imageFile);
+                        isOldProtocol = true;
+                    }
+
+                    IJLogger.info("End of processing");
+                    IJLogger.info("Sending results ... ");
+
+                    // send image results (metrics, rings, tags, key-values)
+                    sender.initialize(imageFile, retriever);
+                    sender.sendTags(imageFile.getTags());
+                    sendResults(sender, imageFile, savingHeatMaps, isOldProtocol);
+
+                    // metrics summary to populate parent table
+                    Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
+                    headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
+                    if (!allChannelMetrics.values().isEmpty())
+                        summaryMap.put(Id, allChannelMetrics.values().iterator().next());
+
+                } catch (Exception e) {
+                    IJLogger.error("An error occurred during processing ; cannot analyse the image " + imgTitle);
                 }
-
-                IJLogger.info("End of processing");
-                IJLogger.info("Sending results ... ");
-
-                // send image results (metrics, rings, tags, key-values)
-                sender.initialize(imageFile, retriever);
-                sender.sendTags(imageFile.getTags());
-                sendResults(sender, imageFile, savingHeatMaps, isOldProtocol);
-
-                // metrics summary to populate parent table
-                Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
-                headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
-                if (!allChannelMetrics.values().isEmpty())
-                    summaryMap.put(Id, allChannelMetrics.values().iterator().next());
-            }catch (Exception e){
-                IJLogger.error("An error occurred during processing ; cannot analyse the image "+retriever.getImage(IDs.get(i)).getTitle());
             }
         }
 
@@ -143,8 +148,10 @@ public class Processing {
         if(!isOldProtocol && !imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(fwhmValues, chIds, false, "FWHM");
 
         // send key values
-        if(sender instanceof LocalSender)
-            keyValues.put("Image_ID",""+imageFile.getId());
+        if(sender instanceof LocalSender) {
+            keyValues.put("Image_ID", "" + imageFile.getId());
+            keyValues.put("Image_Serie", "" + imageFile.getSerie());
+        }
         sender. sendKeyValues(keyValues);
     }
 

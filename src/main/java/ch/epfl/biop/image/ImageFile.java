@@ -29,9 +29,13 @@ public class ImageFile {
                 Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)_(?<fov>.*)_(?<serie>.*)\\.(?<extension>.*)"),
                 Pattern.compile(".*[\\.][a-zA-Z]*")),
 
-        MULTIPLE("File coming from a fileset",
+        MULTIPLE_OMERO("File coming from a fileset",
                  Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)\\.(?<extension>[\\w]*).*\\[(?<fov>.*)_(?<serie>.*)\\]"),
                 Pattern.compile(".*[\\.].*\\[.*\\]")),
+
+        MULTIPLE_LOCAL("File coming from a fileset",
+                Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)\\.(?<extension>[\\w]*).*\\- (?<fov>.*)_(?<serie>.*)"),
+                Pattern.compile(".*[\\.].*\\-.*")),
 
         //TODO see if there is conflicted with others
         OLDPROTOCOL("Single or multiple files with ArgoSim first protocol naming convention",
@@ -54,6 +58,7 @@ public class ImageFile {
     final private String imgNameWithoutExtension;
     final private ImagePlus image;
     final private long id;
+    final private int serie;
     private String microscope;
     private String objective;
     private String immersionMedium;
@@ -66,9 +71,10 @@ public class ImageFile {
     private List<List<Double>> pccValues = new ArrayList<>();
     public List<ImageChannel> channels = new ArrayList<>();
 
-    public ImageFile(ImagePlus imp, long id){
+    public ImageFile(ImagePlus imp, long id, int serie){
         this.image = imp;
         this.id = id;
+        this.serie = serie;
         String imgName = imp.getTitle();
         this.imgNameWithoutExtension = getNameWithoutExtension(imgName);
         parseImageName(imgName);
@@ -115,9 +121,14 @@ public class ImageFile {
     public Map<String,String> getKeyValues(){ return this.keyValues; }
 
     /**
-     * @return the OMERO image id
+     * @return the image id
      */
     public long getId(){ return this.id; }
+
+    /**
+     * @return the image serie
+     */
+    public long getSerie(){ return this.serie; }
 
     /**
      * @return the ImagePlus object of the current image

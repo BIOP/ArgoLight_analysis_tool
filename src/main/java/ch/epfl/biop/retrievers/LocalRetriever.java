@@ -1,26 +1,43 @@
 package ch.epfl.biop.retrievers;
 
 import ch.epfl.biop.utils.IJLogger;
+import ij.CompositeImage;
+import ij.IJ;
 import ij.ImagePlus;
+import ij.process.LUT;
+import loci.formats.FormatException;
+import loci.formats.IFormatReader;
+import loci.formats.Memoizer;
+import loci.formats.MetadataTools;
+import loci.formats.meta.IMetadata;
+import loci.plugins.BF;
+import loci.plugins.in.ImporterOptions;
+import ome.xml.model.enums.DimensionOrder;
+import ome.xml.model.primitives.Color;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class LocalRetriever implements Retriever{
-
     private boolean processAllImages = false;
     private String microscopeFolderPath = "";
-    final private String resultsFolder;
+    private Map<Long,File> filteredFiles;
 
-    public LocalRetriever(String resultsFolder){
-        this.resultsFolder = resultsFolder;
+    public LocalRetriever(){
     }
 
     @Override
-    public void loadImages(String parentTarget, String microscopeName, boolean processAllImages) {
+    public boolean loadImages(String parentTarget, String microscopeName, boolean processAllImages) {
         File parentFolder = new File(parentTarget);
         if(!parentFolder.exists()){
             return false;
@@ -52,60 +69,81 @@ public class LocalRetriever implements Retriever{
         if(rawImgFiles == null)
             return false;
 
-        filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()), this.resultsFolder, microscopeName);
+        List<String> processedFiles = ListProcessedFiles(files, microscopeName);
+        List<File> filteredImagesFile = filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()), processedFiles);
+        Map<Long,File> filteredImagesMap = new HashMap<>();
+        for(File file : filteredImagesFile){
+            String uuid = UUID.randomUUID().toString().replace("-","");
+            filteredImagesMap.put(Long.parseLong(uuid),file);
+        }
 
-
-
+        this.filteredFiles = filteredImagesMap;
+        return true;
     }
 
-    private List<File> filterImages(List<File> imageFiles, String resultsFolderPath, String microscopeName){
-        File resultsFolder = new File(resultsFolderPath);
-
-        if(!resultsFolder.exists())
-            return imageFiles;
-
-        File[] files = resultsFolder.listFiles();
-        if(files == null)
-            return imageFiles;
-
+    private List<String> ListProcessedFiles(File[] allFiles, String microscopeName){
         // find the one with the microscope name
-        List<File> microscopeList = Arrays.stream(files)
-                .filter(e -> e.isDirectory() && e.getName().toLowerCase().contains(microscopeName))
+        List<File> txtProcessedMicList = Arrays.stream(allFiles)
+                .filter(e -> e.isFile() && e.getName().endsWith(".txt") && e.getName().toLowerCase().contains(microscopeName))
                 .collect(Collectors.toList());
 
-        if (microscopeList.isEmpty()){
-            return imageFiles;
-        }else{
-            File microscopeFolder = new File(microscopeList.get(0).getAbsolutePath());
-            File[] processedFiles = microscopeFolder.listFiles();
-            if(processedFiles == null)
-                return imageFiles;
+        if(txtProcessedMicList.isEmpty())
+            return Collections.emptyList();
 
-            List<File> filteredFiles = new ArrayList<>();
-            for(File rawImgFolder : imageFiles){
-                String rawImgPath = rawImgFolder.getName();
-                List<String> dup = Arrays.stream(processedFiles).map(File::getName).filter(e -> e.equals(rawImgPath)).collect(Collectors.toList());
-                if(dup.isEmpty())
-                    filteredFiles.add(rawImgFolder);
+        File processedImgFile = txtProcessedMicList.get(0);
+        try {
+            List<String> processedFiles = new ArrayList<>();
+            BufferedReader br = new BufferedReader(new FileReader(processedImgFile));
+            String line;
+            while ((line = br.readLine()) != null){   //returns a Boolean value
+                processedFiles.add((line));
             }
+            br.close();
+            return processedFiles;
+        } catch (IOException e) {
+            return Collections.emptyList();
+        }
+    }
 
-            return filteredFiles;
+    private List<File> filterImages(List<File> imageFiles, List<String> processedFiles){
+        if(processedFiles == null || processedFiles.isEmpty())
+            return imageFiles;
+
+        List<File> filteredFiles = new ArrayList<>();
+        for(File rawImgFolder : imageFiles){
+            String rawImgPath = rawImgFolder.getName();
+            List<String> dup = processedFiles.stream().filter(e -> e.equals(rawImgPath)).collect(Collectors.toList());
+            if(dup.isEmpty())
+                filteredFiles.add(rawImgFolder);
+        }
+        return filteredFiles;
+    }
+
+    @Override
+    public List<ImagePlus> getImage(long index) {
+        File toProcess = this.filteredFiles.get(index);
+
+        try {
+            ImporterOptions options = new ImporterOptions();
+            options.setId(toProcess.getAbsolutePath());
+            options.setOpenAllSeries(true);
+
+            ImagePlus[] images = BF.openImagePlus(options);
+            return Arrays.asList(images);
+
+        } catch (FormatException | IOException e) {
+            return Collections.emptyList();
         }
     }
 
     @Override
-    public ImagePlus getImage(long index) {
-        return null;
-    }
-
-    @Override
     public int getNImages() {
-        return 0;
+        return this.filteredFiles.size();
     }
 
     @Override
     public List<Long> getIDs() {
-        return null;
+        return new ArrayList<>(this.filteredFiles.keySet());
     }
 
     @Override
