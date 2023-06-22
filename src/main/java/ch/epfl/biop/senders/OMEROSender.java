@@ -68,7 +68,7 @@ public class OMEROSender implements Sender{
     @Override
     public void initialize(ImageFile imageFile, Retriever retriever) {
         // save the new image wrapper and clean this image on OMERO if specified
-        this.imageWrapper = ((OMERORetriever)retriever).getImageWrapper(Long.parseLong(imageFile.getId()));
+        this.imageWrapper = ((OMERORetriever)retriever).getImageWrapper(imageFile.getId());
         if(this.cleanTarget)
             clean();
     }
@@ -80,13 +80,24 @@ public class OMEROSender implements Sender{
 
     private void sendTags(List<String> tags, ImageWrapper imageWrapper) {
         IJLogger.info("Adding tag");
+
+        List<TagAnnotationWrapper> groupTags;
+        List<TagAnnotationWrapper> imageTags;
+        try {
+            groupTags = this.client.getTags();
+            imageTags = imageWrapper.getTags(this.client);
+        }catch(OMEROServerError | ServiceException | AccessException | ExecutionException e){
+            IJLogger.error("Adding tag","Cannot retrieve existing & linked tags from OMERO");
+            return;
+        }
+
         for(String tag : tags) {
             try {
                 // get the corresponding tag in the list of available tags if exists
-                List<TagAnnotationWrapper> rawTag = this.client.getTags().stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
+                List<TagAnnotationWrapper> rawTag = groupTags.stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
 
                 // check if the tag is already applied to the current image
-                boolean isTagAlreadyExists = imageWrapper.getTags(this.client)
+                boolean isTagAlreadyExists = imageTags
                         .stream()
                         .anyMatch(t -> t.getName().equals(tag));
 
@@ -97,7 +108,7 @@ public class OMEROSender implements Sender{
                 } else
                     IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());
 
-            } catch (ServiceException | OMEROServerError | AccessException | ExecutionException e) {
+            } catch (ServiceException |  AccessException | ExecutionException e) {
                 IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + imageWrapper.getId());
             }
         }
@@ -318,7 +329,7 @@ public class OMEROSender implements Sender{
             for (List<Double> objects : allChannelMetrics)
                 allChannelMetricsAsObject.add(new ArrayList<>(objects));
 
-            long omeroID = Long.parseLong(IdEntry.getKey().split(Tools.SEPARATION_CHARACTER)[1]);
+            String omeroID = IdEntry.getKey().split(Tools.SEPARATION_CHARACTER)[1];
             ImageWrapper image = ((OMERORetriever) retriever).getImageWrapper(omeroID);
             for (List<Object> metrics : allChannelMetricsAsObject) {
                 metrics.add(0, image.getName());

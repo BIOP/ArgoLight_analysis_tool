@@ -102,7 +102,7 @@ public class LocalSender implements Sender{
         // get the imageWrapper in case of OMERO retriever
         if(retriever instanceof OMERORetriever) {
             OMERORetriever omeroRetriever = ((OMERORetriever) retriever);
-            this.imageWrapper = omeroRetriever.getImageWrapper(Long.parseLong(imageFile.getId()));
+            this.imageWrapper = omeroRetriever.getImageWrapper(imageFile.getId());
             this.client = omeroRetriever.getClient();
         } else {
             this.imageWrapper = null;
@@ -287,25 +287,36 @@ public class LocalSender implements Sender{
             return;
 
         IJLogger.info("Adding tag");
+
+        List<TagAnnotationWrapper> groupTags;
+        List<TagAnnotationWrapper> imageTags;
+        try {
+            groupTags = this.client.getTags();
+            imageTags = imageWrapper.getTags(this.client);
+        }catch(OMEROServerError | ServiceException | AccessException | ExecutionException e){
+            IJLogger.error("Adding tag","Cannot retrieve existing & linked tags from OMERO");
+            return;
+        }
+
         for(String tag : tags) {
             try {
                 // get the corresponding tag in the list of available tags if exists
-                List<TagAnnotationWrapper> rawTag = this.client.getTags().stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
+                List<TagAnnotationWrapper> rawTag = groupTags.stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
 
                 // check if the tag is already applied to the current image
-                boolean isTagAlreadyExists = this.imageWrapper.getTags(this.client)
+                boolean isTagAlreadyExists = imageTags
                         .stream()
                         .anyMatch(t -> t.getName().equals(tag));
 
                 // add the tag to the current image if it is not already the case
                 if (!isTagAlreadyExists) {
-                    this.imageWrapper.link(this.client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
-                    IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + this.imageWrapper.getId());
+                    imageWrapper.link(this.client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
+                    IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + imageWrapper.getId());
                 } else
-                    IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + this.imageWrapper.getId());
+                    IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());
 
-            } catch (ServiceException | OMEROServerError | AccessException | ExecutionException e) {
-                IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + this.imageWrapper.getId());
+            } catch (ServiceException |  AccessException | ExecutionException e) {
+                IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + imageWrapper.getId());
             }
         }
     }

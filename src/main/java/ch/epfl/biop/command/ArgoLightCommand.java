@@ -164,17 +164,21 @@ public class ArgoLightCommand implements Command {
 
         try {
             Retriever retriever;
+            String rawTarget;
             if(isOmeroRetriever) {
                 // connect to OMERO
                 if(!this.client.isConnected())
                     if(!connectToOmero(this.client, username, password))
                         return;
                 retriever = new OMERORetriever(this.client);
+                rawTarget = userProjectID;
             }
-            else
+            else {
                 retriever = new LocalRetriever();
+                rawTarget = rootFolderPath;
+            }
 
-            retriever.loadImages(userProjectID, microscope, allImages);
+            boolean imageLoaded = retriever.loadImages(rawTarget, microscope, allImages);
             int nImages = retriever.getNImages();
 
             boolean cleanTarget = allImages && cleanTargetSelection;

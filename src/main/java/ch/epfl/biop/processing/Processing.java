@@ -67,7 +67,7 @@ public class Processing {
                 try {
                     // create a new ImageFile object
                     IJLogger.info("Working on image " + imgTitle);
-                    ImageFile imageFile = new ImageFile(imp, uniqueID, serie + 1);
+                    ImageFile imageFile = new ImageFile(imp, Id,imgTitle, serie + 1);
 
                     boolean isOldProtocol = false;
 
@@ -153,6 +153,7 @@ public class Processing {
         // send key values
         if(sender instanceof LocalSender) {
             keyValues.put("Image_ID", "" + imageFile.getId());
+            keyValues.put("Image_Title", "" + imageFile.getTitle());
             keyValues.put("Image_Serie", "" + imageFile.getSerie());
         }
         sender. sendKeyValues(keyValues);

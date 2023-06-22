@@ -105,7 +105,7 @@ public class OMERORetriever implements Retriever {
      * @param key image position in the list
      * @return the {@link ImageWrapper} object of an image picked from the list of image to process.
      */
-    public ImageWrapper getImageWrapper(long key){
+    public ImageWrapper getImageWrapper(String key){
         return this.images.get(key);
     }
 
