@@ -165,6 +165,7 @@ public class ArgoLightCommand implements Command {
         try {
             Retriever retriever;
             String rawTarget;
+
             if(isOmeroRetriever) {
                 // connect to OMERO
                 if(!this.client.isConnected())
@@ -174,7 +175,7 @@ public class ArgoLightCommand implements Command {
                 rawTarget = userProjectID;
             }
             else {
-                retriever = new LocalRetriever();
+                retriever = new LocalRetriever(savingFolderPath);
                 rawTarget = rootFolderPath;
             }
 
@@ -188,7 +189,7 @@ public class ArgoLightCommand implements Command {
                 sender = new OMEROSender(this.client, retriever.getMicroscopeTarget(), cleanTarget);
             } else {
                 File savingFolder = new File(savingFolderPath);
-                sender = new LocalSender(savingFolder, microscope, cleanTarget);
+                sender = new LocalSender(savingFolder, microscope, cleanTarget, isOmeroRetriever);
             }
 
 

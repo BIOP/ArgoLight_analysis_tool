@@ -17,7 +17,6 @@ public interface Sender {
      * Initialize the sender
      * @param imageFile Object containing information about the image
      * @param retriever Interface handling the raw images
-     * @param Id ID the image to retrieve
      */
     void initialize(ImageFile imageFile, Retriever retriever);
 

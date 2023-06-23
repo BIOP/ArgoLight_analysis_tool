@@ -153,6 +153,11 @@ public class ImageFile {
     public List<String> getTags(){ return this.tags; }
 
     /**
+     * @return tags attached to the current image
+     */
+    public void removeAllTags(){ this.tags = new ArrayList<>(); }
+
+    /**
      * @return the PCC values for all the channels
      */
     public List<List<Double>> getPCC(){ return this.pccValues; }

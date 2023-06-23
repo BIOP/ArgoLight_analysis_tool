@@ -98,7 +98,7 @@ public class ArgoLightJavaFXGui /*implements Command*/{
             Sender sender;
             if (!isOmeroSender) {
                 File savingFolder = new File(savingFolderPath);
-                sender = new LocalSender(savingFolder, microscope, false);
+                sender = new LocalSender(savingFolder, microscope, false, isOmeroRetriever);
             } else
                 sender = new OMEROSender(client, omeroRetriever.getMicroscopeTarget(), false);
 

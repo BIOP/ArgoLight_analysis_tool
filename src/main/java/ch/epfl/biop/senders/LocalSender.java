@@ -1,5 +1,6 @@
 package ch.epfl.biop.senders;
 
+import ch.epfl.biop.retrievers.LocalRetriever;
 import ch.epfl.biop.retrievers.OMERORetriever;
 import ch.epfl.biop.retrievers.Retriever;
 import ch.epfl.biop.utils.IJLogger;
@@ -43,9 +44,10 @@ public class LocalSender implements Sender{
     private boolean cleanParent;
     private ImageWrapper imageWrapper;
     private Client client;
+    private boolean updateProcessedImageFile;
 
 
-    public LocalSender(File target, String microscopeName, boolean cleanTarget){
+    public LocalSender(File target, String microscopeName, boolean cleanTarget, boolean isOmeroRetriever){
         this.date = Tools.getCurrentDateAndHour();
         this.cleanTarget = cleanTarget;
         this.cleanParent = cleanTarget;
@@ -76,6 +78,8 @@ public class LocalSender implements Sender{
             IJLogger.info("Initialization","Select folder "+target.getAbsolutePath());
             this.parentFolder = target.getAbsolutePath();
         }
+
+        this.updateProcessedImageFile = !isOmeroRetriever;
     }
 
     /**
@@ -107,6 +111,8 @@ public class LocalSender implements Sender{
         } else {
             this.imageWrapper = null;
             this.client = null;
+            imageFile.removeAllTags();
+            imageFile.addTags(imageFile.getTitle());
         }
 
         // create the image folder
@@ -283,6 +289,12 @@ public class LocalSender implements Sender{
 
     @Override
     public void sendTags(List<String> tags) {
+        if(updateProcessedImageFile){
+            updateProcessedImageFile(tags);
+            return;
+        }
+
+
         if(this.imageWrapper == null || this.client == null)
             return;
 
@@ -344,16 +356,36 @@ public class LocalSender implements Sender{
             File file = new File(this.parentFolder);
             String microscope = file.getName();
             children = file.listFiles();
-            if(children != null)
-                for (File child : children)
-                    if(child.isFile() && child.getName().contains(microscope+"_table") && child.getName().endsWith(".csv")) {
+            if(children != null) {
+                for (File child : children) {
+                    if (child.isFile() && (child.getName().contains(microscope + "_table") ||
+                            child.getName().contains(microscope + Tools.PROCESSED_IMAGES_SUFFIX)) && child.getName().endsWith(".csv")) {
                         if (!child.delete())
                             IJLogger.warn("Cleaning target", "Cannot delete  " + child.getAbsolutePath());
                         else
-                            IJLogger.info("Cleaning target", "Parent table "+child.getAbsolutePath()+" deleted");
+                            IJLogger.info("Cleaning target", "Parent table " + child.getAbsolutePath() + " deleted");
                     }
+                }
+            }
         }
     }
+
+
+    private void updateProcessedImageFile(List<String> filenames){
+        String text =  "";
+        for (String name : filenames) {
+            text += name + "\n" ;
+        }
+
+        // save the list of processed files as csv file
+        File parentFolderFile = new File(this.parentFolder);
+        File file = new File(this.parentFolder + File.separator + parentFolderFile.getName() + Tools.PROCESSED_IMAGES_SUFFIX + ".csv");
+        if(!file.exists())
+            Tools.saveCsvFile(file, text);
+        else
+            Tools.appendCsvFile(file, text);
+    }
+
 
     /**
      * Create a new table

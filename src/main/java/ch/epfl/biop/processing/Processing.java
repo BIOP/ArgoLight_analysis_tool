@@ -67,7 +67,7 @@ public class Processing {
                 try {
                     // create a new ImageFile object
                     IJLogger.info("Working on image " + imgTitle);
-                    ImageFile imageFile = new ImageFile(imp, Id,imgTitle, serie + 1);
+                    ImageFile imageFile = new ImageFile(imp, Id, imgTitle, serie + 1);
 
                     boolean isOldProtocol = false;
 

@@ -25,6 +25,7 @@ public class Tools {
     final private static String HEAT_MAP_BIT_DEPTH = "32-bit black";
 
     final public static String SEPARATION_CHARACTER = "%";
+    final public static String PROCESSED_IMAGES_SUFFIX = "_processed_images";
 
     /**
      * Generate the current date and hour in the format aaaammdd-hhHmmMss

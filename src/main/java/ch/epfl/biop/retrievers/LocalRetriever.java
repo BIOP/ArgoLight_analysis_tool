@@ -1,6 +1,7 @@
 package ch.epfl.biop.retrievers;
 
 import ch.epfl.biop.utils.IJLogger;
+import ch.epfl.biop.utils.Tools;
 import ij.ImagePlus;
 import loci.formats.FormatException;
 import loci.plugins.BF;
@@ -22,9 +23,11 @@ import java.util.stream.Collectors;
 public class LocalRetriever implements Retriever{
     private boolean processAllImages = false;
     private String microscopeFolderPath = "";
+    private String resultsFolderPath = "";
     private Map<String,File> filteredFiles;
 
-    public LocalRetriever(){
+    public LocalRetriever(String resultsFolderPath){
+        this.resultsFolderPath = resultsFolderPath;
     }
 
     @Override
@@ -60,7 +63,7 @@ public class LocalRetriever implements Retriever{
         if(rawImgFiles == null)
             return false;
 
-        List<String> processedFiles = listProcessedFiles(files, microscopeName);
+        List<String> processedFiles = listProcessedFiles(this.resultsFolderPath, microscopeName);
         List<File> filteredImagesFile = filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()), processedFiles);
         Map<String,File> filteredImagesMap = new HashMap<>();
         for(File file : filteredImagesFile){
@@ -72,10 +75,37 @@ public class LocalRetriever implements Retriever{
         return true;
     }
 
-    private List<String> listProcessedFiles(File[] allFiles, String microscopeName){
+    private List<String> listProcessedFiles(String resultsFolderPath, String microscopeName){
+        File resultsFolder = new File(resultsFolderPath);
+        File[] files = resultsFolder.listFiles();
+        File microscopeResultsFolder;
+        if(files != null) {
+            // find the one with the microscope name
+            List<File> microscopeList = Arrays.stream(files)
+                    .filter(e -> e.isDirectory() && e.getName().toLowerCase().contains(microscopeName))
+                    .collect(Collectors.toList());
+
+            if (microscopeList.isEmpty()){
+                // create the microscope folder if it doesn't exist
+                IJLogger.error("Load images","The folder "+resultsFolder.getName() +" does not contain any "+microscopeName+" folder");
+                return Collections.emptyList();
+            }else{
+                // select the existing microscope folder
+                IJLogger.info("Load images","Select folder "+microscopeList.get(0).getAbsolutePath());
+                microscopeResultsFolder = new File(microscopeList.get(0).getAbsolutePath());
+            }
+        }else{
+            IJLogger.error("Load images","The folder "+resultsFolder.getName() +" is empty");
+            return Collections.emptyList();
+        }
+
         // find the one with the microscope name
-        List<File> txtProcessedMicList = Arrays.stream(allFiles)
-                .filter(e -> e.isFile() && e.getName().endsWith(".txt") && e.getName().toLowerCase().contains(microscopeName))
+        File[] resultsImgList = microscopeResultsFolder.listFiles();
+        if(resultsImgList == null)
+            return Collections.emptyList();
+
+        List<File> txtProcessedMicList = Arrays.stream(resultsImgList)
+                .filter(e -> e.isFile() && e.getName().endsWith(".csv") && e.getName().toLowerCase().contains(microscopeName+ Tools.PROCESSED_IMAGES_SUFFIX))
                 .collect(Collectors.toList());
 
         if(txtProcessedMicList.isEmpty())
@@ -102,8 +132,8 @@ public class LocalRetriever implements Retriever{
 
         List<File> filteredFiles = new ArrayList<>();
         for(File rawImgFolder : imageFiles){
-            String rawImgPath = rawImgFolder.getName();
-            List<String> dup = processedFiles.stream().filter(e -> e.equals(rawImgPath)).collect(Collectors.toList());
+            String rawImgName = rawImgFolder.getName();
+            List<String> dup = processedFiles.stream().filter(e -> e.contains(rawImgName)).collect(Collectors.toList());
             if(dup.isEmpty())
                 filteredFiles.add(rawImgFolder);
         }

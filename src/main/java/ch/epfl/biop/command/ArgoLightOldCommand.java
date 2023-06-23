@@ -68,7 +68,7 @@ public class ArgoLightOldCommand /*extends DynamicCommand implements Command*/ {
             if(this.folder.exists()){
                 Sender sender;
                 if(saveLocally)
-                    sender = new LocalSender(this.folder, microscope, false);
+                    sender = new LocalSender(this.folder, microscope, false, true);
                 else
                     sender = new OMEROSender(client, omeroRetriever.getMicroscopeTarget(), false);
 
