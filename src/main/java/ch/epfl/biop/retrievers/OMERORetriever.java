@@ -10,7 +10,10 @@ import fr.igred.omero.repository.ProjectWrapper;
 import ij.ImagePlus;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -19,7 +22,7 @@ import java.util.stream.Collectors;
  */
 public class OMERORetriever implements Retriever {
     final private Client client;
-    private List<ImageWrapper> images = new ArrayList<>();
+    private Map<String,ImageWrapper> images = new HashMap<>();
     private long datasetId = -1;
     private boolean processAllRawImages = false;
 
@@ -30,47 +33,23 @@ public class OMERORetriever implements Retriever {
     /**
      * Retrieve from OMERO images that need to be processed.
      *
-     * @param datasetId where to look for images
+     * @param parentTarget where to look for images
+     * @param microscopeName name of the dataset where to look for images (corresponding to the microscope name)
      * @param processAllRawImages true if you want to process all images within the dataset, regardless if
      *                            they have already been processed one.
      * @return builder
      */
-    public OMERORetriever loadRawImages(long datasetId, boolean processAllRawImages) {
+    @Override
+    public boolean loadImages(String parentTarget, String microscopeName, boolean processAllRawImages) {
         this.processAllRawImages = processAllRawImages;
-        try {
-            // get dataset
-            DatasetWrapper datasetWrapper = this.client.getDataset(datasetId);
-            this.datasetId = datasetWrapper.getId();
+        long projectId = Long.parseLong(parentTarget);
 
-
-            // get children images
-            List<ImageWrapper> imageWrapperList = datasetWrapper.getImages(this.client);
-
-            // filter images
-            this.images = filterImages(imageWrapperList, processAllRawImages);
-        } catch(AccessException | ServiceException | ExecutionException e){
-            IJLogger.error("Retrieve OMERO images","Cannot retrieve images in dataset "+datasetId);
-        }
-        return this;
-    }
-
-    /**
-     * Retrieve from OMERO images that need to be processed.
-     *
-     * @param projectId where to look for images
-     * @param datasetName name of the dataset where to look for images (corresponding to the microscope name)
-     * @param processAllRawImages true if you want to process all images within the dataset, regardless if
-     *                            they have already been processed one.
-     * @return builder
-     */
-    public OMERORetriever loadRawImages(long projectId, String datasetName, boolean processAllRawImages) {
-        this.processAllRawImages = processAllRawImages;
         try {
             // get the ArgoSim project
             ProjectWrapper project_wpr = this.client.getProject(projectId);
 
             // get the specified dataset
-            List<DatasetWrapper> datasetWrapperList = project_wpr.getDatasets().stream().filter(e -> e.getName().toLowerCase().contains(datasetName)).collect(Collectors.toList());
+            List<DatasetWrapper> datasetWrapperList = project_wpr.getDatasets().stream().filter(e -> e.getName().toLowerCase().contains(microscopeName)).collect(Collectors.toList());
 
             if (datasetWrapperList.size() == 1) {
                 DatasetWrapper datasetWrapper = datasetWrapperList.get(0);
@@ -79,14 +58,16 @@ public class OMERORetriever implements Retriever {
 
                 List<ImageWrapper> imageWrapperList = datasetWrapper.getImages(this.client);
                 this.images = filterImages(imageWrapperList, processAllRawImages);
+                return true;
             } else if(datasetWrapperList.isEmpty())
-                IJLogger.warn("Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name *"+datasetName+"*");
-            else IJLogger.warn("More than one dataset refer to "+datasetName+" Please, group these datasets or change their name.");
+                IJLogger.warn("Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name *"+microscopeName+"*");
+            else IJLogger.warn("More than one dataset refer to "+microscopeName+" Please, group these datasets or change their name.");
+            return false;
 
         } catch(AccessException | ServiceException | ExecutionException e){
-            IJLogger.error("Retrieve OMERO images","Cannot retrieve images in project "+projectId+", dataset *"+datasetName+"*");
+            IJLogger.error("Retrieve OMERO images","Cannot retrieve images in project "+projectId+", dataset *"+microscopeName+"*");
+            return false;
         }
-        return this;
     }
 
     /**
@@ -98,33 +79,34 @@ public class OMERORetriever implements Retriever {
      *                            they have already been processed one.
      * @return the filtered list
      */
-    private List<ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages) {
+    private Map<String,ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages) {
         // get all images without the tags "raw" nor "process" and remove macro images from vsi files.
-        return imageWrapperList.stream().filter(e-> {
+        List<ImageWrapper> filteredWrappers = imageWrapperList.stream().filter(e -> {
             try {
-                if(!processAllRawImages)
-                    return (e.getTags(this.client).stream().noneMatch(t->(t.getName().equals("raw")||t.getName().equals("processed")))
+                if (!processAllRawImages)
+                    return (e.getTags(this.client).stream().noneMatch(t -> (t.getName().equals("raw") || t.getName().equals("processed")))
                             && !(e.getName().contains("[macro image]")));
                 else
-                    return (e.getTags(this.client).stream().noneMatch(t->t.getName().equals("processed"))
+                    return (e.getTags(this.client).stream().noneMatch(t -> t.getName().equals("processed"))
                             && !(e.getName().contains("[macro image]")));
             } catch (ServiceException | AccessException | ExecutionException ex) {
                 throw new RuntimeException(ex);
             }
         }).collect(Collectors.toList());
+
+        Map<String,ImageWrapper> imageWrapperMap = new HashMap<>();
+
+        filteredWrappers.forEach(e->imageWrapperMap.put(""+e.getId(),e));
+        return imageWrapperMap;
     }
 
 
     /**
-     * @param index image position in the list
+     * @param key image position in the list
      * @return the {@link ImageWrapper} object of an image picked from the list of image to process.
      */
-    public ImageWrapper getImageWrapper(int index){
-        if(index >= this.images.size()) {
-            IJLogger.error("Get image channel", "You try to access to channel "+index+ " that doesn't exists");
-            return null;
-        }
-        return this.images.get(index);
+    public ImageWrapper getImageWrapper(String key){
+        return this.images.get(key);
     }
 
     /**
@@ -134,17 +116,14 @@ public class OMERORetriever implements Retriever {
     public Client getClient(){ return this.client; }
 
     @Override
-    public ImagePlus getImage(int index) {
-        if(index >= this.images.size()) {
-            IJLogger.error("Get image channel", "You try to access to channel "+index+ " that doesn't exists");
-            return null;
-        }
-
+    public List<ImagePlus> getImage(String key) {
         // open the image on ImageJ
-        ImagePlus imp;
         try {
-            imp = this.images.get(index).toImagePlus(this.client);
-            return imp;
+            ImageWrapper impWpr = this.images.get(key);
+            if(impWpr == null)
+                return null;
+            else
+                return Collections.singletonList(impWpr.toImagePlus(this.client));
         }catch(AccessException | ServiceException | ExecutionException e){
             throw new RuntimeException(e);
         }
@@ -155,9 +134,13 @@ public class OMERORetriever implements Retriever {
         return this.images.size();
     }
 
+    @Override
+    public List<String> getIDs() {
+        return new ArrayList<>(images.keySet());
+    }
 
     @Override
-    public String getParentTarget() {
+    public String getMicroscopeTarget() {
         return ""+this.datasetId;
     }
 

@@ -59,7 +59,8 @@ public class ArgoLightOldCommand /*extends DynamicCommand implements Command*/ {
         }
 
         try{
-            OMERORetriever omeroRetriever = new OMERORetriever(client).loadRawImages(argoLightProjectId, microscope, isProcessingAllRawImages);
+            OMERORetriever omeroRetriever = new OMERORetriever(client);
+            omeroRetriever.loadImages(""+argoLightProjectId, microscope, isProcessingAllRawImages);
             int nImages = omeroRetriever.getNImages();
 
             boolean savingHeatMaps = !savingOption.equals("No heat maps saving");
@@ -67,9 +68,9 @@ public class ArgoLightOldCommand /*extends DynamicCommand implements Command*/ {
             if(this.folder.exists()){
                 Sender sender;
                 if(saveLocally)
-                    sender = new LocalSender(this.folder, microscope, false);
+                    sender = new LocalSender(this.folder, microscope, false, true);
                 else
-                    sender = new OMEROSender(client, omeroRetriever.getParentTarget(), false);
+                    sender = new OMEROSender(client, omeroRetriever.getMicroscopeTarget(), false);
 
                 // run analysis
                 if(nImages > 0)

@@ -2,11 +2,11 @@ package ch.epfl.biop.processing;
 
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
-import ch.epfl.biop.retrievers.OMERORetriever;
+import ch.epfl.biop.retrievers.Retriever;
 import ch.epfl.biop.senders.LocalSender;
 import ch.epfl.biop.senders.Sender;
 import ch.epfl.biop.utils.IJLogger;
-import fr.igred.omero.repository.ImageWrapper;
+import ch.epfl.biop.utils.Tools;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
@@ -46,53 +46,65 @@ public class Processing {
      * @param userParticleThreshold user defined value of the threshold on particle size
      * @param userRingRadius user defined value of the analysis circle radius around each ring
      */
-    public static void run(OMERORetriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
+    public static void run(Retriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
                            double userParticleThreshold, double userRingRadius, int argoSpacing, int argoFOV, int argoNPoints){
-        Map<ImageWrapper, List<List<Double>>> summaryMap = new HashMap<>();
+        Map<String, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
+        List<String> IDs = retriever.getIDs();
 
-        for (int i = 0; i < retriever.getNImages(); i++) {
-            try {
-                // get the image
-                ImagePlus imp = retriever.getImage(i);
-                // get the imageWrapper
-                ImageWrapper imageWrapper = retriever.getImageWrapper(i);
-                if (imp == null || imageWrapper == null)
+        // loop on each image file, based on its ID (OMERO ID or UUID for local image)
+        for (String Id : IDs) {
+            // get the image
+            List<ImagePlus> impList = retriever.getImage(Id);
+
+            // loop on image series
+            for (int serie = 0; serie < impList.size(); serie++) {
+                ImagePlus imp = impList.get(serie);
+                if (imp == null)
                     continue;
 
-                IJLogger.info("Working on image "+imp.getTitle());
-                // create a new ImageFile object
-                ImageFile imageFile = new ImageFile(imp, imageWrapper.getId());
-                boolean isOldProtocol = false;
+                // define a unique ID per serie
+                String imgTitle = imp.getTitle();
+                String uniqueID = imgTitle + Tools.SEPARATION_CHARACTER + Id;
 
-                // choose the right ArgoLight processing
-                if (!imageFile.getArgoSlideName().contains("ArgoSimOld")) {
-                    ArgoSlideProcessing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
-                            userParticleThreshold, userRingRadius, argoSpacing, argoFOV, argoNPoints);
-                } else {
-                    ArgoSlideOldProcessing.run(imageFile);
-                    isOldProtocol = true;
+                try {
+                    // create a new ImageFile object
+                    IJLogger.info("Working on image " + imgTitle);
+                    ImageFile imageFile = new ImageFile(imp, Id, imgTitle, serie + 1);
+
+                    boolean isOldProtocol = false;
+
+                    // choose the right ArgoLight processing
+                    if (!imageFile.getArgoSlideName().contains("ArgoSimOld")) {
+                        ArgoSlideProcessing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
+                                userParticleThreshold, userRingRadius, argoSpacing, argoFOV, argoNPoints);
+                    } else {
+                        ArgoSlideOldProcessing.run(imageFile);
+                        isOldProtocol = true;
+                    }
+
+                    IJLogger.info("End of processing");
+                    IJLogger.info("Sending results ... ");
+
+                    // send image results (metrics, rings, tags, key-values)
+                    sender.initialize(imageFile, retriever);
+                    sender.sendTags(imageFile.getTags());
+                    sendResults(sender, imageFile, savingHeatMaps, isOldProtocol);
+
+                    // metrics summary to populate parent table
+                    Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
+                    headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
+                    if (!allChannelMetrics.values().isEmpty())
+                        summaryMap.put(uniqueID, allChannelMetrics.values().iterator().next());
+
+                } catch (Exception e) {
+                    IJLogger.error("An error occurred during processing ; cannot analyse the image " + imgTitle);
                 }
-
-                IJLogger.info("End of processing");
-                IJLogger.info("Sending results ... ");
-                // send image results (metrics, rings, tags, key-values)
-                sender.initialize(imageFile, imageWrapper);
-                sender.sendTags(imageFile.getTags(), imageWrapper, retriever.getClient());
-                sendResults(sender, imageFile, savingHeatMaps, isOldProtocol);
-
-                // metrics summary to populate parent table
-                Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
-                headers = new ArrayList<>(allChannelMetrics.keySet()).get(0);
-                if (!allChannelMetrics.values().isEmpty())
-                    summaryMap.put(imageWrapper, allChannelMetrics.values().iterator().next());
-            }catch (Exception e){
-                IJLogger.error("An error occurred during processing ; cannot analyse the image "+retriever.getImage(i).getTitle());
             }
         }
 
         // populate parent table with summary results
-        sender.populateParentTable(summaryMap, headers, !retriever.isProcessingAllRawImages());
+        sender.populateParentTable(retriever, summaryMap, headers, !retriever.isProcessingAllRawImages());
     }
 
     /**
@@ -142,9 +154,12 @@ public class Processing {
         if(!isOldProtocol && !imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(fwhmValues, chIds, false, "FWHM");
 
         // send key values
-        if(sender instanceof LocalSender)
-            keyValues.put("Image_ID",""+imageFile.getId());
-        sender. sendKeyValues(keyValues);
+        if(sender instanceof LocalSender) {
+            keyValues.put("Image_ID", "" + imageFile.getId());
+            keyValues.put("Image_Title", "" + imageFile.getTitle());
+            keyValues.put("Image_Serie", "" + imageFile.getSerie());
+        }
+        sender.sendKeyValues(keyValues);
     }
 
 
