@@ -14,6 +14,9 @@ import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.ImageWrapper;
 import ij.IJ;
 import ij.ImagePlus;
+import loci.formats.FormatException;
+import loci.plugins.BF;
+import loci.plugins.in.ImporterOptions;
 import net.imagej.ImageJ;
 import org.scijava.command.Command;
 import org.scijava.plugin.Plugin;
@@ -192,7 +195,6 @@ public class ArgoLightCommand implements Command {
                 sender = new LocalSender(savingFolder, microscope, cleanTarget, isOmeroRetriever);
             }
 
-
             // run analysis
             if (nImages > 0)
                 Processing.run(retriever, saveHeatMaps, sender,
@@ -202,13 +204,19 @@ public class ArgoLightCommand implements Command {
                         isDefaultParticleThresh ? defaultParticleThresh : userParticleThresh,
                         isDefaultRingRadius ? defaultRingRadius : userRingRadius,
                         userArgoSpacing, userArgoFoV, userArgoNRings);
-            else IJLogger.warn("No images are available for project " + userProjectID + ", dataset " + microscope);
+            else {
+                IJLogger.warn("No images available for project " + userProjectID + ", dataset " + microscope);
+                showWarningMessage("No Images","No images available for project " + userProjectID + ", dataset " + microscope);
+                finalPopupMessage = false;
+            }
 
         } catch (Exception e){
             finalPopupMessage = false;
         } finally {
-            this.client.disconnect();
-            IJLogger.info("Disconnected from OMERO ");
+            if(isOmeroRetriever) {
+                this.client.disconnect();
+                IJLogger.info("Disconnected from OMERO ");
+            }
         }
 
         if(finalPopupMessage) {
@@ -1331,8 +1339,31 @@ public class ArgoLightCommand implements Command {
             }else{
                 String imgPath = tfImage.getText();
                 File imgFile = new File(imgPath);
-                if(imgFile.exists() && imgFile.isFile())
-                    this.imageForLivePreview = IJ.openImage(imgPath);
+                if(imgFile.exists() && imgFile.isFile()) {
+                    try {
+                        ImporterOptions options = new ImporterOptions();
+                        options.setId(imgFile.getAbsolutePath());
+                        options.setOpenAllSeries(false);
+                        options.setSeriesOn(1,true);
+
+                        ImagePlus[] images = BF.openImagePlus(options);
+                        if(images == null)
+                            showErrorMessage("Local image", "Cannot read image "+imgPath);
+                        else {
+                            ImagePlus imp = images[0];
+
+                            // extract the current channel
+                            ImagePlus channel = IJ.createHyperStack(imp.getTitle(), imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
+                            imp.setPosition(1, 1, 1);
+                            channel.setProcessor(imp.getProcessor());
+                            this.imageForLivePreview = channel;
+                            this.pixelSizeForLivePreview = imp.getCalibration().pixelWidth;
+                        }
+
+                    } catch (FormatException | IOException ex) {
+                        showErrorMessage("Local image", "Cannot read image "+imgPath);
+                    }
+                }
                 else
                     showErrorMessage("Local image", "Cannot read image "+imgPath);
             }
