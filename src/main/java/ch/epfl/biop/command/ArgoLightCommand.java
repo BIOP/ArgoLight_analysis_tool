@@ -154,7 +154,6 @@ public class ArgoLightCommand implements Command {
     private void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
                                String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps,
                                boolean allImages, boolean cleanTargetSelection){
-
         boolean finalPopupMessage = true;
         if(!isOmeroRetriever && !new File(rootFolderPath).exists()){
             showWarningMessage("Root folder not accessible", "The root folder "+rootFolderPath+" does not exist");
@@ -166,6 +165,7 @@ public class ArgoLightCommand implements Command {
         }
 
         try {
+            // get the correct retriever
             Retriever retriever;
             String rawTarget;
 
@@ -182,11 +182,12 @@ public class ArgoLightCommand implements Command {
                 rawTarget = rootFolderPath;
             }
 
+            // load images to process & set the cleaning
             boolean imageLoaded = retriever.loadImages(rawTarget, microscope, allImages);
             int nImages = retriever.getNImages();
-
             boolean cleanTarget = allImages && cleanTargetSelection;
 
+            // create dedicated senders
             Sender sender;
             if (isOmeroSender) {
                 sender = new OMEROSender(this.client, retriever.getMicroscopeTarget(), cleanTarget);
@@ -1240,9 +1241,9 @@ public class ArgoLightCommand implements Command {
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
-            labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
-            labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
-            labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
+            labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+            labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+            labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
         });
 
         spMedian.addChangeListener(e->{
@@ -1253,9 +1254,9 @@ public class ArgoLightCommand implements Command {
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
-            labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
-            labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
-            labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
+            labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+            labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+            labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
         });
 
         spThreshParticles.addChangeListener(e->{
@@ -1266,9 +1267,9 @@ public class ArgoLightCommand implements Command {
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
-            labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
-            labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
-            labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
+            labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+            labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+            labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
         });
 
         spRingRadius.addChangeListener(e->{
@@ -1279,9 +1280,9 @@ public class ArgoLightCommand implements Command {
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
-            labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
-            labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
-            labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
+            labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+            labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+            labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
         });
 
         cbSegmentation.addItemListener(e->{
@@ -1292,9 +1293,9 @@ public class ArgoLightCommand implements Command {
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                     particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
-            labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
-            labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
-            labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
+            labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+            labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+            labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
         });
 
         // button to select an image for live preview
@@ -1322,11 +1323,12 @@ public class ArgoLightCommand implements Command {
             if(isOmeroImage){
                 String idString = tfOmeroImage.getText();
                 try {
+                    // read the image as ImagePlus
                     long imgId = Long.parseLong(idString);
                     ImageWrapper image = this.client.getImage(imgId);
                     ImagePlus imp = image.toImagePlus(this.client);
 
-                    // extract the current channel
+                    // extract the first channel
                     ImagePlus channel = IJ.createHyperStack(imp.getTitle(), imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
                     imp.setPosition(1, 1, 1);
                     channel.setProcessor(imp.getProcessor());
@@ -1341,18 +1343,32 @@ public class ArgoLightCommand implements Command {
                 File imgFile = new File(imgPath);
                 if(imgFile.exists() && imgFile.isFile()) {
                     try {
+                        // choose import options
                         ImporterOptions options = new ImporterOptions();
                         options.setId(imgFile.getAbsolutePath());
-                        options.setOpenAllSeries(false);
-                        options.setSeriesOn(1,true);
+                        // disable all series
+                        options.setOpenAllSeries(true);
+                        options.setVirtual(true);
 
+                        // open the image as ImagePlus
                         ImagePlus[] images = BF.openImagePlus(options);
                         if(images == null)
                             showErrorMessage("Local image", "Cannot read image "+imgPath);
                         else {
+                            options.setVirtual(false);
+                            options.setOpenAllSeries(false);
+                            if(images.length > 1) {
+                                int serie = createSelectSerieGui(images.length);
+                                options.setSeriesOn(serie, true);
+                            }else{
+                                options.setSeriesOn(1, true);
+                            }
+
+                            // open the selected serie
+                            images = BF.openImagePlus(options);
                             ImagePlus imp = images[0];
 
-                            // extract the current channel
+                            // extract the first channel
                             ImagePlus channel = IJ.createHyperStack(imp.getTitle(), imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
                             imp.setPosition(1, 1, 1);
                             channel.setProcessor(imp.getProcessor());
@@ -1388,9 +1404,9 @@ public class ArgoLightCommand implements Command {
                 double ringRadiusPreview = (double) spRingRadius.getValue();
                 ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
                         particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
-                labXAverageStep.setText(""+ArgoSlideLivePreview.getXAvgStep());
-                labYAverageStep.setText(""+ArgoSlideLivePreview.getYAvgStep());
-                labRotationAngle.setText(""+ArgoSlideLivePreview.getRotationAngle());
+                labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+                labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+                labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
             }else{
                 spMedian.setEnabled(false);
                 spSigma.setEnabled(false);
@@ -1399,7 +1415,6 @@ public class ArgoLightCommand implements Command {
                 cbSegmentation.setEnabled(false);
             }
         });
-
 
         // build everything together
         GridBagConstraints constraints = new GridBagConstraints( );
@@ -1560,6 +1575,69 @@ public class ArgoLightCommand implements Command {
         }
     }
 
+
+    /**
+     * Create small GUI to select the serie to open
+     * @param nSeries number of series
+     * @return the selected serie
+     */
+    private int createSelectSerieGui(int nSeries){
+        int serie = 1;
+
+        // build radio buttons
+        List<JRadioButton> seriesChoice = new ArrayList<>();
+        ButtonGroup rbChoiceGroup = new ButtonGroup();
+        for(int i = 0; i < nSeries; i++){
+            JRadioButton rb = new JRadioButton("Serie "+(i+1));
+            rbChoiceGroup.add(rb);
+            rb.setFont(stdFont);
+            rb.setSelected(false);
+            seriesChoice.add(rb);
+        }
+
+        seriesChoice.get(0).setSelected(true);
+
+        // build everything together
+        GridBagConstraints constraints = new GridBagConstraints( );
+        constraints.fill = GridBagConstraints.BOTH;
+        constraints.insets = new Insets(5,5,5,5);
+        JPanel settingsPane = new JPanel();
+
+        int settingsRow = 0;
+        settingsPane.setLayout(new GridBagLayout());
+
+        for(JRadioButton selectedSerie : seriesChoice){
+            constraints.gridx = 0;
+            constraints.gridy = settingsRow++;
+            settingsPane.add(selectedSerie, constraints);
+        }
+
+        // create the general panel
+        JOptionPane pane = new JOptionPane(settingsPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
+                null, null);
+        settingsDialog = pane.createDialog(mainDialog, "Select serie to open");
+
+        pane.selectInitialValue();
+        settingsDialog.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
+        settingsDialog.setVisible(true);
+        settingsDialog.dispose();
+
+        Object selectedValue = pane.getValue();
+        int opt = JOptionPane.CLOSED_OPTION;
+
+        if(selectedValue instanceof Integer)
+            opt = (Integer) selectedValue;
+
+        if(opt == JOptionPane.OK_OPTION){
+            for(int i = 0; i < nSeries; i++){
+                if(seriesChoice.get(i).isSelected()){
+                    serie = i+1;
+                    break;
+                }
+            }
+        }
+        return serie;
+    }
 
     /**
      * set the default values for each metrics use for processing by reading the corresponding csv file

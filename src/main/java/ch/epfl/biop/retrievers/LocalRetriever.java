@@ -20,6 +20,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Class that retrieve images from local computer
+ */
 public class LocalRetriever implements Retriever{
     private boolean processAllImages = false;
     private String microscopeFolderPath = "";
@@ -32,6 +35,7 @@ public class LocalRetriever implements Retriever{
 
     @Override
     public boolean loadImages(String parentTarget, String microscopeName, boolean processAllImages) {
+        // check the existence of teh parent folder (i.e. where microscope folder with images should be located)
         File parentFolder = new File(parentTarget);
         if(!parentFolder.exists()){
             return false;
@@ -39,13 +43,13 @@ public class LocalRetriever implements Retriever{
 
         File[] files = parentFolder.listFiles();
         if(files != null) {
-            // find the one with the microscope name
+            // find the folder with the current microscope name
             List<File> microscopeList = Arrays.stream(files)
                     .filter(e -> e.isDirectory() && e.getName().toLowerCase().contains(microscopeName))
                     .collect(Collectors.toList());
 
+            // if the folder doesn't exist, then cannot retrieve data
             if (microscopeList.isEmpty()){
-                // create the microscope folder if it doesn't exist
                 IJLogger.error("Load images","The folder "+parentFolder.getName() +" does not contain any "+microscopeName+" folder");
                 return false;
             }else{
@@ -58,13 +62,19 @@ public class LocalRetriever implements Retriever{
             return false;
         }
 
+        // set the raw microscope folder path and list images inside
         File microscopeFolder = new File(this.microscopeFolderPath);
         File[] rawImgFiles = microscopeFolder.listFiles();
         if(rawImgFiles == null)
             return false;
 
+        // find the list of already processed images
         List<String> processedFiles = listProcessedFiles(this.resultsFolderPath, microscopeName);
+
+        // filter the list to only process images that have not already been processed
         List<File> filteredImagesFile = filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()), processedFiles);
+
+        // create a unique ID for each new raw image
         Map<String,File> filteredImagesMap = new HashMap<>();
         for(File file : filteredImagesFile){
             String uuid = UUID.randomUUID().toString().replace("-","");
@@ -75,18 +85,31 @@ public class LocalRetriever implements Retriever{
         return true;
     }
 
+    /**
+     * Reads the summary file and list all raw images already processed
+     *
+     * @param resultsFolderPath path to the results' folder. The summary file is located in the
+     *                          results folder of the current microscope
+     * @param microscopeName current microscope
+     * @return list of images already processed
+     */
     private List<String> listProcessedFiles(String resultsFolderPath, String microscopeName){
+        // check the existence of the results folder
         File resultsFolder = new File(resultsFolderPath);
+        if(!resultsFolder.exists()){
+            return Collections.emptyList();
+        }
+
+        // list microscope folders
         File[] files = resultsFolder.listFiles();
         File microscopeResultsFolder;
         if(files != null) {
-            // find the one with the microscope name
+            // find the folder with the microscope name
             List<File> microscopeList = Arrays.stream(files)
                     .filter(e -> e.isDirectory() && e.getName().toLowerCase().contains(microscopeName))
                     .collect(Collectors.toList());
 
             if (microscopeList.isEmpty()){
-                // create the microscope folder if it doesn't exist
                 IJLogger.error("Load images","The folder "+resultsFolder.getName() +" does not contain any "+microscopeName+" folder");
                 return Collections.emptyList();
             }else{
@@ -99,11 +122,12 @@ public class LocalRetriever implements Retriever{
             return Collections.emptyList();
         }
 
-        // find the one with the microscope name
+        // list all files within the selected folder
         File[] resultsImgList = microscopeResultsFolder.listFiles();
         if(resultsImgList == null)
             return Collections.emptyList();
 
+        // get the summary file
         List<File> txtProcessedMicList = Arrays.stream(resultsImgList)
                 .filter(e -> e.isFile() && e.getName().endsWith(".csv") && e.getName().toLowerCase().contains(microscopeName+ Tools.PROCESSED_IMAGES_SUFFIX))
                 .collect(Collectors.toList());
@@ -111,12 +135,13 @@ public class LocalRetriever implements Retriever{
         if(txtProcessedMicList.isEmpty())
             return Collections.emptyList();
 
+        // read the summary file is exists
         File processedImgFile = txtProcessedMicList.get(0);
         try {
             List<String> processedFiles = new ArrayList<>();
             BufferedReader br = new BufferedReader(new FileReader(processedImgFile));
             String line;
-            while ((line = br.readLine()) != null){   //returns a Boolean value
+            while ((line = br.readLine()) != null){
                 processedFiles.add((line));
             }
             br.close();
@@ -126,6 +151,13 @@ public class LocalRetriever implements Retriever{
         }
     }
 
+    /**
+     * remove from the list all processed images
+     *
+     * @param imageFiles list of raw files
+     * @param processedFiles list of processed images
+     * @return list of non-processed images
+     */
     private List<File> filterImages(List<File> imageFiles, List<String> processedFiles){
         if(processedFiles == null || processedFiles.isEmpty())
             return imageFiles;
@@ -145,10 +177,12 @@ public class LocalRetriever implements Retriever{
         File toProcess = this.filteredFiles.get(index);
 
         try {
+            // set import options
             ImporterOptions options = new ImporterOptions();
             options.setId(toProcess.getAbsolutePath());
             options.setOpenAllSeries(true);
 
+            // read the image as ImagePlus
             ImagePlus[] images = BF.openImagePlus(options);
             return Arrays.asList(images);
 

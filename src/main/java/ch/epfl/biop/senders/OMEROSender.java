@@ -81,6 +81,7 @@ public class OMEROSender implements Sender{
     private void sendTags(List<String> tags, ImageWrapper imageWrapper) {
         IJLogger.info("Adding tag");
 
+        // load group and image tags once
         List<TagAnnotationWrapper> groupTags;
         List<TagAnnotationWrapper> imageTags;
         try {
@@ -91,6 +92,7 @@ public class OMEROSender implements Sender{
             return;
         }
 
+        // loop on tags to add
         for(String tag : tags) {
             try {
                 // get the corresponding tag in the list of available tags if exists

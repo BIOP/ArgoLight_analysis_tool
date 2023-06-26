@@ -1,6 +1,5 @@
 package ch.epfl.biop.senders;
 
-import ch.epfl.biop.retrievers.LocalRetriever;
 import ch.epfl.biop.retrievers.OMERORetriever;
 import ch.epfl.biop.retrievers.Retriever;
 import ch.epfl.biop.utils.IJLogger;
@@ -289,17 +288,18 @@ public class LocalSender implements Sender{
 
     @Override
     public void sendTags(List<String> tags) {
+        // update summary file for local image
         if(updateProcessedImageFile){
             updateProcessedImageFile(tags);
             return;
         }
-
 
         if(this.imageWrapper == null || this.client == null)
             return;
 
         IJLogger.info("Adding tag");
 
+        // load group and image tags once
         List<TagAnnotationWrapper> groupTags;
         List<TagAnnotationWrapper> imageTags;
         try {
@@ -310,6 +310,7 @@ public class LocalSender implements Sender{
             return;
         }
 
+        // add tags on OMERO if images was initially on the OMERO server
         for(String tag : tags) {
             try {
                 // get the corresponding tag in the list of available tags if exists
@@ -371,6 +372,11 @@ public class LocalSender implements Sender{
     }
 
 
+    /**
+     * Add newly processed images to the summary file that lists all the processed images (for local images)
+     *
+     * @param filenames list of processed images
+     */
     private void updateProcessedImageFile(List<String> filenames){
         String text =  "";
         for (String name : filenames) {

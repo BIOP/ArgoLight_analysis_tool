@@ -52,15 +52,18 @@ public class Processing {
         List<String> headers = new ArrayList<>();
         List<String> IDs = retriever.getIDs();
 
+        // loop on each image file, based on its ID (OMERO ID or UUID for local image)
         for (String Id : IDs) {
             // get the image
             List<ImagePlus> impList = retriever.getImage(Id);
 
+            // loop on image series
             for (int serie = 0; serie < impList.size(); serie++) {
                 ImagePlus imp = impList.get(serie);
                 if (imp == null)
                     continue;
 
+                // define a unique ID per serie
                 String imgTitle = imp.getTitle();
                 String uniqueID = imgTitle + Tools.SEPARATION_CHARACTER + Id;
 
@@ -156,7 +159,7 @@ public class Processing {
             keyValues.put("Image_Title", "" + imageFile.getTitle());
             keyValues.put("Image_Serie", "" + imageFile.getSerie());
         }
-        sender. sendKeyValues(keyValues);
+        sender.sendKeyValues(keyValues);
     }
 
 

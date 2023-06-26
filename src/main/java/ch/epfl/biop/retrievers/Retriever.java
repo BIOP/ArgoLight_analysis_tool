@@ -17,7 +17,7 @@ public interface Retriever {
 
     /**
      * @param index image position in the list
-     * @return the {@link ImagePlus} object of an image picked from the list of image to process.
+     * @return a list of {@link ImagePlus} objects read from the image file (i.e. list of image series)
      */
     List<ImagePlus> getImage(String index);
 
