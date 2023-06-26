@@ -7,18 +7,15 @@ Images are first uploaded on OMERO. Each image is processed locally ; three metr
 field uniformity, field distortion and full width at half maximum. Results are finally sent back to OMERO as key-value pairs,
 tags and OMERO.table.
 
+It is also possible to have your images on a local computer. In that case, you don't have the possibitiy to use the benefits of OMERO.
+Results are automatically saved locally.
+
 ## Installation
 - Download the latest version of our plugin. Unzip it and copy both .jar files into the **Plugins->BIOP** folder of Fiji
 - Activate the update site **OMERO 5.5-5.6** (On Fiji, go on `Help -> Update...`, then click on `Manage Update sites`)
 - Restart Fiji
 
 ## Requirements
-- You need to have access to an OMERO database where the images to analyze are located.
-- Your images should be separated according to the microscope used (i.e. one dataset per microscope). All the datasets should be located under the same project.
-
-<p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/f14307d9-a0ff-411a-b73c-1efe4f9f7817" width="20%">
-</p>
 
 - Your slide should be an ArgoLight Slide. The slide must contain the field-of-rings patterns because it is the one used for the analysis.
 - 2 different type of images are expected :
@@ -29,11 +26,37 @@ tags and OMERO.table.
   <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/6cbb1dd5-6b21-41a2-9095-1a71f325886c" width="60%">
 </p>
 
+### For images on OMERO
+- Your images should be separated according to the microscope used (i.e. one dataset per microscope). All the datasets should be located under the same project.
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/f14307d9-a0ff-411a-b73c-1efe4f9f7817" width="20%">
+</p>
 
 - Images have to be named according the following structure
   - For fileset images
     - *microscopeName*\_*ArgoSlideName*\_*patternImaged*\_**d***AcquisitionDate*\_**o***Objective*\_*ImmersionMedium*.extension [*FOV*\_*Serie*]
     - Exemple : sp8int1_ArgoSGL482_b_d20230420_o20x_dry.lif [partialFoV_Image007]
+
+  - For inividual images
+    - *microscopeName*\_*ArgoSlideName*\_*patternImaged*\_**d***AcquisitionDate*\_**o***Objective*\_*ImmersionMedium*\_*FOV*\_*Serie*.extension
+    - Exemple : lsm980_ArgoSGL482_b_d20230420_o20x_dry_fullFoV_Image002.czi
+
+  - Be careful : the FOV item has to be either **fullFoV** or **partialFoV**
+
+### For images on local computers
+- Your images should be separated according to the microscope used (i.e. one dataset per microscope). All the folders should be located under the same parent folder.
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/068c27ce-e5fe-41a3-b8a5-027f630e1e56" width="50%">
+</p>
+
+
+- Images have to be named according the following structure
+  - For fileset images
+    - You can acquire on filset per objective (i.e. you don't have to acquire one image per project).
+    - *microscopeName*\_*ArgoSlideName*\_*patternImaged*\_**d***AcquisitionDate*\_**o***Objective*\_*ImmersionMedium*.extension - *FOV*\_*Serie*
+    - Exemple : sp8int1_ArgoSGL482_b_d20230420_o20x_dry.lif - partialFoV_Image007
 
   - For inividual images
     - *microscopeName*\_*ArgoSlideName*\_*patternImaged*\_**d***AcquisitionDate*\_**o***Objective*\_*ImmersionMedium*\_*FOV*\_*Serie*.extension
@@ -63,24 +86,27 @@ In the csv file, you should have one microscope name by line. If you enter micro
 
 **Be careful : the microscopes' name should match extactly (but not case sensitive) the datasets name on OMERO, contained in the specified project.**
 
-5. Optionnally, and IF you want to save results locally (see below), you can add the folder path where you want to save results.
-6. Set your ArgoSlide specifications (spacing between 2 rings, full pattern FoV and number of rings per line)
-7. Then, press OK. 
+5. Optionnally, and IF you want have your images on a local computer, you can add the folder path where you want to read raw images.
+6. Optionnally, and IF you want to save results locally (see below), you can add the folder path where you want to save results.
+7. Set your ArgoSlide specifications (spacing between 2 rings, full pattern FoV and number of rings per line)
+8. Then, press OK. 
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/d7ddfff8-c90d-41f9-9f21-bf24d919a9ea" width="50%">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/a897c366-20f9-491a-93e3-d0820dd96642" width="50%">
 </p>
 
 ### Quick start
 
-1. Enter your gaspar credentials
-2. Enter the ID of the project that contains the microscopes datasets (if it has not been defined previously).
-3. Select the microscope dataset you want to process.
-4. Click OK
-5. The current steps / actions performed are logged in the Fiji Log window
-6. At the end of the processing, a popup indicates the user that all images within the selected dataset have been processed.
+1. Select the file location
+2. If OMERO, enter your gaspar credentials. If local, enter the path of the parent folder (i.e. raw folder in the above figure). 
+3. If OMERO, enter the ID of the project that contains the microscopes datasets (if it has not been defined previously).
+4. Select the microscope dataset you want to process.
+5. Click OK
+6. The current steps / actions performed are logged in the Fiji Log window
+7. At the end of the processing, a popup indicates the user that all images within the selected dataset have been processed.
 
-Every images that are not tagged with `raw` tag are processed within the selected dataset.
+For OMERO location, every images that are not tagged with `raw` tag are processed within the selected dataset.
+For local location, every images that are not contained in the summary file are processed within the selected folder.
 
 ### Output location and settings
 
@@ -114,23 +140,26 @@ If you chck the `default` box, then hard-coded default parameters are used.
 ### Live preview
 
 A live preview mode enable you to set dynamically the processing parameters and to get direct visual feedback of the segmentation results only (the analysis results are not display).
-1. Enter your gaspar credentials
-2. Click on `Live preview` button
+1. Select the file location
+2. If OMERO, enter your gaspar credentials. If local, nothing to do.
+3. Click on `Live preview` button
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/8a27b954-a032-4c21-b024-f6bd1d40cd10" width="80%">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/34b2a1ba-7bbf-4485-b204-77bfb420747e" width="80%">
 </p>
 
-3. On the popup, add the OMERO ID of a typical image.
-4. Click on `Load`. The image should display in Fiji.
-5. Each time you modify one parameter, the segmentation result updates
-6. When satisfied with the results, click on `OK`. The new parameters will be used for the current simulation.
+
+4. On the popup, add the OMERO ID of a typical image or the path of the image you want to open
+5. Click on `Load`. The image should display in Fiji. the first channel is automatically displayed
+6. Each time you modify one parameter, the segmentation result updates
+7. When satisfied with the results, click on `OK`. The new parameters will be used for the current simulation.
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/9819b2bb-0f81-47df-9639-09dbc2599d2b" width="80%">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/0a88f9c5-a838-47ae-84b1-2e1ab431e455" width="80%">
 </p>
 
-7. Confirm if you want the new parameters to become default settings.
+
+8. Confirm if you want the new parameters to become default settings.
 
 <p align="center">
   <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/14e5de27-85c5-45e0-9e2d-1def597b73a9" width="50%">
@@ -138,7 +167,8 @@ A live preview mode enable you to set dynamically the processing parameters and 
 
 ## Analysis results
 
-- 8 tags are linked to the raw image on OMERO, even if results are saved locally : `raw`, `argolight`, `slideName`, `objective`, `immersion`, `microscope`, `pattern` and `FoV`.
+- If the data are coming from OMERO, 8 tags are linked to the raw image on OMERO, even if results are saved locally : `raw`, `argolight`, `slideName`, `objective`, `immersion`, `microscope`, `pattern` and `FoV`.
+- If the data are coming from local computer, the image title (including the serie) is added to the summary file of processed images.
 - Processing parameters are saved in the form of key-value pairs.
 - Computed metrics are saved as OMERO.table attach to the image and, if specified, in the form of heat maps.
 
@@ -162,7 +192,7 @@ A live preview mode enable you to set dynamically the processing parameters and 
 In case of local saving, the same outputs are saved in a results folder, with .txt file for the key-value pairs, .csv files for the tables and .zip for ROIs (readable on Fiji).
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/01a566d9-7755-4ad3-ba4b-9542ad358315" width="80%">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/b21ed28d-7840-4381-b073-f8727980449f" width="80%">
 </p>
 
 ## Monitor data with OMERO.parade
