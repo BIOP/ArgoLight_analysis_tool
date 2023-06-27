@@ -163,7 +163,7 @@
 		<dependency>
 			<groupId>fr.igred</groupId>
 			<artifactId>simple-omero-client</artifactId>
-			<version>5.12.3</version>
+			<version>5.13.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
