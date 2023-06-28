@@ -123,13 +123,13 @@ public class OMEROSender implements Sender{
         // delete key-value pairs
         try {
             IJLogger.info("Cleaning target", "Removing key-values from image "+this.imageWrapper.getId());
-            List<IObject> keyValues = client.getMetadata()
-                    .getAnnotations(client.getCtx(), this.imageWrapper.asDataObject()).stream()
+            List<IObject> keyValues = this.client.getMetadata()
+                    .getAnnotations(this.client.getCtx(), this.imageWrapper.asDataObject()).stream()
                     .filter(MapAnnotationData.class::isInstance)
                     .map(MapAnnotationData.class::cast)
                     .map(MapAnnotationData::asIObject)
                     .collect(Collectors.toList());
-            client.getDm().delete(this.client.getCtx(), keyValues);
+            this.client.getDm().delete(this.client.getCtx(), keyValues);
             IJLogger.info("Cleaning target", "Key-values removed");
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
             IJLogger.error("Cleaning target", "Cannot delete key-values for image "+this.imageWrapper.getId());
@@ -139,8 +139,8 @@ public class OMEROSender implements Sender{
         try {
             IJLogger.info("Cleaning target", "Removing tables from image "+this.imageWrapper.getId());
             List<TableWrapper> tables = this.imageWrapper.getTables(this.client);
-            for (TableWrapper table : tables)
-                this.client.delete(table);
+            this.client.deleteTables(tables);
+
             IJLogger.info("Cleaning target", "Tables removed");
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
             IJLogger.error("Cleaning target", "Cannot delete tables for image "+this.imageWrapper.getId());
@@ -153,7 +153,7 @@ public class OMEROSender implements Sender{
                     .map(ROIWrapper::asDataObject)
                     .map(ROIData::asIObject)
                     .collect(Collectors.toList());
-            client.getDm().delete(this.client.getCtx(), rois);
+            this.client.getDm().delete(this.client.getCtx(), rois);
             IJLogger.info("Cleaning target", "ROIs removed");
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
             IJLogger.error("Cleaning target", "Cannot delete ROIs for image "+this.imageWrapper.getId());
@@ -167,8 +167,8 @@ public class OMEROSender implements Sender{
                 List<DatasetWrapper> dataset = this.imageWrapper.getDatasets(this.client);
                 // delete tables
                 List<TableWrapper> tables = dataset.get(0).getTables(this.client);
-                for (TableWrapper table : tables)
-                    this.client.delete(table);
+                this.client.deleteTables(tables);
+
                 IJLogger.info("Cleaning target", "Parent table removed");
             } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
                 IJLogger.error("Cleaning target", "Cannot delete parent tables for image "+this.imageWrapper.getId());
@@ -311,7 +311,7 @@ public class OMEROSender implements Sender{
         try {
             tableWrapper.setName(tableName);
             this.imageWrapper.addTable(this.client, tableWrapper);
-            if(table != null) this.client.delete(table);
+            if(table != null) this.client.deleteTable(table);
             IJLogger.info("Sending "+tableName+" table",tableName+" table has been successfully uploaded and linked to the image " + imageWrapper.getId());
         } catch (DSAccessException | ServiceException | ExecutionException | OMEROServerError | InterruptedException e) {
             IJLogger.error("Sending "+tableName+" table","Cannot add the "+tableName+" table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
@@ -489,7 +489,7 @@ public class OMEROSender implements Sender{
             repoWrapper.addTable(this.client, newTable);
 
             // delete the previous table
-            this.client.deleteFile(tableWrapper.getId());
+            this.client.deleteTable(tableWrapper);
 
         } catch (ServiceException | AccessException | ExecutionException e) {
             IJLogger.error("Cannot add results to previous table " + tableWrapper.getName() + " : " + tableWrapper.getId());
