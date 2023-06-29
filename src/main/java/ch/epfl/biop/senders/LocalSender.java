@@ -219,7 +219,7 @@ public class LocalSender implements Sender{
     public void populateParentTable(Retriever retriever, Map<String, List<List<Double>>> summary, List<String> headers, boolean populateExistingTable) {
         IJLogger.info("Update parent table...");
         // get the last parent summary table
-        File lastTable = getLastLocalParentTable(this.parentFolder);
+        File lastTable = getLastLocalTable(this.parentFolder, Tools.PARENT_TABLE_SUFFIX);
         String text = "";
 
         // add header to new table
@@ -391,6 +391,8 @@ public class LocalSender implements Sender{
      * @param filenames list of processed images
      */
     private void updateProcessedImageFile(List<String> filenames){
+        File lastTable = getLastLocalTable(this.parentFolder, Tools.PROCESSED_IMAGES_SUFFIX);
+
         String text =  "";
         for (String name : filenames) {
             text += name + "\n" ;
@@ -400,13 +402,18 @@ public class LocalSender implements Sender{
         File parentFolderFile = new File(this.parentFolder);
         File file = new File(this.parentFolder + File.separator + this.date + "_" +parentFolderFile.getName() + "_" +Tools.PROCESSED_IMAGES_SUFFIX + ".csv");
         IJLogger.info("Search for file "+file.getName());
-        if(!file.exists()) {
-            IJLogger.info("File does not exists ; create a new one");
-            Tools.saveCsvFile(file, text);
-        }
-        else {
-            IJLogger.info("Found it ! Add new entries to the file");
-            Tools.appendCsvFile(file, text);
+
+
+        if(lastTable == null || !lastTable.exists()) {
+            if(Tools.saveCsvFile(file, text))
+                IJLogger.info("Update processed images table","New processed images have been saved in " + file.getName());
+        } else {
+            if(Tools.appendCsvFile(lastTable, text)) {
+                if (!lastTable.renameTo(file))
+                    IJLogger.warn("Cannot rename " + lastTable.getName() + " to " + file.getName());
+                else
+                    IJLogger.info("Update processed images table", "Existing table "+ lastTable.getName()+" has been renamed to " + file.getName());
+            }
         }
     }
 
@@ -451,7 +458,7 @@ public class LocalSender implements Sender{
      * @param folderPath
      * @return
      */
-    private static File getLastLocalParentTable(String folderPath){
+    private static File getLastLocalTable(String folderPath, String tableName){
         // list all files within the folder
         File folder = new File(folderPath);
         File[] childFiles = folder.listFiles();
@@ -464,7 +471,7 @@ public class LocalSender implements Sender{
         List<String> names = Arrays.stream(childFiles)
                 .filter(e -> e.isFile() &&
                         e.getName().contains(testedMicroscope) &&
-                        e.getName().endsWith(Tools.PARENT_TABLE_SUFFIX + ".csv"))
+                        e.getName().endsWith(tableName + ".csv"))
                 .map(File::getName)
                 .collect(Collectors.toList());
 
