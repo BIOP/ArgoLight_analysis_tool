@@ -209,7 +209,7 @@ public class LocalSender implements Sender{
         IJLogger.info("Sending "+tableName+" table");
         String text = createNewTable(values, channelIdList);
 
-        File file = new File(this.imageFolder + File.separator + tableName+"_table.csv");
+        File file = new File(this.imageFolder + File.separator + tableName + "_" + Tools.PARENT_TABLE_SUFFIX + ".csv");
         if(Tools.saveCsvFile(file, text))
             IJLogger.info("Sending "+tableName+" table",tableName+" table has been successfully saved in " + file.getAbsolutePath());
 
@@ -244,7 +244,7 @@ public class LocalSender implements Sender{
 
         // save the table
         String microscopeName = new File(this.parentFolder).getName();
-        File file = new File(this.parentFolder + File.separator + this.date + "_" + microscopeName + "_table.csv");
+        File file = new File(this.parentFolder + File.separator + this.date + "_" + microscopeName + "_"+Tools.PARENT_TABLE_SUFFIX+".csv");
 
         if(!populateExistingTable || lastTable == null || !lastTable.exists()) {
             if(Tools.saveCsvFile(file, text))
@@ -291,6 +291,7 @@ public class LocalSender implements Sender{
     public void sendTags(List<String> tags) {
         // update summary file for local image
         if(updateProcessedImageFile){
+            IJLogger.info("Update summary file of processed images");
             updateProcessedImageFile(tags);
             return;
         }
@@ -369,8 +370,10 @@ public class LocalSender implements Sender{
             children = file.listFiles();
             if(children != null) {
                 for (File child : children) {
-                    if (child.isFile() && (child.getName().toLowerCase().contains(microscope.toLowerCase() + "_table") ||
-                            child.getName().toLowerCase().contains(microscope.toLowerCase() + Tools.PROCESSED_IMAGES_SUFFIX)) && child.getName().endsWith(".csv")) {
+                    if (child.isFile() &&
+                            child.getName().toLowerCase().contains(microscope.toLowerCase()) &&
+                            (child.getName().endsWith(Tools.PARENT_TABLE_SUFFIX + ".csv") ||
+                            child.getName().endsWith(Tools.PROCESSED_IMAGES_SUFFIX + ".csv"))) {
                         if (!child.delete())
                             IJLogger.warn("Cleaning target", "Cannot delete  " + child.getAbsolutePath());
                         else
@@ -395,11 +398,16 @@ public class LocalSender implements Sender{
 
         // save the list of processed files as csv file
         File parentFolderFile = new File(this.parentFolder);
-        File file = new File(this.parentFolder + File.separator + parentFolderFile.getName() + Tools.PROCESSED_IMAGES_SUFFIX + ".csv");
-        if(!file.exists())
+        File file = new File(this.parentFolder + File.separator + this.date + "_" +parentFolderFile.getName() + "_" +Tools.PROCESSED_IMAGES_SUFFIX + ".csv");
+        IJLogger.info("Search for file "+file.getName());
+        if(!file.exists()) {
+            IJLogger.info("File does not exists ; create a new one");
             Tools.saveCsvFile(file, text);
-        else
+        }
+        else {
+            IJLogger.info("Found it ! Add new entries to the file");
             Tools.appendCsvFile(file, text);
+        }
     }
 
 
@@ -454,16 +462,14 @@ public class LocalSender implements Sender{
 
         // get all names of csv files
         List<String> names = Arrays.stream(childFiles)
-                .filter(e -> e.isFile() && e.getName().contains("."))
-                .filter(f -> f.getName().substring(f.getName().lastIndexOf(".") + 1).equals("csv"))
+                .filter(e -> e.isFile() &&
+                        e.getName().contains(testedMicroscope) &&
+                        e.getName().endsWith(Tools.PARENT_TABLE_SUFFIX + ".csv"))
                 .map(File::getName)
                 .collect(Collectors.toList());
 
         if(names.isEmpty())
             return null;
-
-        // filter only argoLight related csv files
-        names = names.stream().filter(e->e.contains(testedMicroscope)).collect(Collectors.toList());
 
         // get dates
         List<String> orderedDate = new ArrayList<>();

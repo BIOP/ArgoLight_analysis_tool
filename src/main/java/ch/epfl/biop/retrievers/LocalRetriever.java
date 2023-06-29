@@ -129,7 +129,9 @@ public class LocalRetriever implements Retriever{
 
         // get the summary file
         List<File> txtProcessedMicList = Arrays.stream(resultsImgList)
-                .filter(e -> e.isFile() && e.getName().endsWith(".csv") && e.getName().toLowerCase().contains(microscopeName+ Tools.PROCESSED_IMAGES_SUFFIX))
+                .filter(e -> e.isFile() &&
+                        e.getName().toLowerCase().contains(microscopeName.toLowerCase()) &&
+                        e.getName().endsWith(Tools.PROCESSED_IMAGES_SUFFIX + ".csv"))
                 .collect(Collectors.toList());
 
         if(txtProcessedMicList.isEmpty())
