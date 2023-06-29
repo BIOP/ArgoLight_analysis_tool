@@ -16,6 +16,7 @@ import ij.gui.Roi;
 import ij.io.FileSaver;
 import ij.io.RoiEncoder;
 import omero.gateway.model.TagAnnotationData;
+import org.apache.commons.io.FileUtils;
 
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
@@ -344,9 +345,18 @@ public class LocalSender implements Sender{
         // delete all file within the folder
         IJLogger.info("Cleaning target", "Removing all documents located in  "+parent.getAbsolutePath());
         if(children != null)
-            for (File child : children)
-                if(!child.delete())
-                    IJLogger.warn("Cleaning target", "Cannot delete  "+child.getAbsolutePath());
+            for (File child : children) {
+                if(child.isFile()) {
+                    if (!child.delete())
+                        IJLogger.warn("Cleaning target", "Cannot delete file : " + child.getName());
+                } else {
+                    try {
+                        FileUtils.deleteDirectory(child);
+                    } catch (Exception e){
+                        IJLogger.warn("Cleaning target", "Cannot delete folder : " + child.getName());
+                    }
+                }
+            }
 
         IJLogger.info("Cleaning target", "Documents deleted");
 
@@ -359,8 +369,8 @@ public class LocalSender implements Sender{
             children = file.listFiles();
             if(children != null) {
                 for (File child : children) {
-                    if (child.isFile() && (child.getName().contains(microscope + "_table") ||
-                            child.getName().contains(microscope + Tools.PROCESSED_IMAGES_SUFFIX)) && child.getName().endsWith(".csv")) {
+                    if (child.isFile() && (child.getName().toLowerCase().contains(microscope.toLowerCase() + "_table") ||
+                            child.getName().toLowerCase().contains(microscope.toLowerCase() + Tools.PROCESSED_IMAGES_SUFFIX)) && child.getName().endsWith(".csv")) {
                         if (!child.delete())
                             IJLogger.warn("Cleaning target", "Cannot delete  " + child.getAbsolutePath());
                         else
