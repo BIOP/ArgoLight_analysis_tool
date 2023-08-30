@@ -52,7 +52,6 @@ public class OMEROSender implements Sender{
     final Client client;
     final private String date;
     final private boolean cleanTarget;
-    final private String PROCESSED_FEATURE = "feature";
     final private String datasetId;
     private ImageWrapper imageWrapper;
     private boolean cleanParent;
@@ -198,9 +197,9 @@ public class OMEROSender implements Sender{
             IJLogger.info("Sending heatmap", imp.getTitle() + ".tif" + " was uploaded to OMERO with ID : " + analysisImage_omeroID);
 
             List<String> tags = new ArrayList<String>(){{
-                add("processed");
-                add("argolight");
-                add((String)imp.getProperty(PROCESSED_FEATURE));
+                add(Tools.PROCESSED_TAG);
+                add(Tools.ARGOLIGHT_TAG);
+                add((String)imp.getProperty(Tools.PROCESSED_FEATURE));
             }};
             sendTags(tags, analysisImage_wpr);
 

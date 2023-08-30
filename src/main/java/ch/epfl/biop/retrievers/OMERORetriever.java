@@ -141,7 +141,7 @@ public class OMERORetriever implements Retriever {
 
     @Override
     public String getMicroscopeTarget() {
-        return ""+this.datasetId;
+        return String.valueOf(this.datasetId);
     }
 
     @Override

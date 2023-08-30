@@ -155,9 +155,9 @@ public class Processing {
 
         // send key values
         if(sender instanceof LocalSender) {
-            keyValues.put("Image_ID", "" + imageFile.getId());
-            keyValues.put("Image_Title", "" + imageFile.getTitle());
-            keyValues.put("Image_Serie", "" + imageFile.getSerie());
+            keyValues.put("Image_ID", imageFile.getId());
+            keyValues.put("Image_Title", imageFile.getTitle());
+            keyValues.put("Image_Serie", String.valueOf(imageFile.getSerie()));
         }
         sender.sendKeyValues(keyValues);
     }

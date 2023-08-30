@@ -15,7 +15,6 @@ import java.util.TreeMap;
  * Object containing all information and methods related to one channel.
  */
 public class ImageChannel {
-    final private static String PROCESSED_FEATURE = "feature";
     final private int channelId;
     final private int imageWidth;
     final private int imageHeight;
@@ -141,7 +140,7 @@ public class ImageChannel {
      */
     public ImagePlus getFWHMHeatMap(String imageName){
         ImagePlus img =  Tools.computeHeatMap(this.ringsFWHM, imageName+"_ch"+this.channelId+"_FWHM");
-        img.setProperty(PROCESSED_FEATURE,"fwhm");
+        img.setProperty(Tools.PROCESSED_FEATURE, Tools.FWHM_TAG);
         return img;
     }
 
@@ -151,7 +150,7 @@ public class ImageChannel {
      */
     public ImagePlus getFieldDistortionHeatMap(String imageName){
         ImagePlus img = Tools.computeHeatMap(this.ringsFieldDistortion, imageName+"_ch"+this.channelId+"_FieldDistortion");
-        img.setProperty(PROCESSED_FEATURE,"field_distortion");
+        img.setProperty(Tools.PROCESSED_FEATURE, Tools.FIELD_DISTORTION_TAG);
         return img;
     }
 
@@ -161,7 +160,7 @@ public class ImageChannel {
      */
     public ImagePlus getFieldUniformityHeatMap(String imageName){
         ImagePlus img =  Tools.computeHeatMap(this.ringsFieldUniformity, imageName+"_ch"+this.channelId+"_FieldUniformity");
-        img.setProperty(PROCESSED_FEATURE,"field_uniformity");
+        img.setProperty(Tools.PROCESSED_FEATURE, Tools.FIELD_UNIFORMITY_TAG);
         return img;
     }
 

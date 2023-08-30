@@ -27,6 +27,13 @@ public class Tools {
     final public static String SEPARATION_CHARACTER = "%";
     final public static String PROCESSED_IMAGES_SUFFIX = "processed_images";
     final public static String PARENT_TABLE_SUFFIX = "table";
+    final public static String PROCESSED_FEATURE = "feature";
+    final public static String FWHM_TAG = "fwhm";
+    final public static String FIELD_DISTORTION_TAG = "field_distortion";
+    final public static String FIELD_UNIFORMITY_TAG = "field_uniformity";
+    final public static String ARGOLIGHT_TAG = "argolight";
+    final public static String RAW_TAG = "raw";
+    final public static String PROCESSED_TAG = "processed";
 
     /**
      * Generate the current date and hour in the format aaaammdd-hhHmmMss

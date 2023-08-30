@@ -3,6 +3,7 @@ package ch.epfl.biop.processing;
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.utils.IJLogger;
+import ch.epfl.biop.utils.Tools;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
@@ -84,16 +85,16 @@ public class ArgoSlideProcessing {
         final double particleThreshold = userParticleThreshold / pixelSizeImage;
 
         // add tags
-        imageFile.addTags("raw", "argolight");
+        imageFile.addTags(Tools.RAW_TAG, Tools.ARGOLIGHT_TAG);
 
         // add key-values common to all channels
-        imageFile.addKeyValue("Pixel_size_(um)",""+pixelSizeImage);
-        imageFile.addKeyValue("Profile_length_for_FWHM_(pix)",""+lineLength);
-        imageFile.addKeyValue("Oval_radius_(pix)",""+ovalRadius);
+        imageFile.addKeyValue("Pixel_size_(um)", String.valueOf(pixelSizeImage));
+        imageFile.addKeyValue("Profile_length_for_FWHM_(pix)", String.valueOf(lineLength));
+        imageFile.addKeyValue("Oval_radius_(pix)", String.valueOf(ovalRadius));
         imageFile.addKeyValue("Thresholding_method", userThresholdingMethod);
-        imageFile.addKeyValue("Sigma_(pix)",""+sigma);
-        imageFile.addKeyValue("Median_radius_(pix)",""+medianRadius);
-        imageFile.addKeyValue("Particle_threshold",""+particleThreshold);
+        imageFile.addKeyValue("Sigma_(pix)", String.valueOf(sigma));
+        imageFile.addKeyValue("Median_radius_(pix)", String.valueOf(medianRadius));
+        imageFile.addKeyValue("Particle_threshold", String.valueOf(particleThreshold));
 
         IJLogger.info("Image","Pixel size : "+pixelSizeImage+ " um");
         IJLogger.info("Detection parameters","Ring radius : "+ovalRadius + " pix");
@@ -139,12 +140,12 @@ public class ArgoSlideProcessing {
 
                 // get the average x step
                 double xStepAvg = Processing.getAverageStep(smallerGrid.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage, argoSpacing);
-                imageChannel.addKeyValue("ch"+c+"_xStepAvg_(pix)",""+xStepAvg);
+                imageChannel.addKeyValue("ch"+c+"_xStepAvg_(pix)", String.valueOf(xStepAvg));
                 IJLogger.info("Channel "+c,"xStepAvg = " +xStepAvg + " pix");
 
                 // get the average y step
                 double yStepAvg = Processing.getAverageStep(smallerGrid.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage, argoSpacing);
-                imageChannel.addKeyValue("ch"+c+"_yStepAvg_(pix)",""+yStepAvg);
+                imageChannel.addKeyValue("ch"+c+"_yStepAvg_(pix)", String.valueOf(yStepAvg));
                 IJLogger.info("Channel "+c,"yStepAvg = " +yStepAvg + " pix");
 
                 // get the rotation angle
@@ -184,6 +185,8 @@ public class ArgoSlideProcessing {
                 // compute metrics
                 imageChannel.addFieldDistortion(Processing.computeFieldDistortion(gridPoints, idealGridPoints, pixelSizeImage));
                 imageChannel.addFieldUniformity(Processing.computeFieldUniformity(gridPoints,channel,ovalRadius));
+                // add tags to the image
+                imageFile.addTags(Tools.FIELD_DISTORTION_TAG, Tools.FIELD_UNIFORMITY_TAG);
 
             }else {
                 // create grid point ROIs
@@ -198,6 +201,8 @@ public class ArgoSlideProcessing {
                 gridPoints.forEach(pR -> {roiManager.addRoi(new PointRoi(pR.getX(), pR.getY()));});
                 // compute metrics
                 imageChannel.addFWHM(Processing.computeFWHM(gridPoints,channel, lineLength, pixelSizeImage));
+                // add tag to image
+                imageFile.addTags(Tools.FWHM_TAG);
             }
             roiManager.runCommand(channel,"Show All without labels");
             imageFile.addChannel(imageChannel);
