@@ -129,10 +129,10 @@
 		<main-class>ch.epfl.biop.argolight_analysis_tool.ArgoLightCommand</main-class>
 		<license.licenseName>gpl_v3</license.licenseName>
 		<license.copyrightOwners>ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP)</license.copyrightOwners>
-		<scijava.app.directory>C:/Fiji.app/</scijava.app.directory>
-		<scijava.app.subdirectory>plugins/BIOP</scijava.app.subdirectory>
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
-		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
+		<!--<scijava.app.directory>C:/Fiji.app/</scijava.app.directory>
+		<scijava.app.subdirectory>plugins/BIOP</scijava.app.subdirectory>
+		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>-->
 	</properties>
 
 	<repositories>
@@ -163,7 +163,7 @@
 		<dependency>
 			<groupId>fr.igred</groupId>
 			<artifactId>simple-omero-client</artifactId>
-			<version>5.14.0</version>
+			<version>5.14.2</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -202,7 +202,7 @@
 		<dependency>
 			<groupId>org.openmicroscopy</groupId>
 			<artifactId>omero-gateway</artifactId>
-			<version>5.7.0</version>
+			<version>5.8.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openmicroscopy</groupId>
