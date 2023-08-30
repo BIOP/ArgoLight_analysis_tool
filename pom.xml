@@ -191,7 +191,7 @@
 		<dependency>
 			<groupId>org.openmicroscopy</groupId>
 			<artifactId>omero-blitz</artifactId>
-			<version>5.6.0</version>
+			<version>5.7.0</version>
 			<exclusions>
 				<exclusion> <!-- declare the exclusion here -->
 					<groupId>net.sourceforge.findbugs</groupId>
@@ -207,6 +207,7 @@
 		<dependency>
 			<groupId>org.openmicroscopy</groupId>
 			<artifactId>omero-model</artifactId>
+			<version>5.6.11</version>
 		</dependency>
 
 		<dependency>
