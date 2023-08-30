@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
-		<version>31.1.0</version>
+		<version>36.0.0</version>
 		<relativePath />
 	</parent>
 
@@ -129,6 +129,11 @@
 		<main-class>ch.epfl.biop.argolight_analysis_tool.ArgoLightCommand</main-class>
 		<license.licenseName>gpl_v3</license.licenseName>
 		<license.copyrightOwners>ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP)</license.copyrightOwners>
+
+		<simple-omero-client.version>5.14.2</simple-omero-client.version>
+		<omero-gateway.version>5.8.1</omero-gateway.version>
+		<omero-model.version>5.6.11</omero-model.version>
+
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<!--<scijava.app.directory>C:/Fiji.app/</scijava.app.directory>
 		<scijava.app.subdirectory>plugins/BIOP</scijava.app.subdirectory>
@@ -163,51 +168,23 @@
 		<dependency>
 			<groupId>fr.igred</groupId>
 			<artifactId>simple-omero-client</artifactId>
-			<version>5.14.2</version>
+			<version>${simple-omero-client.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-math3</artifactId>
-			<version>3.6.1</version>
 		</dependency>
-
-
 
 		<!-- OME dependencies-->
 		<dependency>
-			<groupId>com.zeroc</groupId>
-			<artifactId>glacier2</artifactId>
-			<version>3.6.5</version>
-		</dependency>
-		<dependency>
-			<groupId>com.zeroc</groupId>
-			<artifactId>ice</artifactId>
-			<version>3.6.5</version>
-		</dependency>
-		<dependency>
-			<groupId>org.openmicroscopy</groupId>
-			<artifactId>ome-xml</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.openmicroscopy</groupId>
-			<artifactId>omero-blitz</artifactId>
-			<version>5.7.0</version>
-			<exclusions>
-				<exclusion> <!-- declare the exclusion here -->
-					<groupId>net.sourceforge.findbugs</groupId>
-					<artifactId>annotations</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
 			<groupId>org.openmicroscopy</groupId>
 			<artifactId>omero-gateway</artifactId>
-			<version>5.8.1</version>
+			<version>${omero-gateway.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openmicroscopy</groupId>
 			<artifactId>omero-model</artifactId>
-			<version>5.6.11</version>
+			<version>${omero-model.version}</version>
 		</dependency>
 
 		<dependency>
