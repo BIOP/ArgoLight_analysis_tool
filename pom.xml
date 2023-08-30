@@ -132,7 +132,6 @@
 
 		<simple-omero-client.version>5.14.2</simple-omero-client.version>
 		<omero-gateway.version>5.8.1</omero-gateway.version>
-		<omero-model.version>5.6.11</omero-model.version>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<!--<scijava.app.directory>C:/Fiji.app/</scijava.app.directory>
@@ -180,11 +179,6 @@
 			<groupId>org.openmicroscopy</groupId>
 			<artifactId>omero-gateway</artifactId>
 			<version>${omero-gateway.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.openmicroscopy</groupId>
-			<artifactId>omero-model</artifactId>
-			<version>${omero-model.version}</version>
 		</dependency>
 
 		<dependency>
