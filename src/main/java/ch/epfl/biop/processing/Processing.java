@@ -142,15 +142,15 @@ public class Processing {
 
             // send heat maps
             if (savingHeatMaps) {
-                if(isOldProtocol || imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()));
-                if(isOldProtocol || imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(isOldProtocol || !imageFile.getImagedFoV().equals("partialFoV")) sender.sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(isOldProtocol || !imageFile.getImagedFoV().equals("partialFoV")) sender.sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()));
                 if(isOldProtocol || !imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()));
             }
         }
 
         // send results table
-        if(isOldProtocol || imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(distortionValues, chIds, false, "Field_distortion");
-        if(isOldProtocol || imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
+        if(isOldProtocol || !imageFile.getImagedFoV().equals("partialFoV")) sender.sendResultsTable(distortionValues, chIds, false, "Field_distortion");
+        if(isOldProtocol || !imageFile.getImagedFoV().equals("partialFoV")) sender.sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
         if(isOldProtocol || !imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(fwhmValues, chIds, false, "FWHM");
 
         // send key values

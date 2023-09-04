@@ -132,12 +132,12 @@ public class ArgoSlideProcessing {
             // display all points (grid and ideal)
             roiManager.reset();
 
-            if(imageFile.getImagedFoV().equals("fullFoV")){
-                // reduced grid to compute average step
-                List<Point2D> smallerGrid = gridPoints.stream()
-                        .filter(e -> (Math.abs(e.getX() - crossRoi.getStatistics().xCentroid) < (2.5*argoSpacing) / pixelSizeImage && Math.abs(e.getY() - crossRoi.getStatistics().yCentroid) < (2.5*argoSpacing) / pixelSizeImage))
-                        .collect(Collectors.toList());
+            // reduced grid to compute average step
+            List<Point2D> smallerGrid = gridPoints.stream()
+                    .filter(e -> (Math.abs(e.getX() - crossRoi.getStatistics().xCentroid) < (2.5*argoSpacing) / pixelSizeImage && Math.abs(e.getY() - crossRoi.getStatistics().yCentroid) < (2.5*argoSpacing) / pixelSizeImage))
+                    .collect(Collectors.toList());
 
+            if(!imageFile.getImagedFoV().equals("partialFoV")){
                 // get the average x step
                 double xStepAvg = Processing.getAverageStep(smallerGrid.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage, argoSpacing);
                 imageChannel.addKeyValue("ch"+c+"_xStepAvg_(pix)", String.valueOf(xStepAvg));
@@ -184,23 +184,30 @@ public class ArgoSlideProcessing {
 
                 // compute metrics
                 imageChannel.addFieldDistortion(Processing.computeFieldDistortion(gridPoints, idealGridPoints, pixelSizeImage));
-                imageChannel.addFieldUniformity(Processing.computeFieldUniformity(gridPoints,channel,ovalRadius));
+                imageChannel.addFieldUniformity(Processing.computeFieldUniformity(gridPoints, channel,ovalRadius));
                 // add tags to the image
                 imageFile.addTags(Tools.FIELD_DISTORTION_TAG, Tools.FIELD_UNIFORMITY_TAG);
 
-            }else {
+            }
+            if(!imageFile.getImagedFoV().equals("fullFoV")){
+                roiManager.reset();
+
+                List<Roi> fwhmGridPointsRoiList = new ArrayList<>();
                 // create grid point ROIs
-                for(Point2D pR : gridPoints) {
+                for(Point2D pR : smallerGrid) {
                     OvalRoi roi = new OvalRoi((pR.getX() - ovalRadius + 0.5), pR.getY() - ovalRadius + 0.5, 2 * ovalRadius, 2 * ovalRadius);
+                    roi.setFillColor(new Color(255,255,255,50));
                     roi.setStrokeColor(Color.RED);
                     roiManager.addRoi(roi);
+                    fwhmGridPointsRoiList.add(roi);
                 }
+
                 // save ROIs
-                imageChannel.addGridRings(Arrays.asList(roiManager.getRoisAsArray()));
+                imageChannel.addGridRings(fwhmGridPointsRoiList);
                 // add grid point centers
-                gridPoints.forEach(pR -> {roiManager.addRoi(new PointRoi(pR.getX(), pR.getY()));});
+                smallerGrid.forEach(pR -> {roiManager.addRoi(new PointRoi(pR.getX(), pR.getY()));});
                 // compute metrics
-                imageChannel.addFWHM(Processing.computeFWHM(gridPoints,channel, lineLength, pixelSizeImage));
+                imageChannel.addFWHM(Processing.computeFWHM(smallerGrid, channel, lineLength, pixelSizeImage));
                 // add tag to image
                 imageFile.addTags(Tools.FWHM_TAG);
             }
