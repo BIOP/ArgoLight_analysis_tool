@@ -27,7 +27,7 @@ public class ImageFile {
     public enum FILETYPE{
         SINGLE("Single file",
                 Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)_(?<fov>.*)_(?<serie>.*)\\.(?<extension>.*)"),
-                Pattern.compile(".*[\\.][a-zA-Z]*")),
+                Pattern.compile(".*[\\.][a-zA-Z0-9]*")),
 
         MULTIPLE_OMERO("File coming from a fileset",
                  Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)\\.(?<extension>[\\w]*).*\\[(?<fov>.*)_(?<serie>.*)\\]"),
@@ -197,9 +197,9 @@ public class ImageFile {
         Optional<FILETYPE> filePattern = Arrays.stream(FILETYPE.values()).filter(ft -> ft.matchesType(imgName)).findFirst();
 
         if(!filePattern.isPresent()) {
-            IJLogger.error("The name "+imgName+ "is not correctly formatted. Please format it like : "+
-                    "\\n MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension for single file (ex: lsm980_ArgoSLG482_b_d20230405_o63x_oil_fullFoV_1.czi)"+
-                    "\\n MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion.extension [FoV_serie] for fileset images (ex: sp8up1_ArgoSLG482_b_d20230405_o63x_oil.lif [fullFoV_1]");
+            IJLogger.error("The name "+imgName+ "is not correctly formatted.");
+            IJLogger.info("Please format it like 'MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension' for single file");
+            IJLogger.info("Please format it like 'MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion.extension [FoV_serie]' for fileset images");
             return;
         }
 
@@ -220,9 +220,9 @@ public class ImageFile {
                     this.microscope.toLowerCase(), this.immersionMedium, this.argoSlidePattern);
 
         } else {
-            IJLogger.error("The name "+imgName+ "is not correctly formatted. Please format it like : "+
-                    "\\n MicrosocpeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension for single file (ex: lsm980_ArgoSLG482_b_d20230405_o63x_oil_fullFoV_1.czi)"+
-                    "\\n MicrosocpeName_ArgoSlideName_pattern_dDate_oObjective_immersion.extension [FoV_serie] for fileset images (ex: sp8up1_ArgoSLG482_b_d20230405_o63x_oil.lif [fullFoV_1]");
+            IJLogger.error("The name "+imgName+ "is not correctly formatted.");
+            IJLogger.info("Please format it like 'MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion_FoV_serie.extension' for single file");
+            IJLogger.info("Please format it like 'MicroscopeName_ArgoSlideName_pattern_dDate_oObjective_immersion.extension [FoV_serie]' for fileset images");
         }
     }
 

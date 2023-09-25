@@ -334,7 +334,7 @@ public class Processing {
      *
      * @param values
      * @param crossRoi
-     * @return
+     * @return angle in radian
      */
     protected static double getRotationAngle(List<Point2D> values, Roi crossRoi){
         double xCross = crossRoi.getStatistics().xCentroid;
@@ -348,13 +348,32 @@ public class Processing {
         List<Point2D> cornerPoints = Arrays.asList(sortedPoints.get(lastIdx), sortedPoints.get(lastIdx - 1), sortedPoints.get(lastIdx - 2), sortedPoints.get(lastIdx - 3));
 
         // get the top left and top right corners
-        Point2D topLeftCorner = cornerPoints.stream().filter(e->e.getX()<xCross && e.getY()<yCross).collect(Collectors.toList()).get(0);
-        Point2D topRightCorner = cornerPoints.stream().filter(e->e.getX()>xCross && e.getY()<yCross).collect(Collectors.toList()).get(0);
+        List<Point2D> topLeftCornerList = cornerPoints.stream().filter(e->e.getX()<xCross && e.getY()<yCross).collect(Collectors.toList());
+        List<Point2D> topRightCornerList = cornerPoints.stream().filter(e->e.getX()>xCross && e.getY()<yCross).collect(Collectors.toList());
+        List<Point2D> bottomLeftCornerList = cornerPoints.stream().filter(e->e.getX()<xCross && e.getY()>yCross).collect(Collectors.toList());
+        List<Point2D> bottomRightCornerList = cornerPoints.stream().filter(e->e.getX()>xCross && e.getY()>yCross).collect(Collectors.toList());
+
+        Point2D leftCorner;
+        Point2D rightCorner;
+
+        if(!topLeftCornerList.isEmpty() && !topRightCornerList.isEmpty()){
+            leftCorner = topLeftCornerList.get(0);
+            rightCorner = topRightCornerList.get(0);
+        }else{
+            if(!bottomLeftCornerList.isEmpty() && !bottomRightCornerList.isEmpty()){
+                leftCorner = bottomLeftCornerList.get(0);
+                rightCorner = bottomRightCornerList.get(0);
+            }else{
+                IJLogger.error("Compute Rotation angle","At least 2 corners rings are missing in the detection" +
+                        "step. Please have a look to the image and increase the exposure time");
+                throw new RuntimeException();
+            }
+        }
 
         // compute the rotation angle
         double theta = 0;
-        if(Math.abs(topRightCorner.getX() - topLeftCorner.getX()) > 0.01){
-            theta = Math.atan2(topRightCorner.getY() - topLeftCorner.getY(),topRightCorner.getX() - topLeftCorner.getX());
+        if(Math.abs(rightCorner.getX() - leftCorner.getX()) > 0.01){
+            theta = Math.atan2(rightCorner.getY() - leftCorner.getY(),rightCorner.getX() - leftCorner.getX());
         }
         return theta;
     }
