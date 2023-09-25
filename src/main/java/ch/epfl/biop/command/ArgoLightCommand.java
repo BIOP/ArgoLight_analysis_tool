@@ -73,11 +73,11 @@ public class ArgoLightCommand implements Command {
     private String userPort;
     private String userProjectID;
     private List<String> userMicroscopes;
+    private List<String> userArgoslides;
+    private String defaultArgoslide;
+    private Map<String, List<String>> argoslidesParameters = Collections.emptyMap();
     private String userRootFolder;
     private String userSaveFolder;
-    private int userArgoSpacing;
-    private int userArgoFoV;
-    private int userArgoNRings;
     private double userSigma;
     private double userMedianRadius;
     private String userThresholdMethod;
@@ -96,9 +96,9 @@ public class ArgoLightCommand implements Command {
 
     final private String defaultHost = "localHost";
     final private String defaultPort = "4064";
-    final private int defaultArgoSpacing = 15;
-    final private int defaultArgoFoV = 570;
-    final private int defaultArgoNRings = 39;
+    final private int defaultArgoSpacing = 1;//15;
+    final private int defaultArgoFoV = 10;//570;
+    final private int defaultArgoNRings = 1;//39;
     final private double defaultSigma = 0.2;
     final private double defaultMedianRadius = 0.2;
     final private String defaultThresholdMethod = "Li";
@@ -114,11 +114,13 @@ public class ArgoLightCommand implements Command {
     final private String portKey = "OMERO Port";
     final private String projectIdKey = "Project ID";
     final private String microscopeKey = "Microscopes";
+    final private String argoslidesKey = "Argoslides";
     final private String saveFolderKey = "Saving folder";
     final private String rootFolderKey = "Root folder";
-    final private String argoSpacingKey = "Ring Spacing";
-    final private String argoFoVKey = "Rings FoV";
-    final private String argoNRingsKey = "Number rings per line";
+    final private int argoDefaultPos = 0;
+    final private int argoSpacingPos = 1;
+    final private int argoFoVPos = 2;
+    final private int argoNRingsPos = 3;
     final private String sigmaKey = "Sigma";
     final private String medianKey = "Median radius";
     final private String segmentationKey = "Segmentation method";
@@ -128,6 +130,7 @@ public class ArgoLightCommand implements Command {
     final private String folderName = "." + File.separator + "plugins" + File.separator + "BIOP";
     final private String fileName = "ArgoLight_default_params.csv";
     final private String processingFileName = "ArgoLight_default_processing_params.csv";
+    final private String argoslideFileName = "ArgoLight_default_argoslide_params.csv";
 
     final private Font stdFont = new Font("Calibri", Font.PLAIN, 17);
     final private Font titleFont = new Font("Calibri", Font.BOLD, 22);
@@ -152,8 +155,8 @@ public class ArgoLightCommand implements Command {
      * @param cleanTargetSelection
      */
     private void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
-                               String microscope, boolean isOmeroSender, String savingFolderPath, boolean saveHeatMaps,
-                               boolean allImages, boolean cleanTargetSelection){
+                               String microscope, String argoslide, boolean isOmeroSender, String savingFolderPath,
+                               boolean saveHeatMaps, boolean allImages, boolean cleanTargetSelection){
         boolean finalPopupMessage = true;
         if(!isOmeroRetriever && !new File(rootFolderPath).exists()){
             showWarningMessage("Root folder not accessible", "The root folder "+rootFolderPath+" does not exist");
@@ -161,6 +164,10 @@ public class ArgoLightCommand implements Command {
         }
         if(!isOmeroSender && !new File(savingFolderPath).exists()){
             showWarningMessage("Saving folder not accessible", "The saving folder "+savingFolderPath+" does not exist");
+            return;
+        }
+        if(argoslide == null || argoslide.isEmpty() || !argoslidesParameters.containsKey(argoslide)){
+            showWarningMessage("No Argoslide selected", "You need to select one available argoslide");
             return;
         }
 
@@ -196,6 +203,9 @@ public class ArgoLightCommand implements Command {
                 sender = new LocalSender(savingFolder, microscope, cleanTarget, isOmeroRetriever);
             }
 
+            // get the current argoslide parameters
+            List<String> argoParams = argoslidesParameters.get(argoslide);
+
             // run analysis
             if (nImages > 0)
                 Processing.run(retriever, saveHeatMaps, sender,
@@ -204,7 +214,9 @@ public class ArgoLightCommand implements Command {
                         isDefaultThresholdMethod ? defaultThresholdMethod : userThresholdMethod,
                         isDefaultParticleThresh ? defaultParticleThresh : userParticleThresh,
                         isDefaultRingRadius ? defaultRingRadius : userRingRadius,
-                        userArgoSpacing, userArgoFoV, userArgoNRings);
+                        Integer.parseInt(argoParams.get(argoSpacingPos)),
+                        Integer.parseInt(argoParams.get(argoFoVPos)),
+                        Integer.parseInt(argoParams.get(argoNRingsPos)));
             else {
                 IJLogger.warn("No images available for project " + userProjectID + ", dataset " + microscope);
                 showWarningMessage("No Images","No images available for project " + userProjectID + ", dataset " + microscope);
@@ -246,6 +258,7 @@ public class ArgoLightCommand implements Command {
         JDialog generalPane = new JDialog();
 
         setDefaultGeneralParams();
+        setDefaultArgoParams();
         setDefaultProcessingParams();
 
         // label host and port for OMERO retriever
@@ -304,6 +317,16 @@ public class ArgoLightCommand implements Command {
         JComboBox<String> cbMicroscope = new JComboBox<>(modelCmbMicroscope);
         cbMicroscope.setFont(stdFont);
         userMicroscopes.forEach(cbMicroscope::addItem);
+
+        // Argoslide choice
+        JLabel labArgoslide = new JLabel("Argoslide");
+        labArgoslide.setFont(stdFont);
+        DefaultComboBoxModel<String> modelCmbArgoslide = new DefaultComboBoxModel<>();
+        JComboBox<String> cbArgoslide = new JComboBox<>(modelCmbArgoslide);
+        cbArgoslide.setFont(stdFont);
+        userArgoslides.forEach(cbArgoslide::addItem);
+        if(defaultArgoslide != null && !defaultArgoslide.isEmpty())
+            cbArgoslide.setSelectedItem(defaultArgoslide);
 
         // Root folder selection for local sender
         JLabel labSavingFolder  = new JLabel("Saving Folder");
@@ -434,6 +457,9 @@ public class ArgoLightCommand implements Command {
             cbMicroscope.removeAllItems();
             userMicroscopes.forEach(cbMicroscope::addItem);
             cbMicroscope.setSelectedItem(userMicroscopes);
+            cbArgoslide.removeAllItems();
+            userArgoslides.forEach(cbArgoslide::addItem);
+            cbArgoslide.setSelectedItem(userArgoslides);
             tfProjectID.setText(userProjectID);
             tfRootFolder.setText(userRootFolder);
             tfSavingFolder.setText(userSaveFolder);
@@ -444,6 +470,13 @@ public class ArgoLightCommand implements Command {
         bProcessingSettings.setFont(stdFont);
         bProcessingSettings.addActionListener(e->{
             createProcessingSettingsPane();
+        });
+
+        // button to configure processing settings
+        JButton bArgoslideSettings = new JButton("Settings");
+        bArgoslideSettings.setFont(stdFont);
+        bArgoslideSettings.addActionListener(e->{
+            createArgoSettingsPane(String.valueOf(cbArgoslide.getSelectedItem()));
         });
 
         // button to do live
@@ -457,7 +490,8 @@ public class ArgoLightCommand implements Command {
                     if (!connectToOmero(this.client, tfUsername.getText(), tfPassword.getPassword()))
                         return;
             }
-            createLiveSettingsPane(isOmeroImage);
+
+            createLiveSettingsPane(isOmeroImage, (String)cbArgoslide.getSelectedItem());
         });
 
         // build everything together
@@ -562,6 +596,33 @@ public class ArgoLightCommand implements Command {
         omeroPane.add(new JSeparator(), constraints);
         constraints.gridwidth = 1; // set it back
 
+        JLabel  argoslideTitle = new JLabel ("Choose your Argoslide");
+        argoslideTitle.setFont(titleFont);
+
+        constraints.gridwidth = 3; // span two rows
+        constraints.gridx = 0;
+        constraints.gridy = omeroRetrieverRow++;
+        omeroPane.add(argoslideTitle, constraints);
+        constraints.gridwidth = 1; // set it back
+
+        constraints.gridx = 0;
+        constraints.gridy = omeroRetrieverRow;
+        omeroPane.add(labArgoslide, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = omeroRetrieverRow;
+        omeroPane.add(cbArgoslide, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = omeroRetrieverRow++;
+        omeroPane.add(bArgoslideSettings, constraints);
+
+        constraints.gridwidth = 4; // span two rows
+        constraints.gridx = 0;
+        constraints.gridy = omeroRetrieverRow++;
+        omeroPane.add(new JSeparator(), constraints);
+        constraints.gridwidth = 1; // set it back
+
         JLabel  senderTitle = new JLabel ("Where to save results");
         senderTitle.setFont(titleFont);
 
@@ -656,6 +717,7 @@ public class ArgoLightCommand implements Command {
                     password,
                     tfRootFolder.getText(),
                     ((String)cbMicroscope.getSelectedItem()).toLowerCase(),
+                    ((String)cbArgoslide.getSelectedItem()),
                     rbOmeroSender.isSelected(),
                     tfSavingFolder.getText(),
                     chkSaveHeatMap.isSelected(),
@@ -666,6 +728,111 @@ public class ArgoLightCommand implements Command {
                 this.client.disconnect();
                 IJLogger.info("Disconnected from OMERO ");
             }
+        }
+    }
+
+
+    /**
+     * Build the general settings user interface
+     */
+    private void createArgoSettingsPane(String argoslide){
+
+        argoslidesParameters = getUserDefinedParams(argoslideFileName);
+        List<String> currentArgoslideParameters = argoslidesParameters.getOrDefault(argoslide, Collections.emptyList());
+        if(currentArgoslideParameters.size() < 4){
+            currentArgoslideParameters = new ArrayList<>(4);
+            currentArgoslideParameters.add("false");
+            currentArgoslideParameters.add(String.valueOf(defaultArgoSpacing));
+            currentArgoslideParameters.add(String.valueOf(defaultArgoFoV));
+            currentArgoslideParameters.add(String.valueOf(defaultArgoNRings));
+        }
+
+        // median radius for median filtering
+        JLabel labArgoSpacing = new JLabel("Distance between two horizontal rings (um)");
+        labArgoSpacing.setFont(stdFont);
+        SpinnerModel spModelArgoSpacing = new SpinnerNumberModel(Integer.parseInt(currentArgoslideParameters.get(argoSpacingPos)),1,1000,1);
+        JSpinner spArgoSpacing = new JSpinner(spModelArgoSpacing);
+        spArgoSpacing.setFont(stdFont);
+
+        // thresholding method
+        JLabel labArgoFoV  = new JLabel("Field of view (um)");
+        labArgoFoV.setFont(stdFont);
+        SpinnerModel spModelArgoFoV = new SpinnerNumberModel(Integer.parseInt(currentArgoslideParameters.get(argoFoVPos)),10,10000,1);
+        JSpinner spArgoFoV = new JSpinner(spModelArgoFoV);
+        spArgoFoV.setFont(stdFont);
+
+        // threshold on particle size
+        JLabel labArgoNRings = new JLabel("Number of rings along one line");
+        labArgoNRings.setFont(stdFont);
+        SpinnerModel spModelArgoNRings = new SpinnerNumberModel(Integer.parseInt(currentArgoslideParameters.get(argoNRingsPos)),1,10000,1);
+        JSpinner spArgoNRings = new JSpinner(spModelArgoNRings);
+        spArgoNRings.setFont(stdFont);
+
+        // checkbox to set the default argoslide
+        JCheckBox chkDefaultArgoSlide = new JCheckBox("Set "+argoslide+" as your default slide");
+        chkDefaultArgoSlide.setSelected(false);
+        chkDefaultArgoSlide.setFont(stdFont);
+
+        // build everything together
+        GridBagConstraints constraints = new GridBagConstraints( );
+        constraints.fill = GridBagConstraints.BOTH;
+        constraints.insets = new Insets(5,5,5,5);
+        JPanel settingsPane = new JPanel();
+
+        int settingsRow = 0;
+        settingsPane.setLayout(new GridBagLayout());
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labArgoSpacing, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(spArgoSpacing, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labArgoFoV, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(spArgoFoV, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(labArgoNRings, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(spArgoNRings, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(chkDefaultArgoSlide, constraints);
+
+        JOptionPane pane = new JOptionPane(settingsPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
+                null, null);
+        settingsDialog = pane.createDialog(mainDialog, "Setup "+argoslide+" specifications");
+
+        pane.selectInitialValue();
+        settingsDialog.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
+        settingsDialog.setVisible(true);
+        settingsDialog.dispose();
+
+        Object selectedValue = pane.getValue();
+        int opt = JOptionPane.CLOSED_OPTION;
+
+        if(selectedValue instanceof Integer)
+            opt = (Integer) selectedValue;
+
+        if(opt == JOptionPane.OK_OPTION){
+            // save a csv file with the user defined parameters
+            saveUserDefinedArgoslideParams(
+                    argoslide,
+                    (Integer) spArgoSpacing.getModel().getValue(),
+                    (Integer) spArgoFoV.getModel().getValue(),
+                    (Integer) spArgoNRings.getModel().getValue(),
+                    chkDefaultArgoSlide.getModel().isSelected());
         }
     }
 
@@ -721,9 +888,40 @@ public class ArgoLightCommand implements Command {
                 else if(!rootFolder.getAbsolutePath().endsWith(".csv"))
                     showErrorMessage("Wrong file type", "The file you selected is not a .csv file. Please select a .csv file");
                 else {
-                    List<String> microscopes = parseMicroscopesCSV(rootFolder);
+                    List<String> microscopes = parseUserCSV(rootFolder);
                     String microscopesList = String.join(",", microscopes);
                     tfMicroscope.setText(microscopesList);
+                }
+            }
+        });
+
+        // list of available argoslides
+        JLabel labArgoslide = new JLabel("Argoslides");
+        labArgoslide.setFont(stdFont);
+        JTextField tfArgoslide = new JTextField(String.join(",", userArgoslides));
+        tfArgoslide.setFont(stdFont);
+        tfArgoslide.setColumns(15);
+
+        // button to select a csv file containing all argoslides
+        JButton bChooseArgoslide = new JButton("Open file");
+        bChooseArgoslide.setFont(stdFont);
+        bChooseArgoslide.addActionListener(e->{
+            // define the file chooser
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            fileChooser.setDialogTitle("Choose the argoslides' csv file");
+            fileChooser.showDialog(generalPane,"Select");
+
+            if (fileChooser.getSelectedFile() != null) {
+                File rootFolder = fileChooser.getSelectedFile();
+                if(!rootFolder.exists())
+                    showErrorMessage("No files", "The file you selected does not exist. Please check your path / file");
+                else if(!rootFolder.getAbsolutePath().endsWith(".csv"))
+                    showErrorMessage("Wrong file type", "The file you selected is not a .csv file. Please select a .csv file");
+                else {
+                    List<String> argoslides = parseUserCSV(rootFolder);
+                    String argoslidesList = String.join(",", argoslides);
+                    tfArgoslide.setText(argoslidesList);
                 }
             }
         });
@@ -768,26 +966,6 @@ public class ArgoLightCommand implements Command {
                 tfSaveFolder.setText(fileChooser.getSelectedFile().getAbsolutePath());
         });
 
-        // median radius for median filtering
-        JLabel labArgoSpacing = new JLabel("Distance between two horizontal rings (um)");
-        labArgoSpacing.setFont(stdFont);
-        SpinnerModel spModelArgoSpacing = new SpinnerNumberModel(userArgoSpacing,1,1000,1);
-        JSpinner spArgoSpacing = new JSpinner(spModelArgoSpacing);
-        spArgoSpacing.setFont(stdFont);
-
-        // thresholding method
-        JLabel labArgoFoV  = new JLabel("Field of view (um)");
-        labArgoFoV.setFont(stdFont);
-        SpinnerModel spModelArgoFoV = new SpinnerNumberModel(userArgoFoV,10,10000,1);
-        JSpinner spArgoFoV = new JSpinner(spModelArgoFoV);
-        spArgoFoV.setFont(stdFont);
-
-        // threshold on particle size
-        JLabel labArgoNRings = new JLabel("Number of rings along one line");
-        labArgoNRings.setFont(stdFont);
-        SpinnerModel spModelArgoNRings = new SpinnerNumberModel(userArgoNRings,1,10000,1);
-        JSpinner spArgoNRings = new JSpinner(spModelArgoNRings);
-        spArgoNRings.setFont(stdFont);
 
         // build everything together
         GridBagConstraints constraints = new GridBagConstraints( );
@@ -839,6 +1017,18 @@ public class ArgoLightCommand implements Command {
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow;
+        settingsPane.add(labArgoslide, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        settingsPane.add(tfArgoslide, constraints);
+
+        constraints.gridx = 2;
+        constraints.gridy = settingsRow++;
+        settingsPane.add(bChooseArgoslide, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
         settingsPane.add(labRootFolder, constraints);
 
         constraints.gridx = 1;
@@ -863,42 +1053,9 @@ public class ArgoLightCommand implements Command {
 
         constraints.gridwidth = 3; // span two rows
         constraints.gridx = 0;
-        constraints.gridy = settingsRow++;
+        constraints.gridy = settingsRow;
         settingsPane.add(new JSeparator(), constraints);
         constraints.gridwidth = 1; // set it back
-
-        JLabel settingsHeader = new JLabel("ArgoLight field-of-rings pattern settings");
-        settingsHeader.setFont(titleFont);
-
-        constraints.gridwidth = 3; // span two rows
-        constraints.gridx = 0;
-        constraints.gridy = settingsRow++;
-        settingsPane.add(settingsHeader, constraints);
-        constraints.gridwidth = 1; // set it back
-
-        constraints.gridx = 0;
-        constraints.gridy = settingsRow;
-        settingsPane.add(labArgoSpacing, constraints);
-
-        constraints.gridx = 1;
-        constraints.gridy = settingsRow++;
-        settingsPane.add(spArgoSpacing, constraints);
-
-        constraints.gridx = 0;
-        constraints.gridy = settingsRow;
-        settingsPane.add(labArgoFoV, constraints);
-
-        constraints.gridx = 1;
-        constraints.gridy = settingsRow++;
-        settingsPane.add(spArgoFoV, constraints);
-
-        constraints.gridx = 0;
-        constraints.gridy = settingsRow;
-        settingsPane.add(labArgoNRings, constraints);
-
-        constraints.gridx = 1;
-        constraints.gridy = settingsRow;
-        settingsPane.add(spArgoNRings, constraints);
 
         JOptionPane pane = new JOptionPane(settingsPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
                 null, null);
@@ -935,20 +1092,15 @@ public class ArgoLightCommand implements Command {
             userHost = tfHost.getText();
             userRootFolder = tfRootFolder.getText();
             userSaveFolder = tfSaveFolder.getText();
-            userArgoSpacing = (int)spArgoSpacing.getValue();
-            userArgoNRings = (int)spArgoNRings.getValue();
-            userArgoFoV = (int)spArgoFoV.getValue();
 
             // save a csv file with the user defined parameters
             saveUserDefinedGeneralParams(userHost,
                     userPort,
                     userProjectID,
                     tfMicroscope.getText(),
+                    tfArgoslide.getText(),
                     userRootFolder,
-                    userSaveFolder,
-                    userArgoSpacing,
-                    userArgoFoV,
-                    userArgoNRings);
+                    userSaveFolder);
 
             if(!badEntries.isEmpty())
                 showWarningMessage("Bad entries", "The following entries require numeric values : "+badEntries);
@@ -1151,7 +1303,18 @@ public class ArgoLightCommand implements Command {
         }
     }
 
-    private void createLiveSettingsPane(boolean isOmeroImage){
+    private void createLiveSettingsPane(boolean isOmeroImage, String argoslide){
+
+        List<String> currentArgoslideParameters = argoslidesParameters.getOrDefault(argoslide, Collections.emptyList());
+        if(currentArgoslideParameters.isEmpty()){
+            showWarningMessage("No ArgoSlide selected","Please select an ArgoSlide first");
+            return;
+        }
+
+        int currentArgoSpacing = Integer.parseInt(currentArgoslideParameters.get(argoSpacingPos));
+        int currentArgoFoV = Integer.parseInt(currentArgoslideParameters.get(argoFoVPos));
+        int currentArgoNRings = Integer.parseInt(currentArgoslideParameters.get(argoNRingsPos));
+
         JDialog generalPane = new JDialog();
 
         // OMERO image ID
@@ -1240,7 +1403,7 @@ public class ArgoLightCommand implements Command {
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
+                    particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
             labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
             labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
             labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1253,7 +1416,7 @@ public class ArgoLightCommand implements Command {
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
+                    particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
             labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
             labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
             labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1266,7 +1429,7 @@ public class ArgoLightCommand implements Command {
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
+                    particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
             labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
             labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
             labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1279,7 +1442,7 @@ public class ArgoLightCommand implements Command {
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
+                    particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
             labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
             labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
             labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1292,7 +1455,7 @@ public class ArgoLightCommand implements Command {
             double particleThreshPreview = (double) spThreshParticles.getValue();
             double ringRadiusPreview = (double) spRingRadius.getValue();
             ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
+                    particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
             labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
             labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
             labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1403,7 +1566,7 @@ public class ArgoLightCommand implements Command {
                 double particleThreshPreview = (double) spThreshParticles.getValue();
                 double ringRadiusPreview = (double) spRingRadius.getValue();
                 ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                        particleThreshPreview, ringRadiusPreview, userArgoSpacing, userArgoFoV, userArgoNRings);
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
                 labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
                 labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
                 labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1724,6 +1887,7 @@ public class ArgoLightCommand implements Command {
                 (defaultParams.get(portKey).isEmpty() ? defaultPort : defaultParams.get(portKey).get(0)) :
                 defaultPort;
         userMicroscopes = defaultParams.getOrDefault(microscopeKey, Collections.emptyList());
+        userArgoslides = defaultParams.getOrDefault(argoslidesKey, Collections.emptyList());
         userProjectID = defaultParams.containsKey(projectIdKey) ?
                 (defaultParams.get(projectIdKey).isEmpty() ? "-1" : defaultParams.get(projectIdKey).get(0)) :
                 "-1";
@@ -1731,38 +1895,66 @@ public class ArgoLightCommand implements Command {
                 (defaultParams.get(rootFolderKey).isEmpty() ? "" : defaultParams.get(rootFolderKey).get(0)) : "";
         userSaveFolder = defaultParams.containsKey(saveFolderKey) ?
                 (defaultParams.get(saveFolderKey).isEmpty() ? "" : defaultParams.get(saveFolderKey).get(0)) : "";
-
-        if(defaultParams.containsKey(argoSpacingKey) && !defaultParams.get(argoSpacingKey).isEmpty()) {
-            try {
-                userArgoSpacing = Integer.parseInt(defaultParams.get(argoSpacingKey).get(0));
-            } catch (Exception e) {
-                userArgoSpacing = defaultArgoSpacing;
-                IJLogger.warn("Read default ArgoSlide params", "The value of " + argoSpacingKey + " " +
-                        defaultParams.get(argoSpacingKey).get(0) + " is not a numeric value. Default value is used instead.");
-            }
-        } else userArgoSpacing = defaultArgoSpacing;
-
-        if(defaultParams.containsKey(argoFoVKey) && !defaultParams.get(argoFoVKey).isEmpty()) {
-            try {
-                userArgoFoV = Integer.parseInt(defaultParams.get(argoFoVKey).get(0));
-            } catch (Exception e) {
-                userArgoFoV = defaultArgoFoV;
-                IJLogger.warn("Read default ArgoSlide params", "The value of " + argoFoVKey + " " +
-                        defaultParams.get(argoFoVKey).get(0) + " is not a numeric value. Default value is used instead.");
-            }
-        } else userArgoFoV = defaultArgoFoV;
-
-        if(defaultParams.containsKey(argoNRingsKey) && !defaultParams.get(argoNRingsKey).isEmpty()) {
-            try {
-                userArgoNRings = Integer.parseInt(defaultParams.get(argoNRingsKey).get(0));
-            } catch (Exception e) {
-                userArgoNRings = defaultArgoNRings;
-                IJLogger.warn("Read default ArgoSlide params", "The value of " + argoNRingsKey + " " +
-                        defaultParams.get(argoNRingsKey).get(0) + " is not a numeric value. Default value is used instead.");
-            }
-        } else userArgoNRings = defaultArgoNRings;
     }
 
+    /**
+     * set the default values for each metrics use for retrieve and saving data by reading the corresponding csv file
+     */
+    private void setDefaultArgoParams(){
+        // read the csv file
+        Map<String, List<String>> readParams = getUserDefinedParams(argoslideFileName);
+        Map<String, List<String>> defaultParams  = new HashMap<>();
+
+        for(String argoKey : readParams.keySet()) {
+            List<String> readArgoParams = readParams.get(argoKey);
+            List<String> argoParams = new ArrayList<>();
+
+            if(readArgoParams.isEmpty()){
+                defaultArgoslide = "";
+                argoParams.add(String.valueOf(defaultArgoSpacing));
+                argoParams.add(String.valueOf(defaultArgoFoV));
+                argoParams.add(String.valueOf(defaultArgoNRings));
+            } else {
+                if(readArgoParams.get(argoDefaultPos).equalsIgnoreCase("true"))
+                    defaultArgoslide = argoKey;
+                if (readArgoParams.size() > 3) {
+                    argoParams.add(checkAndSetValidityOfReadArgoMetric(readArgoParams, argoSpacingPos, defaultArgoSpacing, "ring spacing"));
+                    argoParams.add(checkAndSetValidityOfReadArgoMetric(readArgoParams, argoFoVPos, defaultArgoFoV, "pattern FoV"));
+                    argoParams.add(checkAndSetValidityOfReadArgoMetric(readArgoParams, argoNRingsPos, defaultArgoNRings, "Number of rings per line"));
+                } else {
+                    argoParams.add(String.valueOf(defaultArgoSpacing));
+                    argoParams.add(String.valueOf(defaultArgoFoV));
+                    argoParams.add(String.valueOf(defaultArgoNRings));
+                }
+            }
+            defaultParams.put(argoKey, argoParams);
+        }
+
+        argoslidesParameters.clear();
+        argoslidesParameters = defaultParams;
+    }
+
+    private String checkAndSetValidityOfReadArgoMetric(List<String> metrics, int metric, int defaultValue, String metricName){
+        String readArgoSpacing = metrics.get(metric);
+
+        if(readArgoSpacing == null || readArgoSpacing.isEmpty()) {
+            IJLogger.warn("Read default ArgoSlide params", "The value of "+metricName+ " "+
+                    readArgoSpacing + " is not a valid. Default value " +
+                    defaultValue+"is used instead.");
+            readArgoSpacing = String.valueOf(defaultValue);
+        }
+
+        try {
+            Integer.parseInt(readArgoSpacing);
+        } catch (Exception e) {
+            IJLogger.warn("Read default ArgoSlide params", "The value of "+metricName+ " "+
+                    readArgoSpacing + " is not a numeric value. Default value " +
+                    defaultValue+"is used instead.");
+            readArgoSpacing = String.valueOf(defaultValue);
+        }
+
+        return readArgoSpacing;
+    }
 
     /**
      * read the specified csv file
@@ -1830,7 +2022,7 @@ public class ArgoLightCommand implements Command {
      * @param file
      * @return
      */
-    private List<String> parseMicroscopesCSV(File file){
+    private List<String> parseUserCSV(File file){
         List<String> items = new ArrayList<>();
         try {
             //parsing a CSV file into BufferedReader class constructor
@@ -1858,8 +2050,7 @@ public class ArgoLightCommand implements Command {
      * @param savingFolder
      */
     private void saveUserDefinedGeneralParams(String host, String port, String projectID, String microscopes,
-                                              String rootFolder, String savingFolder, int argoSpacing, int argoFov,
-                                              int argoNRings) {
+                                              String argoslides, String rootFolder, String savingFolder) {
         File directory = new File(folderName);
 
         if(!directory.exists())
@@ -1873,11 +2064,9 @@ public class ArgoLightCommand implements Command {
             buffer.write(portKey+","+port + "\n");
             buffer.write(projectIdKey+","+projectID + "\n");
             buffer.write(microscopeKey+","+microscopes + "\n");
+            buffer.write(argoslidesKey+","+argoslides + "\n");
             buffer.write(rootFolderKey+","+rootFolder + "\n");
             buffer.write(saveFolderKey+","+savingFolder + "\n");
-            buffer.write(argoSpacingKey+","+argoSpacing + "\n");
-            buffer.write(argoFoVKey+","+argoFov + "\n");
-            buffer.write(argoNRingsKey+","+argoNRings + "\n");
 
             // close the file
             buffer.close();
@@ -1927,6 +2116,48 @@ public class ArgoLightCommand implements Command {
             showWarningMessage("CSV writing","Couldn't write the csv for default parameters.");
         }
     }
+
+    private void saveUserDefinedArgoslideParams(String argoslide, int argoSpacing,
+                                                int argoFov, int argoNRings, boolean isDefault) {
+        File directory = new File(folderName);
+
+        if(!directory.exists())
+            directory.mkdir();
+
+        Map<String, List<String>> tempMap = new HashMap<>(argoslidesParameters);
+        if(isDefault){
+            tempMap.forEach((key, value)->{
+                value.set(0, "false");
+            });
+        }
+        List<String> argoslideParamList = new ArrayList<>();
+        if(!isDefault && tempMap.containsKey(argoslide))
+            argoslideParamList.add(String.valueOf(tempMap.get(argoslide).get(argoDefaultPos)));
+        else
+            argoslideParamList.add(String.valueOf(isDefault));
+        argoslideParamList.add(String.valueOf(argoSpacing));
+        argoslideParamList.add(String.valueOf(argoFov));
+        argoslideParamList.add(String.valueOf(argoNRings));
+        tempMap.put(argoslide, argoslideParamList);
+
+        try {
+            File file = new File(directory.getAbsoluteFile() + File.separator + argoslideFileName);
+            // write the file
+            BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
+            for(String argoslideKey : tempMap.keySet()){
+                String argoslideParamCSV = String.join(",", tempMap.get(argoslideKey));
+                buffer.write(argoslideKey+","+ argoslideParamCSV + "\n");
+            }
+            // close the file
+            buffer.close();
+
+        } catch (IOException e) {
+            showWarningMessage("CSV writing","Couldn't write the csv for argoslide parameters.");
+        }
+        argoslidesParameters.clear();
+        argoslidesParameters = tempMap;
+    }
+
 
     public static void main(String... args){
         final ImageJ ij = new ImageJ();
