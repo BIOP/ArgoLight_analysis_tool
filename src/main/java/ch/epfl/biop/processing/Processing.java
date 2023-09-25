@@ -45,9 +45,13 @@ public class Processing {
      * @param userThresholdingMethod user defined thresholding method used
      * @param userParticleThreshold user defined value of the threshold on particle size
      * @param userRingRadius user defined value of the analysis circle radius around each ring
+     * @param argoslide The name of the argoslide selected in the GUI
+     * @param argoSpacing distance between two rings in the grid
+     * @param argoFOV FoV of the pattern B of the argoslide
+     * @param argoNPoints number of rings in the same line
      */
     public static void run(Retriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
-                           double userParticleThreshold, double userRingRadius, int argoSpacing, int argoFOV, int argoNPoints){
+                           double userParticleThreshold, double userRingRadius, String argoslide, int argoSpacing, int argoFOV, int argoNPoints){
         Map<String, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
         List<String> IDs = retriever.getIDs();
@@ -77,7 +81,7 @@ public class Processing {
                     // choose the right ArgoLight processing
                     if (!imageFile.getArgoSlideName().contains("ArgoSimOld")) {
                         ArgoSlideProcessing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
-                                userParticleThreshold, userRingRadius, argoSpacing, argoFOV, argoNPoints);
+                                userParticleThreshold, userRingRadius, argoslide, argoSpacing, argoFOV, argoNPoints);
                     } else {
                         ArgoSlideOldProcessing.run(imageFile);
                         isOldProtocol = true;

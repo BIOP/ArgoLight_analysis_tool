@@ -74,7 +74,7 @@ public class ArgoLightOldCommand /*extends DynamicCommand implements Command*/ {
 
                 // run analysis
                 if(nImages > 0)
-                    Processing.run(omeroRetriever, savingHeatMaps, sender, 0.2, 0.2, "Li", 5, 1.25,15,570,39);
+                    Processing.run(omeroRetriever, savingHeatMaps, sender, 0.2, 0.2, "Li", 5, 1.25,"ArgoSLG482",15,570,39);
                 else IJLogger.error("No images are available for project "+argoLightProjectId+", dataset "+microscope);
 
             } else IJLogger.error("Directory "+this.folder.getAbsolutePath()+" doesn't exists");

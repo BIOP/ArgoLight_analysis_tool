@@ -221,6 +221,7 @@ public class ArgoLightCommand implements Command {
                         isDefaultThresholdMethod ? defaultThresholdMethod : userThresholdMethod,
                         isDefaultParticleThresh ? defaultParticleThresh : userParticleThresh,
                         isDefaultRingRadius ? defaultRingRadius : userRingRadius,
+                        argoslide,
                         Integer.parseInt(argoParams.get(argoSpacingPos)),
                         Integer.parseInt(argoParams.get(argoFoVPos)),
                         Integer.parseInt(argoParams.get(argoNRingsPos)));

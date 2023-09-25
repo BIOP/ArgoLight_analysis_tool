@@ -64,9 +64,13 @@ public class ArgoSlideProcessing {
      * @param userThresholdingMethod thresholding method used
      * @param userParticleThreshold value of the threshold on particle size
      * @param userRingRadius value of the analysis circle radius around each ring
+     * @param argoslide The name of the argoslide selected in the GUI
+     * @param argoSpacing distance between two rings in the grid
+     * @param argoFOV FoV of the pattern B of the argoslide
+     * @param argoNPoints number of rings in the same line
      */
     public static void run(ImageFile imageFile, double userSigma, double userMedianRadius, String userThresholdingMethod,
-                           double userParticleThreshold, double userRingRadius, int argoSpacing, int argoFOV, int argoNPoints){
+                           double userParticleThreshold, double userRingRadius, String argoslide, int argoSpacing, int argoFOV, int argoNPoints){
 
         final ImagePlus imp = imageFile.getImage();
         // pixel size of the image
@@ -95,6 +99,10 @@ public class ArgoSlideProcessing {
         imageFile.addKeyValue("Sigma_(pix)", String.valueOf(sigma));
         imageFile.addKeyValue("Median_radius_(pix)", String.valueOf(medianRadius));
         imageFile.addKeyValue("Particle_threshold", String.valueOf(particleThreshold));
+        imageFile.addKeyValue("ArgoSlide_name",argoslide);
+        imageFile.addKeyValue("ArgoSlide_spacing",String.valueOf(argoSpacing));
+        imageFile.addKeyValue("ArgoSlide_FoV",String.valueOf(argoFOV));
+        imageFile.addKeyValue("ArgoSlide_n_points",String.valueOf(argoNPoints));
 
         IJLogger.info("Image","Pixel size : "+pixelSizeImage+ " um");
         IJLogger.info("Detection parameters","Ring radius : "+ovalRadius + " pix");
