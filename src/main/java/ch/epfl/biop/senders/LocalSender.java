@@ -15,6 +15,8 @@ import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.io.FileSaver;
 import ij.io.RoiEncoder;
+import omero.gateway.exception.DSAccessException;
+import omero.gateway.exception.DSOutOfServiceException;
 import omero.gateway.model.TagAnnotationData;
 import org.apache.commons.io.FileUtils;
 
@@ -380,6 +382,20 @@ public class LocalSender implements Sender{
                             IJLogger.info("Cleaning target", "Parent table " + child.getAbsolutePath() + " deleted");
                     }
                 }
+            }
+        }
+
+        // unlink tags from OMERO in case images are from OMERO
+        if(this.imageWrapper != null && this.client != null){
+            try {
+                IJLogger.info("Cleaning target", "Unlink tags from image "+this.imageWrapper.getId());
+                List<TagAnnotationWrapper> tags = this.imageWrapper.getTags(this.client);
+                for(TagAnnotationWrapper tag : tags){
+                    this.imageWrapper.unlink(this.client, tag);
+                }
+                IJLogger.info("Cleaning target", "Tags unlinked");
+            } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
+                IJLogger.error("Cleaning target", "Cannot unlink tags for image "+this.imageWrapper.getId());
             }
         }
     }

@@ -119,6 +119,18 @@ public class OMEROSender implements Sender{
     public void clean() {
         IJLogger.info("Cleaning target...");
 
+        // unlink tags
+        try {
+            IJLogger.info("Cleaning target", "Unlink tags from image "+this.imageWrapper.getId());
+            List<TagAnnotationWrapper> tags = this.imageWrapper.getTags(this.client);
+            for(TagAnnotationWrapper tag : tags){
+                this.imageWrapper.unlink(this.client, tag);
+            }
+            IJLogger.info("Cleaning target", "Tags unlinked");
+        } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
+            IJLogger.error("Cleaning target", "Cannot unlink tags for image "+this.imageWrapper.getId());
+        }
+
         // delete key-value pairs
         try {
             IJLogger.info("Cleaning target", "Removing key-values from image "+this.imageWrapper.getId());
