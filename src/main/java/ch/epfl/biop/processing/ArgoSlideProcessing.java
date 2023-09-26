@@ -50,11 +50,6 @@ import java.util.stream.Collectors;
  * <p>
  */
 public class ArgoSlideProcessing {
-
-   /* final private static int argoSpacing = 15; // um
-    final private static int argoFOV = 570; // um
-    final private static int argoNPoints = 39; // on each row/column*/
-
     /**
      * Run the analysis on the current image.
      *
@@ -64,13 +59,13 @@ public class ArgoSlideProcessing {
      * @param userThresholdingMethod thresholding method used
      * @param userParticleThreshold value of the threshold on particle size
      * @param userRingRadius value of the analysis circle radius around each ring
-     * @param argoslide The name of the argoslide selected in the GUI
+     * @param argoSlide The name of the ArgoSlide selected in the GUI
      * @param argoSpacing distance between two rings in the grid
-     * @param argoFOV FoV of the pattern B of the argoslide
+     * @param argoFOV FoV of the pattern B of the ArgoSlide
      * @param argoNPoints number of rings in the same line
      */
     public static void run(ImageFile imageFile, double userSigma, double userMedianRadius, String userThresholdingMethod,
-                           double userParticleThreshold, double userRingRadius, String argoslide, int argoSpacing, int argoFOV, int argoNPoints){
+                           double userParticleThreshold, double userRingRadius, String argoSlide, int argoSpacing, int argoFOV, int argoNPoints){
 
         final ImagePlus imp = imageFile.getImage();
         // pixel size of the image
@@ -99,7 +94,7 @@ public class ArgoSlideProcessing {
         imageFile.addKeyValue("Sigma_(pix)", String.valueOf(sigma));
         imageFile.addKeyValue("Median_radius_(pix)", String.valueOf(medianRadius));
         imageFile.addKeyValue("Particle_threshold", String.valueOf(particleThreshold));
-        imageFile.addKeyValue("ArgoSlide_name",argoslide);
+        imageFile.addKeyValue("ArgoSlide_name",argoSlide);
         imageFile.addKeyValue("ArgoSlide_spacing",String.valueOf(argoSpacing));
         imageFile.addKeyValue("ArgoSlide_FoV",String.valueOf(argoFOV));
         imageFile.addKeyValue("ArgoSlide_n_points",String.valueOf(argoNPoints));
@@ -137,6 +132,12 @@ public class ArgoSlideProcessing {
             List<Point2D> gridPoints = Processing.getGridPoint(channel, crossRoi, pixelSizeImage, sigma, medianRadius,
                     particleThreshold, userThresholdingMethod, argoFOV, argoSpacing, argoNPoints);
 
+            if(gridPoints.isEmpty()){
+                IJLogger.error("Ring detection", "No rings are detected on the channel "+c+" of the current image. " +
+                        "Cannot compute metrics");
+                continue;
+            }
+
             // display all points (grid and ideal)
             roiManager.reset();
 
@@ -145,7 +146,7 @@ public class ArgoSlideProcessing {
                     .filter(e -> (Math.abs(e.getX() - crossRoi.getStatistics().xCentroid) < (2.5*argoSpacing) / pixelSizeImage && Math.abs(e.getY() - crossRoi.getStatistics().yCentroid) < (2.5*argoSpacing) / pixelSizeImage))
                     .collect(Collectors.toList());
 
-            if(!imageFile.getImagedFoV().equals("partialFoV")){
+            if(!imageFile.getImagedFoV().equals(Tools.PARTIAL_FOV)){
                 // get the average x step
                 double xStepAvg = Processing.getAverageStep(smallerGrid.stream().map(Point2D::getX).collect(Collectors.toList()), pixelSizeImage, argoSpacing);
                 imageChannel.addKeyValue("ch"+c+"_xStepAvg_(pix)", String.valueOf(xStepAvg));
@@ -195,9 +196,8 @@ public class ArgoSlideProcessing {
                 imageChannel.addFieldUniformity(Processing.computeFieldUniformity(gridPoints, channel,ovalRadius));
                 // add tags to the image
                 imageFile.addTags(Tools.FIELD_DISTORTION_TAG, Tools.FIELD_UNIFORMITY_TAG);
-
             }
-            if(!imageFile.getImagedFoV().equals("fullFoV")){
+            if(!imageFile.getImagedFoV().equals(Tools.FULL_FOV)){
                 roiManager.reset();
 
                 List<Roi> fwhmGridPointsRoiList = new ArrayList<>();

@@ -45,13 +45,13 @@ public class Processing {
      * @param userThresholdingMethod user defined thresholding method used
      * @param userParticleThreshold user defined value of the threshold on particle size
      * @param userRingRadius user defined value of the analysis circle radius around each ring
-     * @param argoslide The name of the argoslide selected in the GUI
+     * @param argoSlide The name of the ArgoSlide selected in the GUI
      * @param argoSpacing distance between two rings in the grid
-     * @param argoFOV FoV of the pattern B of the argoslide
+     * @param argoFOV FoV of the pattern B of the ArgoSlide
      * @param argoNPoints number of rings in the same line
      */
     public static void run(Retriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
-                           double userParticleThreshold, double userRingRadius, String argoslide, int argoSpacing, int argoFOV, int argoNPoints){
+                           double userParticleThreshold, double userRingRadius, String argoSlide, int argoSpacing, int argoFOV, int argoNPoints){
         Map<String, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
         List<String> IDs = retriever.getIDs();
@@ -81,7 +81,7 @@ public class Processing {
                     // choose the right ArgoLight processing
                     if (!imageFile.getArgoSlideName().contains("ArgoSimOld")) {
                         ArgoSlideProcessing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
-                                userParticleThreshold, userRingRadius, argoslide, argoSpacing, argoFOV, argoNPoints);
+                                userParticleThreshold, userRingRadius, argoSlide, argoSpacing, argoFOV, argoNPoints);
                     } else {
                         ArgoSlideOldProcessing.run(imageFile);
                         isOldProtocol = true;
@@ -146,16 +146,16 @@ public class Processing {
 
             // send heat maps
             if (savingHeatMaps) {
-                if(isOldProtocol || !imageFile.getImagedFoV().equals("partialFoV")) sender.sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()));
-                if(isOldProtocol || !imageFile.getImagedFoV().equals("partialFoV")) sender.sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()));
-                if(isOldProtocol || !imageFile.getImagedFoV().equals("fullFoV")) sender.sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.PARTIAL_FOV)) sender.sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.PARTIAL_FOV)) sender.sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.FULL_FOV)) sender.sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()));
             }
         }
 
         // send results table
-        if(isOldProtocol || !imageFile.getImagedFoV().equals("partialFoV")) sender.sendResultsTable(distortionValues, chIds, false, "Field_distortion");
-        if(isOldProtocol || !imageFile.getImagedFoV().equals("partialFoV")) sender.sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
-        if(isOldProtocol || !imageFile.getImagedFoV().equals("fullFoV")) sender.sendResultsTable(fwhmValues, chIds, false, "FWHM");
+        if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.PARTIAL_FOV)) sender.sendResultsTable(distortionValues, chIds, false, "Field_distortion");
+        if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.PARTIAL_FOV)) sender.sendResultsTable(uniformityValues, chIds, false, "Field_uniformity");
+        if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.FULL_FOV)) sender.sendResultsTable(fwhmValues, chIds, false, "FWHM");
 
         // send key values
         if(sender instanceof LocalSender) {
@@ -220,7 +220,6 @@ public class Processing {
         if((DoGImage.getWidth()*pixelSizeImage < (argoFOV + 4)) && (DoGImage.getHeight()*pixelSizeImage < (argoFOV + 4))){  // 100um of field of view + 2 um on each side
             nPoints = (int)Math.min(Math.floor(((DoGImage.getWidth()*pixelSizeImage/2)-2 )/argoSpacing), Math.floor(((DoGImage.getHeight()*pixelSizeImage/2)-2)/argoSpacing));
             enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+2.5)/(crossRoi.getStatistics().roiWidth*pixelSizeImage/2))*crossRoi.getStatistics().roiWidth/2));
-
         }
         else{
             // for image FoV larger than the pattern FoV => all points

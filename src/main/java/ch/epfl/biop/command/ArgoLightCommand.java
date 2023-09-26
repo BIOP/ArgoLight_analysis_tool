@@ -73,9 +73,9 @@ public class ArgoLightCommand implements Command {
     private String userPort;
     private String userProjectID;
     private List<String> userMicroscopes;
-    private List<String> userArgoslides;
-    private String defaultArgoslide;
-    private Map<String, List<String>> argoslidesParameters = Collections.emptyMap();
+    private List<String> userArgoSlides;
+    private String defaultArgoSlide;
+    private Map<String, List<String>> argoSlidesParameters = Collections.emptyMap();
     private String userRootFolder;
     private String userSaveFolder;
     private double userSigma;
@@ -114,7 +114,7 @@ public class ArgoLightCommand implements Command {
     final private String portKey = "OMERO Port";
     final private String projectIdKey = "Project ID";
     final private String microscopeKey = "Microscopes";
-    final private String argoslidesKey = "Argoslides";
+    final private String argoSlidesKey = "ArgoSlides";
     final private String saveFolderKey = "Saving folder";
     final private String rootFolderKey = "Root folder";
     final private int argoDefaultPos = 0;
@@ -148,7 +148,7 @@ public class ArgoLightCommand implements Command {
      * @param password
      * @param rootFolderPath
      * @param microscope
-     * @param argoslide
+     * @param argoSlide
      * @param isOmeroSender
      * @param savingFolderPath
      * @param saveHeatMaps
@@ -156,7 +156,7 @@ public class ArgoLightCommand implements Command {
      * @param cleanTargetSelection
      */
     private void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
-                               String microscope, String argoslide, boolean isOmeroSender, String savingFolderPath,
+                               String microscope, String argoSlide, boolean isOmeroSender, String savingFolderPath,
                                boolean saveHeatMaps, boolean allImages, boolean cleanTargetSelection){
         boolean finalPopupMessage = true;
         if(!isOmeroRetriever && !new File(rootFolderPath).exists()){
@@ -167,14 +167,14 @@ public class ArgoLightCommand implements Command {
             showWarningMessage("Saving folder not accessible", "The saving folder "+savingFolderPath+" does not exist");
             return;
         }
-        if(argoslide == null || argoslide.isEmpty() || argoslide.equalsIgnoreCase("null")){
-            showWarningMessage("No Argoslide selected", "You need to create an ArgoSlide first. " +
-                    "Click on 'General Settings' and fill 'Argoslides' field");
+        if(argoSlide == null || argoSlide.isEmpty() || argoSlide.equalsIgnoreCase("null")){
+            showWarningMessage("No ArgoSlide selected", "You need to create an ArgoSlide first. " +
+                    "Click on 'General Settings' and fill 'ArgoSlides' field");
             return;
         }
-        if(!argoslidesParameters.containsKey(argoslide)){
-            showWarningMessage("No Argoslide settings", "You need to create settings for '"+argoslide+"' ArgoSlide. " +
-                    "Click on 'Settings' under 'Choose your Argoslide' and fill the fields");
+        if(!argoSlidesParameters.containsKey(argoSlide)){
+            showWarningMessage("No ArgoSlide settings", "You need to create settings for '"+argoSlide+"' ArgoSlide. " +
+                    "Click on 'Settings' under 'Choose your ArgoSlide' and fill the fields");
             return;
         }
 
@@ -197,7 +197,7 @@ public class ArgoLightCommand implements Command {
             }
 
             // load images to process & set the cleaning
-            boolean imageLoaded = retriever.loadImages(rawTarget, microscope, allImages, argoslide);
+            boolean imageLoaded = retriever.loadImages(rawTarget, microscope, allImages, argoSlide);
             int nImages = retriever.getNImages();
             boolean cleanTarget = allImages && cleanTargetSelection;
 
@@ -210,8 +210,8 @@ public class ArgoLightCommand implements Command {
                 sender = new LocalSender(savingFolder, microscope, cleanTarget, isOmeroRetriever);
             }
 
-            // get the current argoslide parameters
-            List<String> argoParams = argoslidesParameters.get(argoslide);
+            // get the current argoSlide parameters
+            List<String> argoParams = argoSlidesParameters.get(argoSlide);
 
             // run analysis
             if (nImages > 0)
@@ -221,7 +221,7 @@ public class ArgoLightCommand implements Command {
                         isDefaultThresholdMethod ? defaultThresholdMethod : userThresholdMethod,
                         isDefaultParticleThresh ? defaultParticleThresh : userParticleThresh,
                         isDefaultRingRadius ? defaultRingRadius : userRingRadius,
-                        argoslide,
+                        argoSlide,
                         Integer.parseInt(argoParams.get(argoSpacingPos)),
                         Integer.parseInt(argoParams.get(argoFoVPos)),
                         Integer.parseInt(argoParams.get(argoNRingsPos)));
@@ -327,14 +327,14 @@ public class ArgoLightCommand implements Command {
         userMicroscopes.forEach(cbMicroscope::addItem);
 
         // Argoslide choice
-        JLabel labArgoslide = new JLabel("Argoslide");
-        labArgoslide.setFont(stdFont);
-        DefaultComboBoxModel<String> modelCmbArgoslide = new DefaultComboBoxModel<>();
-        JComboBox<String> cbArgoslide = new JComboBox<>(modelCmbArgoslide);
-        cbArgoslide.setFont(stdFont);
-        userArgoslides.forEach(cbArgoslide::addItem);
-        if(defaultArgoslide != null && !defaultArgoslide.isEmpty())
-            cbArgoslide.setSelectedItem(defaultArgoslide);
+        JLabel labArgoSlide = new JLabel("ArgoSlide");
+        labArgoSlide.setFont(stdFont);
+        DefaultComboBoxModel<String> modelCmbArgoSlide = new DefaultComboBoxModel<>();
+        JComboBox<String> cbArgoSlide = new JComboBox<>(modelCmbArgoSlide);
+        cbArgoSlide.setFont(stdFont);
+        userArgoSlides.forEach(cbArgoSlide::addItem);
+        if(defaultArgoSlide != null && !defaultArgoSlide.isEmpty())
+            cbArgoSlide.setSelectedItem(defaultArgoSlide);
 
         // Root folder selection for local sender
         JLabel labSavingFolder  = new JLabel("Saving Folder");
@@ -465,9 +465,9 @@ public class ArgoLightCommand implements Command {
             cbMicroscope.removeAllItems();
             userMicroscopes.forEach(cbMicroscope::addItem);
             cbMicroscope.setSelectedItem(userMicroscopes);
-            cbArgoslide.removeAllItems();
-            userArgoslides.forEach(cbArgoslide::addItem);
-            cbArgoslide.setSelectedItem(userArgoslides);
+            cbArgoSlide.removeAllItems();
+            userArgoSlides.forEach(cbArgoSlide::addItem);
+            cbArgoSlide.setSelectedItem(userArgoSlides);
             tfProjectID.setText(userProjectID);
             tfRootFolder.setText(userRootFolder);
             tfSavingFolder.setText(userSaveFolder);
@@ -481,10 +481,10 @@ public class ArgoLightCommand implements Command {
         });
 
         // button to configure argoslide settings
-        JButton bArgoslideSettings = new JButton("Settings");
-        bArgoslideSettings.setFont(stdFont);
-        bArgoslideSettings.addActionListener(e->{
-            createArgoSettingsPane(String.valueOf(cbArgoslide.getSelectedItem()));
+        JButton bArgoSlideSettings = new JButton("Settings");
+        bArgoSlideSettings.setFont(stdFont);
+        bArgoSlideSettings.addActionListener(e->{
+            createArgoSettingsPane(String.valueOf(cbArgoSlide.getSelectedItem()));
         });
 
         // button to do live
@@ -499,7 +499,7 @@ public class ArgoLightCommand implements Command {
                         return;
             }
 
-            createLiveSettingsPane(isOmeroImage, (String)cbArgoslide.getSelectedItem());
+            createLiveSettingsPane(isOmeroImage, (String)cbArgoSlide.getSelectedItem());
         });
 
         // build everything together
@@ -615,15 +615,15 @@ public class ArgoLightCommand implements Command {
 
         constraints.gridx = 0;
         constraints.gridy = omeroRetrieverRow;
-        omeroPane.add(labArgoslide, constraints);
+        omeroPane.add(labArgoSlide, constraints);
 
         constraints.gridx = 1;
         constraints.gridy = omeroRetrieverRow;
-        omeroPane.add(cbArgoslide, constraints);
+        omeroPane.add(cbArgoSlide, constraints);
 
         constraints.gridx = 2;
         constraints.gridy = omeroRetrieverRow++;
-        omeroPane.add(bArgoslideSettings, constraints);
+        omeroPane.add(bArgoSlideSettings, constraints);
 
         constraints.gridwidth = 4; // span two rows
         constraints.gridx = 0;
@@ -725,7 +725,7 @@ public class ArgoLightCommand implements Command {
                     password,
                     tfRootFolder.getText(),
                     ((String)cbMicroscope.getSelectedItem()).toLowerCase(),
-                    ((String)cbArgoslide.getSelectedItem()),
+                    ((String)cbArgoSlide.getSelectedItem()),
                     rbOmeroSender.isSelected(),
                     tfSavingFolder.getText(),
                     chkSaveHeatMap.isSelected(),
@@ -742,19 +742,19 @@ public class ArgoLightCommand implements Command {
 
     /**
      * Build the general settings user interface
-     * @param argoslide
+     * @param argoSlide
      */
-    private void createArgoSettingsPane(String argoslide){
+    private void createArgoSettingsPane(String argoSlide){
 
-        // check if an argoslide has been selected
-        if(argoslide == null || argoslide.isEmpty() || argoslide.equals("null")){
-            showWarningMessage("No Argoslide selected", "You need to create an ArgoSlide first. " +
-                    "Click on 'General Settings' and fill 'Argoslides' field");
+        // check if an argoSlide has been selected
+        if(argoSlide == null || argoSlide.isEmpty() || argoSlide.equals("null")){
+            showWarningMessage("No ArgoSlide selected", "You need to create an ArgoSlide first. " +
+                    "Click on 'General Settings' and fill 'ArgoSlides' field");
             return;
         }
 
         // try to get the saved parameters. If the slide is not/wrongly referenced, set default parameters
-        List<String> currentArgoslideParameters = argoslidesParameters.getOrDefault(argoslide, Collections.emptyList());
+        List<String> currentArgoslideParameters = argoSlidesParameters.getOrDefault(argoSlide, Collections.emptyList());
         if(currentArgoslideParameters.size() < 4){
             currentArgoslideParameters = new ArrayList<>(4);
             currentArgoslideParameters.add("false");
@@ -784,8 +784,8 @@ public class ArgoLightCommand implements Command {
         JSpinner spArgoNRings = new JSpinner(spModelArgoNRings);
         spArgoNRings.setFont(stdFont);
 
-        // checkbox to set the default argoslide
-        JCheckBox chkDefaultArgoSlide = new JCheckBox("Set "+argoslide+" as your default slide");
+        // checkbox to set the default argoSlide
+        JCheckBox chkDefaultArgoSlide = new JCheckBox("Set "+argoSlide+" as your default slide");
         chkDefaultArgoSlide.setSelected(currentArgoslideParameters.get(argoDefaultPos).equalsIgnoreCase("true"));
         chkDefaultArgoSlide.setFont(stdFont);
 
@@ -828,7 +828,7 @@ public class ArgoLightCommand implements Command {
 
         JOptionPane pane = new JOptionPane(settingsPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
                 null, null);
-        settingsDialog = pane.createDialog(mainDialog, "Setup "+argoslide+" specifications");
+        settingsDialog = pane.createDialog(mainDialog, "Setup "+argoSlide+" specifications");
 
         pane.selectInitialValue();
         settingsDialog.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
@@ -842,17 +842,17 @@ public class ArgoLightCommand implements Command {
             opt = (Integer) selectedValue;
 
         if(opt == JOptionPane.OK_OPTION){
-            // save a csv file with the user defined argoslide parameters
-            Map<String, List<String>> newMap = saveUserDefinedArgoslideParams(
-                    argoslide,
+            // save a csv file with the user defined argoSlide parameters
+            Map<String, List<String>> newMap = saveUserDefinedArgoSlideParams(
+                    argoSlide,
                     (Integer) spArgoSpacing.getModel().getValue(),
                     (Integer) spArgoFoV.getModel().getValue(),
                     (Integer) spArgoNRings.getModel().getValue(),
                     chkDefaultArgoSlide.getModel().isSelected());
 
             // replace old values
-            argoslidesParameters.clear();
-            argoslidesParameters = newMap;
+            argoSlidesParameters.clear();
+            argoSlidesParameters = newMap;
         }
     }
 
@@ -918,7 +918,7 @@ public class ArgoLightCommand implements Command {
         // list of available argoslides
         JLabel labArgoslide = new JLabel("Argoslides");
         labArgoslide.setFont(stdFont);
-        JTextField tfArgoslide = new JTextField(String.join(",", userArgoslides));
+        JTextField tfArgoslide = new JTextField(String.join(",", userArgoSlides));
         tfArgoslide.setFont(stdFont);
         tfArgoslide.setColumns(15);
 
@@ -1325,18 +1325,18 @@ public class ArgoLightCommand implements Command {
     /**
      * Build the GUI for live settings
      * @param isOmeroImage
-     * @param argoslide
+     * @param argoSlide
      */
-    private void createLiveSettingsPane(boolean isOmeroImage, String argoslide){
+    private void createLiveSettingsPane(boolean isOmeroImage, String argoSlide){
 
         // get the current Argoslide
-        List<String> currentArgoslideParameters = argoslidesParameters.getOrDefault(argoslide, Collections.emptyList());
+        List<String> currentArgoslideParameters = argoSlidesParameters.getOrDefault(argoSlide, Collections.emptyList());
         if(currentArgoslideParameters.isEmpty()){
             showWarningMessage("No ArgoSlide selected","Please select an ArgoSlide first");
             return;
         }
 
-        // get the current argoslide parameters
+        // get the current argoSlide parameters
         int currentArgoSpacing = Integer.parseInt(currentArgoslideParameters.get(argoSpacingPos));
         int currentArgoFoV = Integer.parseInt(currentArgoslideParameters.get(argoFoVPos));
         int currentArgoNRings = Integer.parseInt(currentArgoslideParameters.get(argoNRingsPos));
@@ -1913,7 +1913,7 @@ public class ArgoLightCommand implements Command {
                 (defaultParams.get(portKey).isEmpty() ? defaultPort : defaultParams.get(portKey).get(0)) :
                 defaultPort;
         userMicroscopes = defaultParams.getOrDefault(microscopeKey, Collections.emptyList());
-        userArgoslides = defaultParams.getOrDefault(argoslidesKey, Collections.emptyList());
+        userArgoSlides = defaultParams.getOrDefault(argoSlidesKey, Collections.emptyList());
         userProjectID = defaultParams.containsKey(projectIdKey) ?
                 (defaultParams.get(projectIdKey).isEmpty() ? "-1" : defaultParams.get(projectIdKey).get(0)) :
                 "-1";
@@ -1928,49 +1928,49 @@ public class ArgoLightCommand implements Command {
      */
     private void setDefaultArgoParams(){
         // read the csv file
-        Map<String, List<String>> readParams = getUserDefinedParams(argoSlideFileName);
-        Map<String, List<String>> defaultParams  = new HashMap<>();
+        Map<String, List<String>> readArgoSlides = getUserDefinedParams(argoSlideFileName);
+        Map<String, List<String>> cleanArgoSlides  = new HashMap<>();
 
         // check all slides
-        for(String argoKey : readParams.keySet()) {
+        for(String argoSlideKey : readArgoSlides.keySet()) {
             // get read parameters
-            List<String> readArgoParams = readParams.get(argoKey);
-            List<String> argoParams = new ArrayList<>();
+            List<String> readArgoSlideSpecs = readArgoSlides.get(argoSlideKey);
+            List<String> cleanArgoSlideSpecs = new ArrayList<>();
 
             // in case parameters have been wrongly read, set to default
-            if(readArgoParams.isEmpty()){
-                IJLogger.warn("ArgoSlide' "+argoKey+"' parameters have not been read correctly (size 0/4). " +
+            if(readArgoSlideSpecs.isEmpty()){
+                IJLogger.warn("ArgoSlide' "+argoSlideKey+"' parameters have not been read correctly (size 0/4). " +
                         "Default values are used instead");
-                defaultArgoslide = "";
-                argoParams.add("false");
-                argoParams.add(String.valueOf(defaultArgoSpacing));
-                argoParams.add(String.valueOf(defaultArgoFoV));
-                argoParams.add(String.valueOf(defaultArgoNRings));
+                defaultArgoSlide = "";
+                cleanArgoSlideSpecs.add("false");
+                cleanArgoSlideSpecs.add(String.valueOf(defaultArgoSpacing));
+                cleanArgoSlideSpecs.add(String.valueOf(defaultArgoFoV));
+                cleanArgoSlideSpecs.add(String.valueOf(defaultArgoNRings));
             } else {
-                if(readArgoParams.get(argoDefaultPos).equalsIgnoreCase("true")) {
-                    defaultArgoslide = argoKey;
+                if(readArgoSlideSpecs.get(argoDefaultPos).equalsIgnoreCase("true")) {
+                    defaultArgoSlide = argoSlideKey;
                 }
-                if (readArgoParams.size() > 3) {
-                    argoParams.add(readArgoParams.get(argoDefaultPos));
-                    argoParams.add(checkAndSetValidityOfReadArgoMetric(readArgoParams, argoSpacingPos, defaultArgoSpacing, "ring spacing"));
-                    argoParams.add(checkAndSetValidityOfReadArgoMetric(readArgoParams, argoFoVPos, defaultArgoFoV, "pattern FoV"));
-                    argoParams.add(checkAndSetValidityOfReadArgoMetric(readArgoParams, argoNRingsPos, defaultArgoNRings, "Number of rings per line"));
+                if (readArgoSlideSpecs.size() > 3) {
+                    cleanArgoSlideSpecs.add(readArgoSlideSpecs.get(argoDefaultPos));
+                    cleanArgoSlideSpecs.add(checkAndSetValidityOfReadArgoMetric(readArgoSlideSpecs, argoSpacingPos, defaultArgoSpacing, "ring spacing"));
+                    cleanArgoSlideSpecs.add(checkAndSetValidityOfReadArgoMetric(readArgoSlideSpecs, argoFoVPos, defaultArgoFoV, "pattern FoV"));
+                    cleanArgoSlideSpecs.add(checkAndSetValidityOfReadArgoMetric(readArgoSlideSpecs, argoNRingsPos, defaultArgoNRings, "Number of rings per line"));
                 } else {
                     // in case parameters have been wrongly read, set to default
-                    IJLogger.warn("ArgoSlide' "+argoKey+"' parameters have not been read correctly (size "+readArgoParams.size()+"/4). " +
+                    IJLogger.warn("ArgoSlide' "+argoSlideKey+"' parameters have not been read correctly (size "+readArgoSlideSpecs.size()+"/4). " +
                             "Default values are used instead");
-                    argoParams.add("false");
-                    argoParams.add(String.valueOf(defaultArgoSpacing));
-                    argoParams.add(String.valueOf(defaultArgoFoV));
-                    argoParams.add(String.valueOf(defaultArgoNRings));
+                    cleanArgoSlideSpecs.add("false");
+                    cleanArgoSlideSpecs.add(String.valueOf(defaultArgoSpacing));
+                    cleanArgoSlideSpecs.add(String.valueOf(defaultArgoFoV));
+                    cleanArgoSlideSpecs.add(String.valueOf(defaultArgoNRings));
                 }
             }
-            defaultParams.put(argoKey, argoParams);
+            cleanArgoSlides.put(argoSlideKey, cleanArgoSlideSpecs);
         }
 
         // replace old parameters
-        argoslidesParameters.clear();
-        argoslidesParameters = defaultParams;
+        argoSlidesParameters.clear();
+        argoSlidesParameters = cleanArgoSlides;
     }
 
     /**
@@ -1982,27 +1982,27 @@ public class ArgoLightCommand implements Command {
      * @return the metric value as string
      */
     private String checkAndSetValidityOfReadArgoMetric(List<String> metrics, int metric, int defaultValue, String metricName){
-        String readArgoSpacing = metrics.get(metric);
+        String readArgoSlideSpec = metrics.get(metric);
 
         // check if correctly read
-        if(readArgoSpacing == null || readArgoSpacing.isEmpty()) {
+        if(readArgoSlideSpec == null || readArgoSlideSpec.isEmpty()) {
             IJLogger.warn("Read default ArgoSlide params", "The value of "+metricName+ " "+
-                    readArgoSpacing + " is not a valid. Default value " +
+                    readArgoSlideSpec + " is not a valid. Default value " +
                     defaultValue+"is used instead.");
-            readArgoSpacing = String.valueOf(defaultValue);
+            readArgoSlideSpec = String.valueOf(defaultValue);
         }
 
         // check if the value read is an integer
         try {
-            Integer.parseInt(readArgoSpacing);
+            Integer.parseInt(readArgoSlideSpec);
         } catch (Exception e) {
             IJLogger.warn("Read default ArgoSlide params", "The value of "+metricName+ " "+
-                    readArgoSpacing + " is not a numeric value. Default value " +
+                    readArgoSlideSpec + " is not a numeric value. Default value " +
                     defaultValue+"is used instead.");
-            readArgoSpacing = String.valueOf(defaultValue);
+            readArgoSlideSpec = String.valueOf(defaultValue);
         }
 
-        return readArgoSpacing;
+        return readArgoSlideSpec;
     }
 
     /**
@@ -2095,12 +2095,12 @@ public class ArgoLightCommand implements Command {
      * @param port
      * @param projectID
      * @param microscopes
-     * @param argoslides
+     * @param argoSlides
      * @param rootFolder
      * @param savingFolder
      */
     private void saveUserDefinedGeneralParams(String host, String port, String projectID, String microscopes,
-                                              String argoslides, String rootFolder, String savingFolder) {
+                                              String argoSlides, String rootFolder, String savingFolder) {
         File directory = new File(folderName);
 
         if(!directory.exists())
@@ -2114,7 +2114,7 @@ public class ArgoLightCommand implements Command {
             buffer.write(portKey+","+port + "\n");
             buffer.write(projectIdKey+","+projectID + "\n");
             buffer.write(microscopeKey+","+microscopes + "\n");
-            buffer.write(argoslidesKey+","+argoslides + "\n");
+            buffer.write(argoSlidesKey +","+argoSlides + "\n");
             buffer.write(rootFolderKey+","+rootFolder + "\n");
             buffer.write(saveFolderKey+","+savingFolder + "\n");
 
@@ -2170,51 +2170,51 @@ public class ArgoLightCommand implements Command {
     /**
      * Write a csv file containing all user-defined ArgoSlides parameters
      *
-     * @param argoslide
+     * @param argoSlide
      * @param argoSpacing
      * @param argoFov
      * @param argoNRings
      * @param isDefault
      * @return
      */
-    private  Map<String, List<String>> saveUserDefinedArgoslideParams(String argoslide, int argoSpacing,
-                                                int argoFov, int argoNRings, boolean isDefault) {
+    private  Map<String, List<String>> saveUserDefinedArgoSlideParams(String argoSlide, int argoSpacing,
+                                                                      int argoFov, int argoNRings, boolean isDefault) {
         File directory = new File(folderName);
 
         if(!directory.exists())
             directory.mkdir();
 
         // create a tmp mao to be able to modify it
-        Map<String, List<String>> tempMap = new HashMap<>(argoslidesParameters);
+        Map<String, List<String>> tempMap = new HashMap<>(argoSlidesParameters);
 
-        // set all argoslides to NO-DEFAULT in case of setting the current one to default
+        // set all ArgoSlides to NO-DEFAULT in case of setting the current one to default
         if(isDefault){
             tempMap.forEach((key, value)->{
                 value.set(0, "false");
             });
         }
 
-        // create a new entry for the current argoslide with the new parameters
+        // create a new entry for the current argoSlide with the new parameters
         List<String> argoslideParamList = new ArrayList<>();
         argoslideParamList.add(String.valueOf(isDefault));
         argoslideParamList.add(String.valueOf(argoSpacing));
         argoslideParamList.add(String.valueOf(argoFov));
         argoslideParamList.add(String.valueOf(argoNRings));
-        tempMap.put(argoslide, argoslideParamList);
+        tempMap.put(argoSlide, argoslideParamList);
 
         try {
             File file = new File(directory.getAbsoluteFile() + File.separator + argoSlideFileName);
             // write the file
             BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
-            for(String argoslideKey : tempMap.keySet()){
-                String argoslideParamCSV = String.join(",", tempMap.get(argoslideKey));
-                buffer.write(argoslideKey+","+ argoslideParamCSV + "\n");
+            for(String argoSlideKey : tempMap.keySet()){
+                String argoSlideParamCSV = String.join(",", tempMap.get(argoSlideKey));
+                buffer.write(argoSlideKey+","+ argoSlideParamCSV + "\n");
             }
             // close the file
             buffer.close();
 
         } catch (IOException e) {
-            showWarningMessage("CSV writing","Couldn't write the csv for argoslide parameters.");
+            showWarningMessage("CSV writing","Couldn't write the csv for ArgoSlide '"+argoSlide+"' parameters.");
         }
         return tempMap;
     }

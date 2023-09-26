@@ -35,6 +35,9 @@ public class Tools {
     final public static String RAW_TAG = "raw";
     final public static String PROCESSED_TAG = "processed";
 
+    final public static String FULL_FOV = "fullFoV";
+    final public static String PARTIAL_FOV = "partialFoV";
+
     /**
      * Generate the current date and hour in the format aaaammdd-hhHmmMss
      * @return
@@ -43,7 +46,7 @@ public class Tools {
         LocalDateTime localDateTime = LocalDateTime.now();
         LocalTime localTime = localDateTime.toLocalTime();
         LocalDate localDate = localDateTime.toLocalDate();
-        return ""+localDate.getYear()+
+        return String.valueOf(localDate.getYear())+
                 (localDate.getMonthValue() < 10 ? "0"+localDate.getMonthValue():localDate.getMonthValue()) +
                 (localDate.getDayOfMonth() < 10 ? "0"+localDate.getDayOfMonth():localDate.getDayOfMonth())+"-"+
                 (localTime.getHour() < 10 ? "0"+localTime.getHour():localTime.getHour())+"h"+

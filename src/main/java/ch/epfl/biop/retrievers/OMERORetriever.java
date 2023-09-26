@@ -1,6 +1,7 @@
 package ch.epfl.biop.retrievers;
 
 import ch.epfl.biop.utils.IJLogger;
+import ch.epfl.biop.utils.Tools;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
@@ -84,10 +85,10 @@ public class OMERORetriever implements Retriever {
         List<ImageWrapper> filteredWrappers = imageWrapperList.stream().filter(e -> {
             try {
                 if (!processAllRawImages)
-                    return (e.getTags(this.client).stream().noneMatch(t -> (t.getName().equals("raw") || t.getName().equals("processed")))
+                    return (e.getTags(this.client).stream().noneMatch(t -> (t.getName().equals(Tools.RAW_TAG) || t.getName().equals(Tools.PROCESSED_TAG)))
                             && !(e.getName().contains("[macro image]")) && (e.getName().toLowerCase().contains(argoSlideName.toLowerCase())));
                 else
-                    return (e.getTags(this.client).stream().noneMatch(t -> t.getName().equals("processed"))
+                    return (e.getTags(this.client).stream().noneMatch(t -> t.getName().equals(Tools.PROCESSED_TAG))
                             && !(e.getName().contains("[macro image]")) && (e.getName().toLowerCase().contains(argoSlideName.toLowerCase())));
             } catch (ServiceException | AccessException | ExecutionException ex) {
                 throw new RuntimeException(ex);
@@ -96,7 +97,7 @@ public class OMERORetriever implements Retriever {
 
         Map<String,ImageWrapper> imageWrapperMap = new HashMap<>();
 
-        filteredWrappers.forEach(e->imageWrapperMap.put(""+e.getId(),e));
+        filteredWrappers.forEach(e->imageWrapperMap.put(String.valueOf(e.getId()),e));
         return imageWrapperMap;
     }
 
