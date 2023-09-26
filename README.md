@@ -62,7 +62,7 @@ Results are automatically saved locally.
     - *microscopeName*\_*ArgoSlideName*\_*patternImaged*\_**d***AcquisitionDate*\_**o***Objective*\_*ImmersionMedium*\_*FOV*\_*Serie*.extension
     - Exemple : lsm980_ArgoSGL482_b_d20230420_o20x_dry_fullFoV_Image002.czi
 
-  - Be careful : the FOV item has to be either **fullFoV** or **partialFoV**
+  - Be careful : the FOV item has to be either **fullFoV** or **partialFoV** or **fixedFoV**. For the last one, all metrics are computed on the same image. It is particularly convienant for widefield microscopes, without any solution to zoom in.
 
 ## User guide
 
@@ -80,11 +80,16 @@ This step set the by-default values for input-output communication. These values
 
 1. Hit the button `General settings`. 
 2. On the popup, enter the host name and port of your OMERO server
-3. Optionnally, you can enter the ID of the OMERO project containing the images to analyze.
+3. Enter the ID of the OMERO project containing the images to analyze.
 4. Enter the list of microscopes you may want to process (manually or by browsing a csv file)
 In the csv file, you should have one microscope name by line. If you enter microscopes manually, names must be separated by only comma.
 
 **Be careful : the microscopes' name should match extactly (but not case sensitive) the datasets name on OMERO, contained in the specified project.**
+
+4. Enter the list of ArgoSlides you may want to use for the analysis (manually or by browsing a csv file)
+In the csv file, you should have one ArgoSlide by line. If you enter ArgoSlides manually, names must be separated by only comma.
+
+**Be careful : the ArgoSlides' name should be the same (but not case sensitive) as the one written in the image name**
 
 5. Optionnally, and IF you want have your images on a local computer, you can add the folder path where you want to read raw images.
 6. Optionnally, and IF you want to save results locally (see below), you can add the folder path where you want to save results.
@@ -101,12 +106,13 @@ In the csv file, you should have one microscope name by line. If you enter micro
 2. If OMERO, enter your gaspar credentials. If local, enter the path of the parent folder (i.e. raw folder in the above figure). 
 3. If OMERO, enter the ID of the project that contains the microscopes datasets (if it has not been defined previously).
 4. Select the microscope dataset you want to process.
-5. Click OK
-6. The current steps / actions performed are logged in the Fiji Log window
-7. At the end of the processing, a popup indicates the user that all images within the selected dataset have been processed.
+5. Select the ArgoSlide you used to take the images.
+6. Click OK
+7. The current steps / actions performed are logged in the Fiji Log window
+8. At the end of the processing, a popup indicates the user that all images within the selected dataset have been processed.
 
-For OMERO location, every images that are not tagged with `raw` tag are processed within the selected dataset.
-For local location, every images that are not contained in the summary file are processed within the selected folder.
+For OMERO location, every images that are not tagged with `raw` tag and with the selected ArgoSlide contained in its name are processed within the selected dataset.
+For local location, every images that are not contained in the summary file and with the selected ArgoSlide contained in its name are processed within the selected folder.
 
 ### Output location and settings
 
@@ -167,9 +173,9 @@ A live preview mode enable you to set dynamically the processing parameters and 
 
 ## Analysis results
 
-- If the data are coming from OMERO, 8 tags are linked to the raw image on OMERO, even if results are saved locally : `raw`, `argolight`, `slideName`, `objective`, `immersion`, `microscope`, `pattern` and `FoV`.
+- If the data are coming from OMERO, 9 to 11 tags are linked to the raw image on OMERO, even if results are saved locally : `raw`, `argolight`, `slideName`, `objective`, `immersion`, `microscope`, `pattern`, `FoV` and `individual_metrics`.
 - If the data are coming from local computer, the image title (including the serie) is added to the summary file of processed images.
-- Processing parameters are saved in the form of key-value pairs.
+- Processing parameters, as well as ArgoSlide specifications, are saved in the form of key-value pairs.
 - Computed metrics are saved as OMERO.table attach to the image and, if specified, in the form of heat maps.
 
 <p align="center">
