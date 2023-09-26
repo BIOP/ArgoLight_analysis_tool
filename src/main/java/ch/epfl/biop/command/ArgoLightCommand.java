@@ -197,7 +197,7 @@ public class ArgoLightCommand implements Command {
             }
 
             // load images to process & set the cleaning
-            boolean imageLoaded = retriever.loadImages(rawTarget, microscope, allImages);
+            boolean imageLoaded = retriever.loadImages(rawTarget, microscope, allImages, argoslide);
             int nImages = retriever.getNImages();
             boolean cleanTarget = allImages && cleanTargetSelection;
 

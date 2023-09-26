@@ -34,7 +34,7 @@ public class LocalRetriever implements Retriever{
     }
 
     @Override
-    public boolean loadImages(String parentTarget, String microscopeName, boolean processAllImages) {
+    public boolean loadImages(String parentTarget, String microscopeName, boolean processAllImages, String argoSlideName) {
         // check the existence of teh parent folder (i.e. where microscope folder with images should be located)
         File parentFolder = new File(parentTarget);
         if(!parentFolder.exists()){
@@ -72,7 +72,8 @@ public class LocalRetriever implements Retriever{
         List<String> processedFiles = listProcessedFiles(this.resultsFolderPath, microscopeName);
 
         // filter the list to only process images that have not already been processed
-        List<File> filteredImagesFile = filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()), processedFiles);
+        List<File> filteredImagesFile = filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()),
+                                                     processedFiles, argoSlideName);
 
         // create a unique ID for each new raw image
         Map<String,File> filteredImagesMap = new HashMap<>();
@@ -160,7 +161,7 @@ public class LocalRetriever implements Retriever{
      * @param processedFiles list of processed images
      * @return list of non-processed images
      */
-    private List<File> filterImages(List<File> imageFiles, List<String> processedFiles){
+    private List<File> filterImages(List<File> imageFiles, List<String> processedFiles, String argoSlideName){
         if(processedFiles == null || processedFiles.isEmpty())
             return imageFiles;
 
@@ -168,7 +169,7 @@ public class LocalRetriever implements Retriever{
         for(File rawImgFolder : imageFiles){
             String rawImgName = rawImgFolder.getName();
             List<String> dup = processedFiles.stream().filter(e -> e.contains(rawImgName)).collect(Collectors.toList());
-            if(dup.isEmpty())
+            if(dup.isEmpty() && rawImgFolder.getName().toLowerCase().contains(argoSlideName.toLowerCase()))
                 filteredFiles.add(rawImgFolder);
         }
         return filteredFiles;

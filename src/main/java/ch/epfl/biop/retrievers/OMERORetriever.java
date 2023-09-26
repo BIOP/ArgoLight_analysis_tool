@@ -40,7 +40,7 @@ public class OMERORetriever implements Retriever {
      * @return builder
      */
     @Override
-    public boolean loadImages(String parentTarget, String microscopeName, boolean processAllRawImages) {
+    public boolean loadImages(String parentTarget, String microscopeName, boolean processAllRawImages, String argoSlideName) {
         this.processAllRawImages = processAllRawImages;
         long projectId = Long.parseLong(parentTarget);
 
@@ -57,7 +57,7 @@ public class OMERORetriever implements Retriever {
                 this.datasetId = datasetWrapper.getId();
 
                 List<ImageWrapper> imageWrapperList = datasetWrapper.getImages(this.client);
-                this.images = filterImages(imageWrapperList, processAllRawImages);
+                this.images = filterImages(imageWrapperList, processAllRawImages, argoSlideName);
                 return true;
             } else if(datasetWrapperList.isEmpty())
                 IJLogger.warn("Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name *"+microscopeName+"*");
@@ -79,16 +79,16 @@ public class OMERORetriever implements Retriever {
      *                            they have already been processed one.
      * @return the filtered list
      */
-    private Map<String,ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages) {
+    private Map<String,ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages, String argoSlideName) {
         // get all images without the tags "raw" nor "process" and remove macro images from vsi files.
         List<ImageWrapper> filteredWrappers = imageWrapperList.stream().filter(e -> {
             try {
                 if (!processAllRawImages)
                     return (e.getTags(this.client).stream().noneMatch(t -> (t.getName().equals("raw") || t.getName().equals("processed")))
-                            && !(e.getName().contains("[macro image]")));
+                            && !(e.getName().contains("[macro image]")) && (e.getName().toLowerCase().contains(argoSlideName.toLowerCase())));
                 else
                     return (e.getTags(this.client).stream().noneMatch(t -> t.getName().equals("processed"))
-                            && !(e.getName().contains("[macro image]")));
+                            && !(e.getName().contains("[macro image]")) && (e.getName().toLowerCase().contains(argoSlideName.toLowerCase())));
             } catch (ServiceException | AccessException | ExecutionException ex) {
                 throw new RuntimeException(ex);
             }

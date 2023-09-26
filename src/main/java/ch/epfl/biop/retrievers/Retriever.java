@@ -13,7 +13,7 @@ public interface Retriever {
      * @param microscopeName name of the microscope to process
      * @param processAllImages true if you want to process all available images, regardless if they have already been processed
      */
-    boolean loadImages(String parentTarget, String microscopeName, boolean processAllImages);
+    boolean loadImages(String parentTarget, String microscopeName, boolean processAllImages, String argoSlideName);
 
     /**
      * @param index image position in the list

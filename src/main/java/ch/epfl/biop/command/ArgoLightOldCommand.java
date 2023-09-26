@@ -60,7 +60,7 @@ public class ArgoLightOldCommand /*extends DynamicCommand implements Command*/ {
 
         try{
             OMERORetriever omeroRetriever = new OMERORetriever(client);
-            omeroRetriever.loadImages(""+argoLightProjectId, microscope, isProcessingAllRawImages);
+            omeroRetriever.loadImages(""+argoLightProjectId, microscope, isProcessingAllRawImages, "ArgoSLG482");
             int nImages = omeroRetriever.getNImages();
 
             boolean savingHeatMaps = !savingOption.equals("No heat maps saving");
