@@ -1,5 +1,6 @@
 package ch.epfl.biop.processing;
 
+import ch.epfl.biop.utils.IJLogger;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
@@ -15,12 +16,9 @@ import java.util.stream.Collectors;
 
 public class ArgoSlideLivePreview {
 
-   /* final private static int argoSpacing = 15; // um
-    final private static int argoFOV = 570; // um
-    final private static int argoNPoints = 39; // on each row/column*/
     private static double xStepAvg = -1;
     private static double yStepAvg = -1;
-    private static double rotationAngle = -1;
+    private static double rotationAngle = 10;
 
     /**
      * Run the analysis on the current image.
@@ -31,6 +29,9 @@ public class ArgoSlideLivePreview {
      * @param userThresholdingMethod thresholding method used
      * @param userParticleThreshold value of the threshold on particle size
      * @param userRingRadius value of the analysis circle radius around each ring
+     * @param argoSpacing distance between two rings in the grid
+     * @param argoFOV FoV of the pattern B of the ArgoSlide
+     * @param argoNPoints number of rings in the same line
      */
     public static void run(ImagePlus imp, double pixelSizeImage, double userSigma, double userMedianRadius, String userThresholdingMethod,
                            double userParticleThreshold, double userRingRadius, int argoSpacing, int argoFOV, int argoNPoints) {
@@ -58,6 +59,16 @@ public class ArgoSlideLivePreview {
         roiManager.reset();
         List<Point2D> gridPoints = Processing.getGridPoint(imp, crossRoi, pixelSizeImage, sigma, medianRadius,
                 particleThreshold, userThresholdingMethod, argoFOV, argoSpacing, argoNPoints);
+
+        if(gridPoints.isEmpty()){
+            IJLogger.error("Ring detection", "No rings are detected on the current image. " +
+                    "Cannot compute metrics");
+            rotationAngle = 10;
+            xStepAvg = -1;
+            yStepAvg = -1;
+            imp.setOverlay(null);
+            return;
+        }
 
         // reduced grid to compute average step
         List<Point2D> smallerGrid = gridPoints.stream()
@@ -116,6 +127,8 @@ public class ArgoSlideLivePreview {
     }
 
     public static double getRotationAngle(){
+        if(rotationAngle > 2*Math.PI)
+            return Double.NaN;
         return rotationAngle * 180 / Math.PI;
     }
 }

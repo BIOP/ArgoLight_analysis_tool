@@ -1453,68 +1453,78 @@ public class ArgoLightCommand implements Command {
         });
 
         spSigma.addChangeListener(e->{
-            double sigmaPreview = (double) spSigma.getValue();
-            double medianRadiusPreview = (double) spMedian.getValue();
-            String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
-            double particleThreshPreview = (double) spThreshParticles.getValue();
-            double ringRadiusPreview = (double) spRingRadius.getValue();
-            ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
-            labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
-            labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
-            labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
+            if(this.imageForLivePreview != null) {
+                double sigmaPreview = (double) spSigma.getValue();
+                double medianRadiusPreview = (double) spMedian.getValue();
+                String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+                double particleThreshPreview = (double) spThreshParticles.getValue();
+                double ringRadiusPreview = (double) spRingRadius.getValue();
+                ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+                labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+                labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
+            }
         });
 
         spMedian.addChangeListener(e->{
-            double sigmaPreview = (double) spSigma.getValue();
-            double medianRadiusPreview = (double) spMedian.getValue();
-            String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
-            double particleThreshPreview = (double) spThreshParticles.getValue();
-            double ringRadiusPreview = (double) spRingRadius.getValue();
-            ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
-            labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
-            labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
-            labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
+            if(this.imageForLivePreview != null) {
+                double sigmaPreview = (double) spSigma.getValue();
+                double medianRadiusPreview = (double) spMedian.getValue();
+                String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+                double particleThreshPreview = (double) spThreshParticles.getValue();
+                double ringRadiusPreview = (double) spRingRadius.getValue();
+                ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+                labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+                labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
+            }
         });
 
         spThreshParticles.addChangeListener(e->{
-            double sigmaPreview = (double) spSigma.getValue();
-            double medianRadiusPreview = (double) spMedian.getValue();
-            String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
-            double particleThreshPreview = (double) spThreshParticles.getValue();
-            double ringRadiusPreview = (double) spRingRadius.getValue();
-            ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
-            labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
-            labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
-            labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
+            if(this.imageForLivePreview != null) {
+                double sigmaPreview = (double) spSigma.getValue();
+                double medianRadiusPreview = (double) spMedian.getValue();
+                String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+                double particleThreshPreview = (double) spThreshParticles.getValue();
+                double ringRadiusPreview = (double) spRingRadius.getValue();
+                ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+                labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+                labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
+            }
         });
 
         spRingRadius.addChangeListener(e->{
-            double sigmaPreview = (double) spSigma.getValue();
-            double medianRadiusPreview = (double) spMedian.getValue();
-            String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
-            double particleThreshPreview = (double) spThreshParticles.getValue();
-            double ringRadiusPreview = (double) spRingRadius.getValue();
-            ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
-            labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
-            labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
-            labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
+            if(this.imageForLivePreview != null) {
+                double sigmaPreview = (double) spSigma.getValue();
+                double medianRadiusPreview = (double) spMedian.getValue();
+                String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+                double particleThreshPreview = (double) spThreshParticles.getValue();
+                double ringRadiusPreview = (double) spRingRadius.getValue();
+                ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+                labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+                labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
+            }
         });
 
         cbSegmentation.addItemListener(e->{
-            double sigmaPreview = (double) spSigma.getValue();
-            double medianRadiusPreview = (double) spMedian.getValue();
-            String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
-            double particleThreshPreview = (double) spThreshParticles.getValue();
-            double ringRadiusPreview = (double) spRingRadius.getValue();
-            ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                    particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
-            labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
-            labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
-            labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
+            if(this.imageForLivePreview != null) {
+                double sigmaPreview = (double) spSigma.getValue();
+                double medianRadiusPreview = (double) spMedian.getValue();
+                String thresholdMethodPreview = (String) cbSegmentation.getSelectedItem();
+                double particleThreshPreview = (double) spThreshParticles.getValue();
+                double ringRadiusPreview = (double) spRingRadius.getValue();
+                ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
+                labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
+                labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
+            }
         });
 
         // button to select an image for live preview
@@ -1604,12 +1614,6 @@ public class ArgoLightCommand implements Command {
             }
 
             if(this.imageForLivePreview != null){
-                spMedian.setEnabled(true);
-                spSigma.setEnabled(true);
-                spRingRadius.setEnabled(true);
-                spThreshParticles.setEnabled(true);
-                cbSegmentation.setEnabled(true);
-
                 this.imageForLivePreview.show();
                 int width = this.imageForLivePreview.getWindow().getWidth();
                 Point loc = this.imageForLivePreview.getWindow().getLocationOnScreen();
@@ -1626,12 +1630,6 @@ public class ArgoLightCommand implements Command {
                 labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
                 labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
                 labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
-            }else{
-                spMedian.setEnabled(false);
-                spSigma.setEnabled(false);
-                spRingRadius.setEnabled(false);
-                spThreshParticles.setEnabled(false);
-                cbSegmentation.setEnabled(false);
             }
         });
 
