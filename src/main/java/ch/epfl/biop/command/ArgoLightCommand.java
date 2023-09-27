@@ -1204,6 +1204,11 @@ public class ArgoLightCommand implements Command {
             spRingRadius.setEnabled(!chkRingRadius.isSelected());
         });
 
+        // checkbox to set the default argoSlide
+        JCheckBox chkUseOnlyOnce = new JCheckBox("Use only once");
+        chkUseOnlyOnce.setSelected(false);
+        chkUseOnlyOnce.setFont(stdFont);
+
         // build everything together
         GridBagConstraints constraints = new GridBagConstraints( );
         constraints.fill = GridBagConstraints.BOTH;
@@ -1273,8 +1278,12 @@ public class ArgoLightCommand implements Command {
         settingsPane.add(chkRingRadius, constraints);
 
         constraints.gridx = 2;
-        constraints.gridy = settingsRow;
+        constraints.gridy = settingsRow++;
         settingsPane.add(spRingRadius, constraints);
+
+        constraints.gridx = 0;
+        constraints.gridy = settingsRow;
+        settingsPane.add(chkUseOnlyOnce, constraints);
 
         JOptionPane pane = new JOptionPane(settingsPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
                 null, null);
@@ -1303,16 +1312,18 @@ public class ArgoLightCommand implements Command {
             userParticleThresh = (double)spThreshParticles.getValue();
             userRingRadius = (double)spRingRadius.getValue();
 
-            saveUserDefinedProcessingParams(isDefaultSigma,
-                    isDefaultMedianRadius,
-                    isDefaultThresholdMethod,
-                    isDefaultParticleThresh,
-                    isDefaultRingRadius,
-                    userSigma,
-                    userMedianRadius,
-                    userThresholdMethod,
-                    userParticleThresh,
-                    userRingRadius);
+            if(!chkUseOnlyOnce.getModel().isSelected()) {
+                saveUserDefinedProcessingParams(isDefaultSigma,
+                        isDefaultMedianRadius,
+                        isDefaultThresholdMethod,
+                        isDefaultParticleThresh,
+                        isDefaultRingRadius,
+                        userSigma,
+                        userMedianRadius,
+                        userThresholdMethod,
+                        userParticleThresh,
+                        userRingRadius);
+            }
         }
     }
 
@@ -1786,28 +1797,37 @@ public class ArgoLightCommand implements Command {
             opt = (Integer) selectedValue;
 
         if(opt == JOptionPane.OK_OPTION) {
-            isDefaultSigma = chkSigma.isSelected();
-            isDefaultMedianRadius = chkMedian.isSelected();
-            isDefaultThresholdMethod = chkThreshSeg.isSelected();
-            isDefaultParticleThresh = chkThreshParticles.isSelected();
-            isDefaultRingRadius = chkRingRadius.isSelected();
-            userSigma = (double) spSigma.getValue();
-            userMedianRadius = (double) spMedian.getValue();
-            userThresholdMethod = (String) cbSegmentation.getSelectedItem();
-            userParticleThresh = (double) spThreshParticles.getValue();
-            userRingRadius = (double) spRingRadius.getValue();
+            opt = showConfirmMessage("Confirm", "<html><h2>Do you want to use these settings as default ones ?</h2>" +
+                    "<p>" +
+                    "<ul>" +
+                    "<li> YES : Previous default settings will be overwritten by live settings.</li><p>" +
+                    "<li> NO : Live settings are only used in the current simulation but the default settings are kept unmodified.</li><p>" +
+                    "<li> CANCEL : Live settings are discarded.</li>" +
+                    "</ul>");
+            if(opt == JOptionPane.YES_OPTION || opt == JOptionPane.NO_OPTION) {
+                isDefaultSigma = chkSigma.isSelected();
+                isDefaultMedianRadius = chkMedian.isSelected();
+                isDefaultThresholdMethod = chkThreshSeg.isSelected();
+                isDefaultParticleThresh = chkThreshParticles.isSelected();
+                isDefaultRingRadius = chkRingRadius.isSelected();
+                userSigma = (double) spSigma.getValue();
+                userMedianRadius = (double) spMedian.getValue();
+                userThresholdMethod = (String) cbSegmentation.getSelectedItem();
+                userParticleThresh = (double) spThreshParticles.getValue();
+                userRingRadius = (double) spRingRadius.getValue();
 
-            if (showConfirmMessage("Confirm", "Do you want to use these settings as default ones ? Previous default settings will be overwritten.") == JOptionPane.YES_OPTION) {
-                saveUserDefinedProcessingParams(isDefaultSigma,
-                        isDefaultMedianRadius,
-                        isDefaultThresholdMethod,
-                        isDefaultParticleThresh,
-                        isDefaultRingRadius,
-                        userSigma,
-                        userMedianRadius,
-                        userThresholdMethod,
-                        userParticleThresh,
-                        userRingRadius);
+                if (opt == JOptionPane.YES_OPTION){
+                    saveUserDefinedProcessingParams(isDefaultSigma,
+                            isDefaultMedianRadius,
+                            isDefaultThresholdMethod,
+                            isDefaultParticleThresh,
+                            isDefaultRingRadius,
+                            userSigma,
+                            userMedianRadius,
+                            userThresholdMethod,
+                            userParticleThresh,
+                            userRingRadius);
+                }
             }
         }
 
@@ -2105,7 +2125,7 @@ public class ArgoLightCommand implements Command {
         if(content == null)
             content = "";
 
-        return JOptionPane.showConfirmDialog(new JFrame(), content, title, JOptionPane.YES_NO_OPTION);
+        return JOptionPane.showConfirmDialog(new JFrame(), content, title, JOptionPane.YES_NO_CANCEL_OPTION);
     }
 
     private void showMessage(String title, String content, int type){
