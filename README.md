@@ -71,12 +71,14 @@ Results are automatically saved locally.
 Launch the plugin by hitting `Plugins -> BIOP -> Argolight analysis tool`
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/aee6fec8-2f01-4397-a025-26b9f402b359" width="50%">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/2001c2d3-da43-452a-a1b9-01ed582838fe" width="50%">
 </p>
 
 ### Basic configurations -- To do the first time you use the plugin
 
 This step set the by-default values for input-output communication. These values are saved for your future use of the plugin ; you'll have to do it once.
+
+#### General settings
 
 1. Hit the button `General settings`. 
 2. On the popup, enter the host name and port of your OMERO server
@@ -97,7 +99,21 @@ In the csv file, you should have one ArgoSlide by line. If you enter ArgoSlides 
 8. Then, press OK. 
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/a897c366-20f9-491a-93e3-d0820dd96642" width="50%">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/57e9a8ae-f4f5-47de-8e68-4346e8594a64" width="50%">
+</p>
+
+#### ArgoSlide settings
+
+1. Choose an ArgoSlide in the list.
+2. Hit ``Settings`` button
+3. Fill the fields with the ArgoSlide specifications (Distance betwen two rings, pattern FoV, number of rings per line)
+4. If you tick the box ``Set as your default slide``, this ArgoSlide will be automatically selected each time you launch the plugin.
+5. Then press ``Ok``.
+
+These settings are saved for the selected ArgoSlide. If you have multiple slides, you need to select each slide and apply their respective settings.
+
+<p align="center">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/18dd27a3-1bcf-4c91-a7ca-77061c709b64" width="50%">
 </p>
 
 ### Quick start
