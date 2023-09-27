@@ -1067,14 +1067,8 @@ public class ArgoLightCommand implements Command {
         settingsPane.add(tfSaveFolder, constraints);
 
         constraints.gridx = 2;
-        constraints.gridy = settingsRow++;
-        settingsPane.add(bChooseSaveFolder, constraints);
-
-        constraints.gridwidth = 3; // span two rows
-        constraints.gridx = 0;
         constraints.gridy = settingsRow;
-        settingsPane.add(new JSeparator(), constraints);
-        constraints.gridwidth = 1; // set it back
+        settingsPane.add(bChooseSaveFolder, constraints);
 
         JOptionPane pane = new JOptionPane(settingsPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
                 null, null);
