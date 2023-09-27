@@ -228,7 +228,8 @@ public class ArgoLightCommand implements Command {
                             Integer.parseInt(argoParams.get(argoNRingsPos)));
                 else {
                     IJLogger.warn("Parent container : "+rawTarget + ", microscope " + microscope + " does not contain any images");
-                    showWarningMessage("No Images", "Parent container : "+rawTarget + ", microscope " + microscope + " does not contain any images");
+                    showWarningMessage("No Images", "Parent container : "+rawTarget + ", microscope " + microscope + " does not contain any images." +
+                            "They may not be imaged with the selected ArgoSlide '"+argoSlide+"' or they are already processed");
                     finalPopupMessage = false;
                 }
             }else{
