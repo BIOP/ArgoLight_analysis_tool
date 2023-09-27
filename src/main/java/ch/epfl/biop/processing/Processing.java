@@ -214,24 +214,26 @@ public class Processing {
                                                 int argoFOV, int argoSpacing, int argoNPoints){
         int nPoints;
         Roi enlargedRectangle;
+        ImageStatistics crossStats = crossRoi.getStatistics();
 
         // compute the number of points on each side of the center to adapt the size of the large rectangle
         // if the FoV of the image is smaller than the pattern FoV => limited number of points
         if((DoGImage.getWidth()*pixelSizeImage < (argoFOV + 4)) && (DoGImage.getHeight()*pixelSizeImage < (argoFOV + 4))){  // 100um of field of view + 2 um on each side
             nPoints = (int)Math.min(Math.floor(((DoGImage.getWidth()*pixelSizeImage/2)-2 )/argoSpacing), Math.floor(((DoGImage.getHeight()*pixelSizeImage/2)-2)/argoSpacing));
-            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+2.5)/(crossRoi.getStatistics().roiWidth*pixelSizeImage/2))*crossRoi.getStatistics().roiWidth/2));
+            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+2.5)/(crossStats.roiWidth*pixelSizeImage/2))*crossStats.roiWidth/2));
         }
         else{
             // for image FoV larger than the pattern FoV => all points
             nPoints = (argoNPoints-1)/2;
-            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+1.5)/(crossRoi.getStatistics().roiWidth*pixelSizeImage/2))*crossRoi.getStatistics().roiWidth/2));
+            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+1.5)/(crossStats.roiWidth*pixelSizeImage/2))*crossStats.roiWidth/2));
         }
 
         // get the statistics
-        double large_rect_roi_x = enlargedRectangle.getStatistics().xCentroid;
-        double large_rect_roi_y = enlargedRectangle.getStatistics().yCentroid;
-        double large_rect_roi_w = enlargedRectangle.getStatistics().roiWidth;
-        double large_rect_roi_h = enlargedRectangle.getStatistics().roiHeight;
+        ImageStatistics enlargedCrossStats = enlargedRectangle.getStatistics();
+        double large_rect_roi_x = enlargedCrossStats.xCentroid;
+        double large_rect_roi_y = enlargedCrossStats.yCentroid;
+        double large_rect_roi_w = enlargedCrossStats.roiWidth;
+        double large_rect_roi_h = enlargedCrossStats.roiHeight;
 
         // find ring centers
         ImagePlus imp2 = DoGImage.duplicate();
@@ -263,8 +265,8 @@ public class Processing {
 
             if(Math.abs(raw_x_array[i] - large_rect_roi_x) <= large_rect_roi_w/2 &&
                     Math.abs(raw_y_array[i] - large_rect_roi_y) <= large_rect_roi_h/2 &&
-                    !(Math.abs(raw_x_array[i] - crossRoi.getStatistics().xCentroid) <= crossRoi.getStatistics().roiWidth/2 &&
-                            Math.abs(raw_y_array[i] - crossRoi.getStatistics().yCentroid) <= crossRoi.getStatistics().roiHeight/2) &&
+                    !(Math.abs(raw_x_array[i] - crossStats.xCentroid) <= crossStats.roiWidth/2 &&
+                            Math.abs(raw_y_array[i] - crossStats.yCentroid) <= crossStats.roiHeight/2) &&
                     raw_area_array[i] > prtThreshold){
                 gridPoints.add(new Point2D.Double(raw_x_array[i], raw_y_array[i]));
             }
@@ -336,12 +338,11 @@ public class Processing {
      * compute the rotation angle of a point pattern
      *
      * @param values
-     * @param crossRoi
+     * @param xCross
+     * @param yCross
      * @return angle in radian
      */
-    protected static double getRotationAngle(List<Point2D> values, Roi crossRoi){
-        double xCross = crossRoi.getStatistics().xCentroid;
-        double yCross = crossRoi.getStatistics().yCentroid;
+    protected static double getRotationAngle(List<Point2D> values, double xCross, double yCross){
 
         // sort all points in natural order of their distance to image center
         List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(xCross,yCross))).collect(Collectors.toList());
@@ -367,9 +368,7 @@ public class Processing {
                 leftCorner = bottomLeftCornerList.get(0);
                 rightCorner = bottomRightCornerList.get(0);
             }else{
-                IJLogger.error("Compute Rotation angle","At least 2 corners rings are missing in the detection" +
-                        "step. Please have a look to the image and increase the exposure time");
-                throw new RuntimeException();
+                return Double.NaN;
             }
         }
 

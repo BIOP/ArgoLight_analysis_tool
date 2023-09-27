@@ -7,6 +7,7 @@ import ij.gui.OvalRoi;
 import ij.gui.Overlay;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
+import ij.process.ImageStatistics;
 
 import java.awt.Color;
 import java.awt.geom.Point2D;
@@ -57,6 +58,10 @@ public class ArgoSlideLivePreview {
         Roi crossRoi = Processing.getCentralCross(imp, roiManager, pixelSizeImage, userThresholdingMethod, argoFOV);
 
         roiManager.reset();
+        ImageStatistics crossStata = crossRoi.getStatistics();
+        double xCross = crossStata.xCentroid;
+        double yCross = crossStata.yCentroid;
+
         List<Point2D> gridPoints = Processing.getGridPoint(imp, crossRoi, pixelSizeImage, sigma, medianRadius,
                 particleThreshold, userThresholdingMethod, argoFOV, argoSpacing, argoNPoints);
 
@@ -72,7 +77,7 @@ public class ArgoSlideLivePreview {
 
         // reduced grid to compute average step
         List<Point2D> smallerGrid = gridPoints.stream()
-                .filter(e -> (Math.abs(e.getX() - crossRoi.getStatistics().xCentroid) < (2.5 * argoSpacing) / pixelSizeImage && Math.abs(e.getY() - crossRoi.getStatistics().yCentroid) < (2.5 * argoSpacing) / pixelSizeImage))
+                .filter(e -> (Math.abs(e.getX() - xCross) < (2.5 * argoSpacing) / pixelSizeImage && Math.abs(e.getY() - yCross) < (2.5 * argoSpacing) / pixelSizeImage))
                 .collect(Collectors.toList());
 
         // get the average x step
@@ -82,8 +87,20 @@ public class ArgoSlideLivePreview {
         yStepAvg = Processing.getAverageStep(smallerGrid.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage, argoSpacing);
 
         // get the rotation angle
-        rotationAngle = Processing.getRotationAngle(gridPoints, crossRoi);
+        try {
+            // get the rotation angle
+            rotationAngle = Processing.getRotationAngle(gridPoints, xCross, yCross);
+            if(Double.isNaN(rotationAngle)){
+                rotationAngle = Processing.getRotationAngle(gridPoints, (double) imp.getWidth() / 2, (double) imp.getHeight() / 2);
+                if(Double.isNaN(rotationAngle)){
+                    IJLogger.error("Compute Rotation angle","At least 2 corners rings are missing in the detection" +
+                            "step. Please have a look to the image and increase the exposure time");
+                    rotationAngle = 10;
+                }
+            }
+        }catch(Exception e){
 
+        }
         // create grid point ROIs
         List<Roi> gridPointRois = new ArrayList<>();
         for(Point2D pR : gridPoints)
