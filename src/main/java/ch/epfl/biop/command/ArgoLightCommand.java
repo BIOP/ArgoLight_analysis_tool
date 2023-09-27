@@ -1342,14 +1342,14 @@ public class ArgoLightCommand implements Command {
         labOmeroImage.setFont(stdFont);
         JTextField tfOmeroImage = new JTextField();
         tfOmeroImage.setFont(stdFont);
-        tfOmeroImage.setColumns(15);
+        tfOmeroImage.setColumns(7);
 
         // Image Path
         JLabel labImage = new JLabel("Image path");
         labImage.setFont(stdFont);
         JTextField tfImage = new JTextField();
         tfImage.setFont(stdFont);
-        tfImage.setColumns(15);
+        tfImage.setColumns(7);
 
         // Sigma for gaussian blurring
         JLabel labSigma = new JLabel("Gaussian blur sigma (um)");
@@ -1415,6 +1415,42 @@ public class ArgoLightCommand implements Command {
         JLabel labDetectedGrid = new JLabel("Measured grid");
         labDetectedGrid.setFont(stdFont);
         labDetectedGrid.setForeground(Color.RED);
+
+        // checkbox to activate default parameters
+        JCheckBox chkSigma = new JCheckBox("default");
+        chkSigma.setSelected(isDefaultSigma);
+        chkSigma.setFont(stdFont);
+        chkSigma.addActionListener(e->{
+            spSigma.setEnabled(!chkSigma.isSelected());
+        });
+
+        JCheckBox chkMedian = new JCheckBox("default");
+        chkMedian.setSelected(isDefaultMedianRadius);
+        chkMedian.setFont(stdFont);
+        chkMedian.addActionListener(e->{
+            spMedian.setEnabled(!chkMedian.isSelected());
+        });
+
+        JCheckBox chkThreshSeg = new JCheckBox("default");
+        chkThreshSeg.setSelected(isDefaultThresholdMethod);
+        chkThreshSeg.setFont(stdFont);
+        chkThreshSeg.addActionListener(e->{
+            cbSegmentation.setEnabled(!chkThreshSeg.isSelected());
+        });
+
+        JCheckBox chkThreshParticles = new JCheckBox("default");
+        chkThreshParticles.setSelected(isDefaultParticleThresh);
+        chkThreshParticles.setFont(stdFont);
+        chkThreshParticles.addActionListener(e->{
+            spThreshParticles.setEnabled(!chkThreshParticles.isSelected());
+        });
+
+        JCheckBox chkRingRadius = new JCheckBox("default");
+        chkRingRadius.setSelected(isDefaultRingRadius);
+        chkRingRadius.setFont(stdFont);
+        chkRingRadius.addActionListener(e->{
+            spRingRadius.setEnabled(!chkRingRadius.isSelected());
+        });
 
         spSigma.addChangeListener(e->{
             double sigmaPreview = (double) spSigma.getValue();
@@ -1643,6 +1679,10 @@ public class ArgoLightCommand implements Command {
         livePreviewPane.add(labSigma, constraints);
 
         constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        livePreviewPane.add(chkSigma, constraints);
+
+        constraints.gridx = 2;
         constraints.gridy = settingsRow++;
         livePreviewPane.add(spSigma, constraints);
 
@@ -1651,6 +1691,10 @@ public class ArgoLightCommand implements Command {
         livePreviewPane.add(labMedian, constraints);
 
         constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        livePreviewPane.add(chkMedian, constraints);
+
+        constraints.gridx = 2;
         constraints.gridy = settingsRow++;
         livePreviewPane.add(spMedian, constraints);
 
@@ -1659,6 +1703,10 @@ public class ArgoLightCommand implements Command {
         livePreviewPane.add(labThreshSeg, constraints);
 
         constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        livePreviewPane.add(chkThreshSeg, constraints);
+
+        constraints.gridx = 2;
         constraints.gridy = settingsRow++;
         livePreviewPane.add(cbSegmentation, constraints);
 
@@ -1667,6 +1715,10 @@ public class ArgoLightCommand implements Command {
         livePreviewPane.add(labThreshParticles, constraints);
 
         constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        livePreviewPane.add(chkThreshParticles, constraints);
+
+        constraints.gridx = 2;
         constraints.gridy = settingsRow++;
         livePreviewPane.add(spThreshParticles, constraints);
 
@@ -1675,6 +1727,10 @@ public class ArgoLightCommand implements Command {
         livePreviewPane.add(labRingRadius, constraints);
 
         constraints.gridx = 1;
+        constraints.gridy = settingsRow;
+        livePreviewPane.add(chkRingRadius, constraints);
+
+        constraints.gridx = 2;
         constraints.gridy = settingsRow++;
         livePreviewPane.add(spRingRadius, constraints);
 
@@ -1732,18 +1788,23 @@ public class ArgoLightCommand implements Command {
             opt = (Integer) selectedValue;
 
         if(opt == JOptionPane.OK_OPTION) {
-                userSigma = (double) spSigma.getValue();
-                userMedianRadius = (double) spMedian.getValue();
-                userThresholdMethod = (String) cbSegmentation.getSelectedItem();
-                userParticleThresh = (double) spThreshParticles.getValue();
-                userRingRadius = (double) spRingRadius.getValue();
+            isDefaultSigma = chkSigma.isSelected();
+            isDefaultMedianRadius = chkMedian.isSelected();
+            isDefaultThresholdMethod = chkThreshSeg.isSelected();
+            isDefaultParticleThresh = chkThreshParticles.isSelected();
+            isDefaultRingRadius = chkRingRadius.isSelected();
+            userSigma = (double) spSigma.getValue();
+            userMedianRadius = (double) spMedian.getValue();
+            userThresholdMethod = (String) cbSegmentation.getSelectedItem();
+            userParticleThresh = (double) spThreshParticles.getValue();
+            userRingRadius = (double) spRingRadius.getValue();
 
             if (showConfirmMessage("Confirm", "Do you want to use these settings as default ones ? Previous default settings will be overwritten.") == JOptionPane.YES_OPTION) {
-                saveUserDefinedProcessingParams(false,
-                        false,
-                        false,
-                        false,
-                        false,
+                saveUserDefinedProcessingParams(isDefaultSigma,
+                        isDefaultMedianRadius,
+                        isDefaultThresholdMethod,
+                        isDefaultParticleThresh,
+                        isDefaultRingRadius,
                         userSigma,
                         userMedianRadius,
                         userThresholdMethod,
