@@ -153,10 +153,13 @@ A few parameters used for segmentation and analysis can be manually set.
 4. Size of the thresholded particules to keep (> value) -> denoising
 5. Analyzed area around the ring (for FWHM) -> analysis
 
-If you chck the `default` box, then hard-coded default parameters are used.
+If you check the `default` box, then hard-coded default parameters are used.
+
+6. If you check ``Use only once``, the new settings are only used for the current simulation (i.e. the default settings are not overwritten).
+
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/228e43d4-f49f-473e-8b09-2a397d1319d1" width="40%">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/766e44b8-6fc5-414c-af54-fb0da6defd13" width="40%">
 </p>
 
 ### Live preview
@@ -181,10 +184,10 @@ A live preview mode enable you to set dynamically the processing parameters and 
 </p>
 
 
-8. Confirm if you want the new parameters to become default settings.
+8. Confirm if you want the overwrite default settings by the live settings, or use them in the current simulation or just discard them.
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/14e5de27-85c5-45e0-9e2d-1def597b73a9" width="50%">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/a2a1bb4f-c2a3-4f9d-82fb-ed77bb292833" width="50%">
 </p>
 
 ## Analysis results
