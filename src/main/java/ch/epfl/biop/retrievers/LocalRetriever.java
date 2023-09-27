@@ -38,6 +38,7 @@ public class LocalRetriever implements Retriever{
         // check the existence of teh parent folder (i.e. where microscope folder with images should be located)
         File parentFolder = new File(parentTarget);
         if(!parentFolder.exists()){
+            IJLogger.error("Load local images", "The parent folder '"+parentTarget+"' doesn't exists");
             return false;
         }
 
@@ -50,23 +51,25 @@ public class LocalRetriever implements Retriever{
 
             // if the folder doesn't exist, then cannot retrieve data
             if (microscopeList.isEmpty()){
-                IJLogger.error("Load images","The folder "+parentFolder.getName() +" does not contain any "+microscopeName+" folder");
+                IJLogger.error("Load local images","The folder "+parentFolder.getName() +" does not contain any "+microscopeName+" folder");
                 return false;
             }else{
                 // select the existing microscope folder
-                IJLogger.info("Load images","Select folder "+microscopeList.get(0).getAbsolutePath());
+                IJLogger.info("Load local images","Select folder "+microscopeList.get(0).getAbsolutePath());
                 this.microscopeFolderPath = microscopeList.get(0).getAbsolutePath();
             }
         }else{
-            IJLogger.error("Load images","The folder "+parentFolder.getName() +" is empty");
+            IJLogger.error("Load local images","The folder "+parentFolder.getName() +" is empty");
             return false;
         }
 
         // set the raw microscope folder path and list images inside
         File microscopeFolder = new File(this.microscopeFolderPath);
         File[] rawImgFiles = microscopeFolder.listFiles();
-        if(rawImgFiles == null)
+        if(rawImgFiles == null) {
+            IJLogger.error("Load local images","The folder "+this.microscopeFolderPath +" is corrupted ; no images can be listed");
             return false;
+        }
 
         // find the list of already processed images
         List<String> processedFiles = listProcessedFiles(this.resultsFolderPath, microscopeName);

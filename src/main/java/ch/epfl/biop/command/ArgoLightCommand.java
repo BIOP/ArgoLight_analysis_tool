@@ -155,7 +155,7 @@ public class ArgoLightCommand implements Command {
      * @param allImages
      * @param cleanTargetSelection
      */
-    private void runProcessing(boolean isOmeroRetriever, String username, char[] password, String rootFolderPath,
+    private void runProcessing(boolean isOmeroRetriever, String username, char[] password, String omeroProjectID, String rootFolderPath,
                                String microscope, String argoSlide, boolean isOmeroSender, String savingFolderPath,
                                boolean saveHeatMaps, boolean allImages, boolean cleanTargetSelection){
         boolean finalPopupMessage = true;
@@ -189,7 +189,7 @@ public class ArgoLightCommand implements Command {
                     if(!connectToOmero(this.client, username, password))
                         return;
                 retriever = new OMERORetriever(this.client);
-                rawTarget = userProjectID;
+                rawTarget = omeroProjectID;
             }
             else {
                 retriever = new LocalRetriever(savingFolderPath);
@@ -198,39 +198,43 @@ public class ArgoLightCommand implements Command {
 
             // load images to process & set the cleaning
             boolean imageLoaded = retriever.loadImages(rawTarget, microscope, allImages, argoSlide);
-            int nImages = retriever.getNImages();
-            boolean cleanTarget = allImages && cleanTargetSelection;
+            if(imageLoaded) {
+                int nImages = retriever.getNImages();
+                boolean cleanTarget = allImages && cleanTargetSelection;
 
-            // create dedicated senders
-            Sender sender;
-            if (isOmeroSender) {
-                sender = new OMEROSender(this.client, retriever.getMicroscopeTarget(), cleanTarget);
-            } else {
-                File savingFolder = new File(savingFolderPath);
-                sender = new LocalSender(savingFolder, microscope, cleanTarget, isOmeroRetriever);
-            }
+                // create dedicated senders
+                Sender sender;
+                if (isOmeroSender) {
+                    sender = new OMEROSender(this.client, retriever.getMicroscopeTarget(), cleanTarget);
+                } else {
+                    File savingFolder = new File(savingFolderPath);
+                    sender = new LocalSender(savingFolder, microscope, cleanTarget, isOmeroRetriever);
+                }
 
-            // get the current argoSlide parameters
-            List<String> argoParams = argoSlidesParameters.get(argoSlide);
+                // get the current argoSlide parameters
+                List<String> argoParams = argoSlidesParameters.get(argoSlide);
 
-            // run analysis
-            if (nImages > 0)
-                Processing.run(retriever, saveHeatMaps, sender,
-                        isDefaultSigma ? defaultSigma : userSigma,
-                        isDefaultMedianRadius ? defaultMedianRadius : userMedianRadius,
-                        isDefaultThresholdMethod ? defaultThresholdMethod : userThresholdMethod,
-                        isDefaultParticleThresh ? defaultParticleThresh : userParticleThresh,
-                        isDefaultRingRadius ? defaultRingRadius : userRingRadius,
-                        argoSlide,
-                        Integer.parseInt(argoParams.get(argoSpacingPos)),
-                        Integer.parseInt(argoParams.get(argoFoVPos)),
-                        Integer.parseInt(argoParams.get(argoNRingsPos)));
-            else {
-                IJLogger.warn("No images available for project " + userProjectID + ", dataset " + microscope);
-                showWarningMessage("No Images","No images available for project " + userProjectID + ", dataset " + microscope);
+                // run analysis
+                if (nImages > 0)
+                    Processing.run(retriever, saveHeatMaps, sender,
+                            isDefaultSigma ? defaultSigma : userSigma,
+                            isDefaultMedianRadius ? defaultMedianRadius : userMedianRadius,
+                            isDefaultThresholdMethod ? defaultThresholdMethod : userThresholdMethod,
+                            isDefaultParticleThresh ? defaultParticleThresh : userParticleThresh,
+                            isDefaultRingRadius ? defaultRingRadius : userRingRadius,
+                            argoSlide,
+                            Integer.parseInt(argoParams.get(argoSpacingPos)),
+                            Integer.parseInt(argoParams.get(argoFoVPos)),
+                            Integer.parseInt(argoParams.get(argoNRingsPos)));
+                else {
+                    IJLogger.warn("Parent container : "+rawTarget + ", microscope " + microscope + " does not contain any images");
+                    showWarningMessage("No Images", "Parent container : "+rawTarget + ", microscope " + microscope + " does not contain any images");
+                    finalPopupMessage = false;
+                }
+            }else{
                 finalPopupMessage = false;
+                IJLogger.error("Images cannot be loaded from the parent container : "+rawTarget+", microscope "+microscope);
             }
-
         } catch (Exception e){
             finalPopupMessage = false;
         } finally {
@@ -723,6 +727,7 @@ public class ArgoLightCommand implements Command {
             runProcessing(rbOmeroRetriever.isSelected(),
                     tfUsername.getText(),
                     password,
+                    tfProjectID.getText(),
                     tfRootFolder.getText(),
                     ((String)cbMicroscope.getSelectedItem()).toLowerCase(),
                     ((String)cbArgoSlide.getSelectedItem()),

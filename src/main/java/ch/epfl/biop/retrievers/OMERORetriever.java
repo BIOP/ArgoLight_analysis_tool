@@ -38,12 +38,19 @@ public class OMERORetriever implements Retriever {
      * @param microscopeName name of the dataset where to look for images (corresponding to the microscope name)
      * @param processAllRawImages true if you want to process all images within the dataset, regardless if
      *                            they have already been processed one.
+     * @param argoSlideName Name of the selected ArgoSlide
      * @return builder
      */
     @Override
     public boolean loadImages(String parentTarget, String microscopeName, boolean processAllRawImages, String argoSlideName) {
         this.processAllRawImages = processAllRawImages;
-        long projectId = Long.parseLong(parentTarget);
+        long projectId;
+        try {
+            projectId = Long.parseLong(parentTarget);
+        } catch (Exception e){
+            IJLogger.error("Load OMERO images", "The project ID '"+parentTarget+"' is not an integer number");
+            return false;
+        }
 
         try {
             // get the ArgoSim project
@@ -54,19 +61,19 @@ public class OMERORetriever implements Retriever {
 
             if (datasetWrapperList.size() == 1) {
                 DatasetWrapper datasetWrapper = datasetWrapperList.get(0);
-                IJLogger.info("Images downloaded from dataset : " + datasetWrapper.getName());
+                IJLogger.info("Load OMERO images","Images downloaded from dataset : " + datasetWrapper.getName());
                 this.datasetId = datasetWrapper.getId();
 
                 List<ImageWrapper> imageWrapperList = datasetWrapper.getImages(this.client);
                 this.images = filterImages(imageWrapperList, processAllRawImages, argoSlideName);
                 return true;
             } else if(datasetWrapperList.isEmpty())
-                IJLogger.warn("Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name *"+microscopeName+"*");
-            else IJLogger.warn("More than one dataset refer to "+microscopeName+" Please, group these datasets or change their name.");
+                IJLogger.warn("Load OMERO images","Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name '"+microscopeName+"'");
+            else IJLogger.warn("Load OMERO images","More than one dataset refer to "+microscopeName+" Please, group these datasets or change their name.");
             return false;
 
-        } catch(AccessException | ServiceException | ExecutionException e){
-            IJLogger.error("Retrieve OMERO images","Cannot retrieve images in project "+projectId+", dataset *"+microscopeName+"*");
+        } catch(Exception e){
+            IJLogger.error("Load OMERO images","Cannot retrieve images in project "+projectId+", dataset '"+microscopeName+"'");
             return false;
         }
     }
