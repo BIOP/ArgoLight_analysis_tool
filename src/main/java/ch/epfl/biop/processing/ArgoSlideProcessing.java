@@ -105,7 +105,7 @@ public class ArgoSlideProcessing {
         IJLogger.info("Detection parameters","Median radius : "+medianRadius + " pix");
         IJLogger.info("Detection parameters","Particle threshold : "+particleThreshold + " pix");
 
-        RoiManager roiManager = new RoiManager();
+        RoiManager roiManager = RoiManager.getRoiManager();
 
         for(int c = 0; c < NChannels; c++){
             // reset all windows
