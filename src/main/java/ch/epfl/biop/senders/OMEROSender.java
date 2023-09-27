@@ -140,8 +140,13 @@ public class OMEROSender implements Sender{
                     .map(MapAnnotationData.class::cast)
                     .map(MapAnnotationData::asIObject)
                     .collect(Collectors.toList());
-            this.client.getDm().delete(this.client.getCtx(), keyValues);
-            IJLogger.info("Cleaning target", "Key-values removed");
+
+            if(keyValues.isEmpty()){
+                IJLogger.warn("Cleaning target", "No Key-values to remove");
+            }else{
+                this.client.getDm().delete(this.client.getCtx(), keyValues);
+                IJLogger.info("Cleaning target", "Key-values removed");
+            }
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
             IJLogger.error("Cleaning target", "Cannot delete key-values for image "+this.imageWrapper.getId());
         }
@@ -150,9 +155,13 @@ public class OMEROSender implements Sender{
         try {
             IJLogger.info("Cleaning target", "Removing tables from image "+this.imageWrapper.getId());
             List<TableWrapper> tables = this.imageWrapper.getTables(this.client);
-            this.client.deleteTables(tables);
 
-            IJLogger.info("Cleaning target", "Tables removed");
+            if(tables.isEmpty()) {
+                IJLogger.warn("Cleaning target", "No table to remove");
+            } else {
+                this.client.deleteTables(tables);
+                IJLogger.info("Cleaning target", "Tables removed");
+            }
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
             IJLogger.error("Cleaning target", "Cannot delete tables for image "+this.imageWrapper.getId());
         }
@@ -164,8 +173,15 @@ public class OMEROSender implements Sender{
                     .map(ROIWrapper::asDataObject)
                     .map(ROIData::asIObject)
                     .collect(Collectors.toList());
-            this.client.getDm().delete(this.client.getCtx(), rois);
-            IJLogger.info("Cleaning target", "ROIs removed");
+
+            if(rois.isEmpty()){
+                IJLogger.warn("Cleaning target", "No ROIs to remove");
+            }else{
+                this.client.getDm().delete(this.client.getCtx(), rois);
+                IJLogger.info("Cleaning target", "ROIs removed");
+            }
+
+
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
             IJLogger.error("Cleaning target", "Cannot delete ROIs for image "+this.imageWrapper.getId());
         }
@@ -178,9 +194,13 @@ public class OMEROSender implements Sender{
                 List<DatasetWrapper> dataset = this.imageWrapper.getDatasets(this.client);
                 // delete tables
                 List<TableWrapper> tables = dataset.get(0).getTables(this.client);
-                this.client.deleteTables(tables);
 
-                IJLogger.info("Cleaning target", "Parent table removed");
+                if(tables.isEmpty()) {
+                    IJLogger.warn("Cleaning target", "No parent table to remove");
+                } else {
+                    this.client.deleteTables(tables);
+                    IJLogger.info("Cleaning target", "Parent table removed");
+                }
             } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
                 IJLogger.error("Cleaning target", "Cannot delete parent tables for image "+this.imageWrapper.getId());
             }
