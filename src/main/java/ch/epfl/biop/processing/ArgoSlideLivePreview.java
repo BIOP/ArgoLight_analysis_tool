@@ -62,8 +62,8 @@ public class ArgoSlideLivePreview {
         double xCross = crossStata.xCentroid;
         double yCross = crossStata.yCentroid;
 
-        List<Point2D> gridPoints = Processing.getGridPoint(imp, crossRoi, pixelSizeImage, sigma, medianRadius,
-                particleThreshold, userThresholdingMethod, argoFOV, argoSpacing, argoNPoints);
+        List<Point2D> gridPoints = Processing.getGridPoint(imp, crossRoi,  sigma, medianRadius,
+                particleThreshold, userThresholdingMethod, ovalRadius);
 
         if(gridPoints.isEmpty()){
             IJLogger.error("Ring detection", "No rings are detected on the current image. " +
@@ -89,14 +89,15 @@ public class ArgoSlideLivePreview {
         // get the rotation angle
         try {
             // get the rotation angle
-            rotationAngle = Processing.getRotationAngle(gridPoints, xCross, yCross);
+            rotationAngle = Processing.getRotationAngle(gridPoints, xCross, yCross, pixelSizeImage, argoSpacing, ovalRadius, imp);
             if(Double.isNaN(rotationAngle)){
-                rotationAngle = Processing.getRotationAngle(gridPoints, (double) imp.getWidth() / 2, (double) imp.getHeight() / 2);
+                IJLogger.warn("Your image is not properly centered. Try with image center as reference center...");
+               /* rotationAngle = Processing.getRotationAngle(gridPoints, (double) imp.getWidth() / 2, (double) imp.getHeight() / 2);
                 if(Double.isNaN(rotationAngle)){
                     IJLogger.error("Compute Rotation angle","At least 2 corners rings are missing in the detection" +
                             "step. Please have a look to the image and increase the exposure time");
                     rotationAngle = 10;
-                }
+                }*/
             }
         }catch(Exception e){
 

@@ -17,10 +17,12 @@ import ij.plugin.RoiEnlarger;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageStatistics;
 
+import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -204,39 +206,23 @@ public class Processing {
     /**
      * generate a list of point with small rings coordinates.
      *
-     * @param DoGImage
+     * @param imp
      * @param crossRoi
-     * @param pixelSizeImage
+     * @param medianRadius
+     * @param overRadius
+     * @param prtThreshold
+     * @param sigma
+     * @param segMethod
      * @return
      */
-    protected static List<Point2D> getGridPoint(ImagePlus DoGImage, Roi crossRoi, double pixelSizeImage, double sigma,
-                                                double medianRadius, double prtThreshold, String segMethod,
-                                                int argoFOV, int argoSpacing, int argoNPoints){
-        int nPoints;
-        Roi enlargedRectangle;
-        ImageStatistics crossStats = crossRoi.getStatistics();
-
-        // compute the number of points on each side of the center to adapt the size of the large rectangle
-        // if the FoV of the image is smaller than the pattern FoV => limited number of points
-        if((DoGImage.getWidth()*pixelSizeImage < (argoFOV + 4)) && (DoGImage.getHeight()*pixelSizeImage < (argoFOV + 4))){  // 100um of field of view + 2 um on each side
-            nPoints = (int)Math.min(Math.floor(((DoGImage.getWidth()*pixelSizeImage/2)-2 )/argoSpacing), Math.floor(((DoGImage.getHeight()*pixelSizeImage/2)-2)/argoSpacing));
-            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+2.5)/(crossStats.roiWidth*pixelSizeImage/2))*crossStats.roiWidth/2));
-        }
-        else{
-            // for image FoV larger than the pattern FoV => all points
-            nPoints = (argoNPoints-1)/2;
-            enlargedRectangle = RoiEnlarger.enlarge(crossRoi, (int)Math.round(((nPoints*argoSpacing+1.5)/(crossStats.roiWidth*pixelSizeImage/2))*crossStats.roiWidth/2));
-        }
+    protected static List<Point2D> getGridPoint(ImagePlus imp, Roi crossRoi, double sigma, double medianRadius,
+                                                double prtThreshold, String segMethod, int overRadius){
 
         // get the statistics
-        ImageStatistics enlargedCrossStats = enlargedRectangle.getStatistics();
-        double large_rect_roi_x = enlargedCrossStats.xCentroid;
-        double large_rect_roi_y = enlargedCrossStats.yCentroid;
-        double large_rect_roi_w = enlargedCrossStats.roiWidth;
-        double large_rect_roi_h = enlargedCrossStats.roiHeight;
+        Roi enlargedRectangle = new Roi(new Rectangle(overRadius, overRadius, imp.getWidth()-2*overRadius, imp.getHeight()-2*overRadius ));
 
         // find ring centers
-        ImagePlus imp2 = DoGImage.duplicate();
+        ImagePlus imp2 = imp.duplicate();
         // preprocess the image
         IJ.run(imp2, "Median...", "radius="+medianRadius);
         IJ.run(imp2, "Gaussian Blur...", "sigma="+sigma);
@@ -251,7 +237,7 @@ public class Processing {
         ResultsTable rt_points = ResultsTable.getResultsTable("Results");
         RoiManager rm = RoiManager.getRoiManager();
         rt_points.reset();
-        rm.runCommand(DoGImage,"Measure");
+        rm.runCommand(imp,"Measure");
 
         // get coordinates of each point
         float[] raw_x_array = rt_points.getColumn(rt_points.getColumnIndex("XM"));
@@ -263,10 +249,8 @@ public class Processing {
         // filter points according to their position ; keep only those inside the large rectangle and outside the central cross bounding box
         for(int i = 0; i < raw_x_array.length; i++){
 
-            if(Math.abs(raw_x_array[i] - large_rect_roi_x) <= large_rect_roi_w/2 &&
-                    Math.abs(raw_y_array[i] - large_rect_roi_y) <= large_rect_roi_h/2 &&
-                    !(Math.abs(raw_x_array[i] - crossStats.xCentroid) <= crossStats.roiWidth/2 &&
-                            Math.abs(raw_y_array[i] - crossStats.yCentroid) <= crossStats.roiHeight/2) &&
+            if(enlargedRectangle.containsPoint(raw_x_array[i], raw_y_array[i]) &&
+                    !crossRoi.containsPoint(raw_x_array[i], raw_y_array[i]) &&
                     raw_area_array[i] > prtThreshold){
                 gridPoints.add(new Point2D.Double(raw_x_array[i], raw_y_array[i]));
             }
@@ -342,9 +326,129 @@ public class Processing {
      * @param yCross
      * @return angle in radian
      */
-    protected static double getRotationAngle(List<Point2D> values, double xCross, double yCross){
+    protected static double getRotationAngle(List<Point2D> values, double xCross, double yCross, double pixelSize,
+                                             int argoSpacing, double ovalRadius, ImagePlus imp){
 
-        // sort all points in natural order of their distance to image center
+        Point2D.Double vectToLeft = new Point2D.Double(-argoSpacing/pixelSize, 0);
+        double initX = xCross;
+        double initY = yCross;
+
+        // find all points along the central horizontal line to the left of the cross
+        List<Point2D> lineLeft = new ArrayList<>();
+        Point2D.Double theoPoint;
+        do{
+            theoPoint = new Point2D.Double(initX + vectToLeft.getX(), initY + vectToLeft.getY());
+            if(theoPoint.getX() > ovalRadius){
+                Point2D.Double finalTheoPoint = theoPoint;
+                List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(finalTheoPoint.getX(),finalTheoPoint.getY()))).collect(Collectors.toList());
+                Point2D closerRing = sortedPoints.get(0);
+                lineLeft.add(closerRing);
+
+                vectToLeft = new Point2D.Double(closerRing.getX() - initX, closerRing.getY() - initY);
+
+                initX = closerRing.getX();
+                initY = closerRing.getY();
+            }
+        }while (theoPoint.getX() > ovalRadius);
+
+
+        // find all points along the central horizontal line to the right of the cross
+        Point2D.Double vectToRight = new Point2D.Double(argoSpacing/pixelSize, 0);
+        initX = xCross;
+        initY = yCross;
+        List<Point2D> lineRight = new ArrayList<>();
+
+        do{
+            theoPoint = new Point2D.Double(initX + vectToRight.getX(), initY + vectToRight.getY());
+            if(theoPoint.getX() < imp.getWidth() - ovalRadius){
+                Point2D.Double finalTheoPoint = theoPoint;
+                List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(finalTheoPoint.getX(),finalTheoPoint.getY()))).collect(Collectors.toList());
+                Point2D closerRing = sortedPoints.get(0);
+                lineRight.add(closerRing);
+
+                vectToRight = new Point2D.Double(closerRing.getX() - initX, closerRing.getY() - initY);
+
+                initX = closerRing.getX();
+                initY = closerRing.getY();
+            }
+        }while (theoPoint.getX() < imp.getWidth() - ovalRadius);
+
+        // find all points along the central vertical line to the bottom of the cross
+        Point2D.Double vectToBottom = new Point2D.Double(0, argoSpacing/pixelSize);
+        initX = xCross;
+        initY = yCross;
+        List<Point2D> lineBottom = new ArrayList<>();
+
+        do{
+            theoPoint = new Point2D.Double(initX + vectToBottom.getX(), initY + vectToBottom.getY());
+            if(theoPoint.getY() < imp.getHeight() - ovalRadius){
+                Point2D.Double finalTheoPoint = theoPoint;
+                List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(finalTheoPoint.getX(),finalTheoPoint.getY()))).collect(Collectors.toList());
+                Point2D closerRing = sortedPoints.get(0);
+                lineBottom.add(closerRing);
+
+                vectToBottom = new Point2D.Double(closerRing.getX() - initX, closerRing.getY() - initY);
+
+                initX = closerRing.getX();
+                initY = closerRing.getY();
+            }
+        }while (theoPoint.getY() < imp.getHeight() - ovalRadius);
+
+
+        // find all points along the central vertical line to the top of the cross
+        Point2D.Double vectToTop = new Point2D.Double(0, -argoSpacing/pixelSize);
+        initX = xCross;
+        initY = yCross;
+        List<Point2D> lineTop = new ArrayList<>();
+
+        do{
+            theoPoint = new Point2D.Double(initX + vectToTop.getX(), initY + vectToTop.getY());
+            if(theoPoint.getY() > ovalRadius){
+                Point2D.Double finalTheoPoint = theoPoint;
+                List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(finalTheoPoint.getX(),finalTheoPoint.getY()))).collect(Collectors.toList());
+                Point2D closerRing = sortedPoints.get(0);
+                lineTop.add(closerRing);
+
+                vectToTop = new Point2D.Double(closerRing.getX() - initX, closerRing.getY() - initY);
+
+                initX = closerRing.getX();
+                initY = closerRing.getY();
+            }
+        }while (theoPoint.getY() > ovalRadius);
+
+
+
+        if(!lineLeft.isEmpty() && !lineRight.isEmpty() && !lineTop.isEmpty() && !lineBottom.isEmpty()) {
+
+            Collections.reverse(lineLeft);
+            lineLeft.addAll(lineRight);
+
+            Collections.reverse(lineTop);
+            lineTop.addAll(lineBottom);
+
+            double[] xArrayH = lineLeft.stream().mapToDouble(Point2D::getX).toArray();
+            double[] yArrayH = lineLeft.stream().mapToDouble(Point2D::getY).toArray();
+            double[] xArrayV = lineTop.stream().mapToDouble(Point2D::getX).toArray();
+            double[] yArrayV = lineTop.stream().mapToDouble(Point2D::getY).toArray();
+
+            // do a curve fitting of type : y = a*x + b
+            CurveFitter fitter = new CurveFitter(xArrayH, yArrayH);
+            fitter.doFit(CurveFitter.STRAIGHT_LINE);
+            double a = fitter.getParams()[1];
+            double angle1 = Math.atan2(a, 1);
+
+            // do a curve fitting of type : y = a*x + b
+            CurveFitter fitter2 = new CurveFitter(yArrayV, xArrayV);
+            fitter2.doFit(CurveFitter.STRAIGHT_LINE);
+            a = fitter2.getParams()[1];
+            double angle2 = Math.atan2(a, 1);
+
+            return (angle1 + angle2)/2;
+
+        }
+        return Double.NaN;
+
+        /*// sort all points in natural order of their distance to image center
         List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(xCross,yCross))).collect(Collectors.toList());
 
         // extract corners
@@ -357,27 +461,59 @@ public class Processing {
         List<Point2D> bottomLeftCornerList = cornerPoints.stream().filter(e->e.getX()<xCross && e.getY()>yCross).collect(Collectors.toList());
         List<Point2D> bottomRightCornerList = cornerPoints.stream().filter(e->e.getX()>xCross && e.getY()>yCross).collect(Collectors.toList());
 
-        Point2D leftCorner;
-        Point2D rightCorner;
+        // force to have the 4 corners
+        if(!topLeftCornerList.isEmpty() && !topRightCornerList.isEmpty() && !bottomLeftCornerList.isEmpty() && !bottomRightCornerList.isEmpty()){
+            // get the points
+            Point2D topLeftCorner = topLeftCornerList.get(0);
+            Point2D topRightCorner = topRightCornerList.get(0);
+            Point2D bottomLeftCorner = bottomLeftCornerList.get(0);
+            Point2D bottomRightCorner = bottomRightCornerList.get(0);
 
-        if(!topLeftCornerList.isEmpty() && !topRightCornerList.isEmpty()){
-            leftCorner = topLeftCornerList.get(0);
-            rightCorner = topRightCornerList.get(0);
-        }else{
-            if(!bottomLeftCornerList.isEmpty() && !bottomRightCornerList.isEmpty()){
-                leftCorner = bottomLeftCornerList.get(0);
-                rightCorner = bottomRightCornerList.get(0);
+            // compute vector of the quadrilateral shape formed by the 4 corners
+            Point2D vectTLTR = new Point2D.Double(topLeftCorner.getX() - topRightCorner.getX(), topLeftCorner.getY() - topRightCorner.getY());
+            Point2D vectTLBL = new Point2D.Double(topLeftCorner.getX() - bottomLeftCorner.getX(), topLeftCorner.getY() - bottomLeftCorner.getY());
+            Point2D vectTRBR = new Point2D.Double(topRightCorner.getX() - bottomRightCorner.getX(), topRightCorner.getY() - bottomRightCorner.getY());
+            Point2D vectBLBR = new Point2D.Double(bottomLeftCorner.getX() - bottomRightCorner.getX(), bottomLeftCorner.getY() - bottomRightCorner.getY());
+
+            // compute the dot product
+            double dotProduct1 = (vectTLBL.getX() * vectTLTR.getX()) +(vectTLBL.getY() * vectTLTR.getY());
+            double dotProduct2 = (vectTLTR.getX() * vectTRBR.getX()) +(vectTLTR.getY() * vectTRBR.getY());
+            double dotProduct3 = (vectTRBR.getX() * vectBLBR.getX()) +(vectTRBR.getY() * vectBLBR.getY());
+            double dotProduct4 = (vectTLBL.getX() * vectBLBR.getX()) +(vectTLBL.getY() * vectBLBR.getY());
+
+            // compute the inner angles of the quadrilateral shape
+            double angle1 = Math.acos((dotProduct1) / (topRightCorner.distance(topLeftCorner) * topLeftCorner.distance(bottomLeftCorner)));
+            double angle2 = Math.acos((dotProduct2) / (topRightCorner.distance(topLeftCorner) * topRightCorner.distance(bottomRightCorner)));
+            double angle3 = Math.acos((dotProduct3) / (topRightCorner.distance(bottomRightCorner) * bottomLeftCorner.distance(bottomRightCorner)));
+            double angle4 = Math.acos((dotProduct4) / (topLeftCorner.distance(bottomLeftCorner) * bottomLeftCorner.distance(bottomRightCorner)));
+
+            double upperBound = 93 * Math.PI / 180;
+            double lowerBound = 87 * Math.PI / 180;
+
+            // only compute the pattern rotation angle IF the quadrilateral shape is a rectangle (i.e. angles at 90°)
+            if(angle1 > lowerBound && angle1 < upperBound && angle2 > lowerBound && angle2 < upperBound &&
+                angle3 > lowerBound && angle3 < upperBound && angle4 > lowerBound && angle4 < upperBound){
+
+                IJLogger.info("Rotation angle", "Corner rings are correctly detected" );
+
+                // compute the rotation angle
+                double theta = 0;
+                if(Math.abs(topRightCorner.getX() - topLeftCorner.getX()) > 0.01){
+                    theta = Math.atan2(topRightCorner.getY() - topLeftCorner.getY(),topRightCorner.getX() - topLeftCorner.getX());
+                }
+
+                return theta;
             }else{
+                IJLogger.error("Rotation angle", "Corner rings are not correctly detected as they do not form a rectangle : " +
+                        (angle1*180/Math.PI)+"°, "+(angle2*180/Math.PI)+"°, "+(angle3*180/Math.PI)+"°, "+(angle4*180/Math.PI)+". " +
+                        "Angles should be between "+(lowerBound*180/Math.PI)+" and "+(upperBound*180/Math.PI));
                 return Double.NaN;
             }
-        }
 
-        // compute the rotation angle
-        double theta = 0;
-        if(Math.abs(rightCorner.getX() - leftCorner.getX()) > 0.01){
-            theta = Math.atan2(rightCorner.getY() - leftCorner.getY(),rightCorner.getX() - leftCorner.getX());
-        }
-        return theta;
+        }else{
+            IJLogger.error("Rotation angle","At least one corner is missing ; The rotation angle cannot be determined");
+            return Double.NaN;
+        }*/
     }
 
 

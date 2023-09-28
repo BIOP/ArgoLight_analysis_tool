@@ -61,8 +61,8 @@ public class ArgoSlideProcessing {
      * @param userParticleThreshold value of the threshold on particle size
      * @param userRingRadius value of the analysis circle radius around each ring
      * @param argoSlide The name of the ArgoSlide selected in the GUI
-     * @param argoSpacing distance between two rings in the grid
-     * @param argoFOV FoV of the pattern B of the ArgoSlide
+     * @param argoSpacing distance between two rings in the grid in um
+     * @param argoFOV FoV of the pattern B of the ArgoSlide in um
      * @param argoNPoints number of rings in the same line
      */
     public static void run(ImageFile imageFile, double userSigma, double userMedianRadius, String userThresholdingMethod,
@@ -130,8 +130,8 @@ public class ArgoSlideProcessing {
             roiManager.addRoi(crossRoi);
             channel.setRoi(crossRoi);
 
-            List<Point2D> gridPoints = Processing.getGridPoint(channel, crossRoi, pixelSizeImage, sigma, medianRadius,
-                    particleThreshold, userThresholdingMethod, argoFOV, argoSpacing, argoNPoints);
+            List<Point2D> gridPoints = Processing.getGridPoint(channel, crossRoi, sigma, medianRadius,
+                    particleThreshold, userThresholdingMethod, ovalRadius);
 
             if(gridPoints.isEmpty()){
                 IJLogger.error("Ring detection", "No rings are detected on the channel "+c+" of the current image. " +
@@ -162,14 +162,18 @@ public class ArgoSlideProcessing {
                 IJLogger.info("Channel "+c,"yStepAvg = " +yStepAvg + " pix");
 
                 // get the rotation angle
-                double rotationAngle = Processing.getRotationAngle(gridPoints, xCross, yCross);
+                IJLogger.info("Channel "+c,"Give a first try to compute rotation angle with the central cross as reference center...");
+                double rotationAngle = Processing.getRotationAngle(gridPoints, xCross, yCross, pixelSizeImage, argoSpacing, ovalRadius, channel);
+
                 if(Double.isNaN(rotationAngle)){
-                    rotationAngle = Processing.getRotationAngle(gridPoints, (double) imp.getWidth() / 2, (double) imp.getHeight() / 2);
+                    IJLogger.warn("Channel "+c,"Your image is not properly centered. Try with image center as reference center...");
+                   /* rotationAngle = Processing.getRotationAngle(gridPoints, (double) imp.getWidth() / 2, (double) imp.getHeight() / 2);
+
                     if(Double.isNaN(rotationAngle)){
-                        IJLogger.error("Compute Rotation angle","At least 2 corners rings are missing in the detection" +
-                                "step. Please have a look to the image and increase the exposure time");
+                        IJLogger.error("Channel "+c,"At least 2 corner rings have been missed by the detection" +
+                                "step. Please have a look to the image and increase the contrast (exposure time, laser power...)");
                         throw new RuntimeException();
-                    }
+                    }*/
                 }
 
                 imageChannel.setRotationAngle(rotationAngle*180/Math.PI);
