@@ -123,6 +123,12 @@ public class ArgoSlideProcessing {
 
             // get the central cross
             Roi crossRoi = Processing.getCentralCross(channel, roiManager, pixelSizeImage, userThresholdingMethod, argoFOV);
+            if(crossRoi.getStatistics().roiWidth < 0){
+                IJLogger.error("Cross detection", "The central cross cannot be detected." +
+                        "Cannot compute metrics");
+                throw new RuntimeException();
+            }
+
             imageChannel.setCenterCross(crossRoi);
             IJLogger.info("Channel "+c,"Cross = " +crossRoi);
 
@@ -136,7 +142,7 @@ public class ArgoSlideProcessing {
             if(gridPoints.isEmpty()){
                 IJLogger.error("Ring detection", "No rings are detected on the channel "+c+" of the current image. " +
                         "Cannot compute metrics");
-                continue;
+                throw new RuntimeException();
             }
 
             // display all points (grid and ideal)

@@ -199,10 +199,10 @@ public class Processing {
                 && roi.getStatistics().yCentroid > imp.getHeight()/2.0 - gridFactor))).collect(Collectors.toList());
 
         // get the ROI with larger width corresponding to the central cross
-        Roi crossRoi = rois.stream().max(Comparator.comparing(roi -> roi.getStatistics().roiWidth)).get();
-
+        Optional<Roi> crossRoiOpt = rois.stream().max(Comparator.comparing(roi -> roi.getStatistics().roiWidth));
         rm.reset();
-        return new Roi(crossRoi.getBounds());
+
+        return crossRoiOpt.map(points -> new Roi(points.getBounds())).orElseGet(() -> new Roi(new Rectangle(-1, -1, -1, -1)));
     }
 
     /**

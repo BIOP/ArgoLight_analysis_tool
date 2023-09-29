@@ -55,6 +55,11 @@ public class ArgoSlideLivePreview {
         try {
             // get the central cross
             Roi crossRoi = Processing.getCentralCross(imp, roiManager, pixelSizeImage, userThresholdingMethod, argoFOV);
+            if(crossRoi.getStatistics().roiWidth < 0){
+                IJLogger.error("Live Preview", "The central cross cannot be detected." +
+                        "Cannot compute metrics");
+                return;
+            }
 
             roiManager.reset();
             ImageStatistics crossStata = crossRoi.getStatistics();
