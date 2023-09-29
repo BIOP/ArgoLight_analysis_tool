@@ -28,6 +28,7 @@ Results are automatically saved locally.
 
 ### For images on OMERO
 - Your images should be separated according to the microscope used (i.e. one dataset per microscope). All the datasets should be located under the same project.
+- The name of the dataset must contain the name of the microscope
 
 <p align="center">
   <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/f14307d9-a0ff-411a-b73c-1efe4f9f7817" width="20%">
@@ -42,7 +43,7 @@ Results are automatically saved locally.
     - *microscopeName*\_*ArgoSlideName*\_*patternImaged*\_**d***AcquisitionDate*\_**o***Objective*\_*ImmersionMedium*\_*FOV*\_*Serie*.extension
     - Exemple : lsm980_ArgoSGL482_b_d20230420_o20x_dry_fullFoV_Image002.czi
 
-  - Be careful : the FOV item has to be either **fullFoV** or **partialFoV**
+  - Be careful : the FOV item has to be either **fullFoV** or **partialFoV** or **fixedFoV**. For the last one, all metrics are computed on the same image. It is particularly convienant for widefield microscopes, without any solution to zoom in.
 
 ### For images on local computers
 - Your images should be separated according to the microscope used (i.e. one dataset per microscope). All the folders should be located under the same parent folder.
@@ -86,16 +87,19 @@ This step set the by-default values for input-output communication. These values
 4. Enter the list of microscopes you may want to process (manually or by browsing a csv file).
 In the csv file, you should have one microscope name by line. If you enter microscopes manually, names must be separated by only comma.
 
-**Be careful : the microscopes' name should match extactly (but not case sensitive) the datasets name on OMERO, contained in the specified project.**
+**Be careful : the microscopes' name should be contained (but not case sensitive) in the dataset / parent folder name.**
 
-4. Enter the list of ArgoSlides you may want to use for the analysis (manually or by browsing a csv file). 
+**Be careful : the *microscopeName* token in the image name (see above) must match exactly (but not case sensitive) WITHOUT underscores the names you enter in the GUI.**
+For example : "SP8_UP1" in the GUI ; "sp8up1" in the image name.
+
+
+5. Enter the list of ArgoSlides you may want to use for the analysis (manually or by browsing a csv file). 
 In the csv file, you should have one ArgoSlide by line. If you enter ArgoSlides manually, names must be separated by only comma.
 
-**Be careful : the ArgoSlides' name should be the same (but not case sensitive) as the one written in the image name**
+**Be careful : the ArgoSlides' name should be contained (but not case sensitive) in the image name.**
 
-5. Optionnally, and IF you want have your images on a local computer, you can add the folder path where you want to read raw images.
+6. Optionnally, and IF you want have your images on a local computer, you can add the folder path where you want to read raw images.
 6. Optionnally, and IF you want to save results locally (see below), you can add the folder path where you want to save results.
-7. Set your ArgoSlide specifications (spacing between 2 rings, full pattern FoV and number of rings per line)
 8. Then, press OK. 
 
 <p align="center">
