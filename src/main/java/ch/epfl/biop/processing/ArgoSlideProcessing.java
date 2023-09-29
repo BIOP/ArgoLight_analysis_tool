@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  * The protocol has to implement the following rules
  * <p>
  * <ul>
- * <li> The image should be centered on the grid pattern (pattern B) </li>
+ * <li> The image should be centered on the grid pattern (pattern B) (i.e. center the cross) </li>
  * <li> The ArgoSlide should be designed for low-magnification objectives </li>
  * <li> The dynamic range should be as large as possible, but without any saturation </li>
  * <li> The rotation angle should be minimized </li>
@@ -163,17 +163,12 @@ public class ArgoSlideProcessing {
 
                 // get the rotation angle
                 IJLogger.info("Channel "+c,"Give a first try to compute rotation angle with the central cross as reference center...");
-                double rotationAngle = Processing.getRotationAngle(gridPoints, xCross, yCross, pixelSizeImage, argoSpacing, ovalRadius, channel);
+                ArgoGrid argoGrid = Processing.computeRotationAndFinalFoV(gridPoints, xCross, yCross, pixelSizeImage, argoSpacing, ovalRadius, channel);
 
+                double rotationAngle = argoGrid.getRotationAngle();
                 if(Double.isNaN(rotationAngle)){
-                    IJLogger.warn("Channel "+c,"Your image is not properly centered. Try with image center as reference center...");
-                   /* rotationAngle = Processing.getRotationAngle(gridPoints, (double) imp.getWidth() / 2, (double) imp.getHeight() / 2);
-
-                    if(Double.isNaN(rotationAngle)){
-                        IJLogger.error("Channel "+c,"At least 2 corner rings have been missed by the detection" +
-                                "step. Please have a look to the image and increase the contrast (exposure time, laser power...)");
-                        throw new RuntimeException();
-                    }*/
+                    IJLogger.error("Channel "+c,"Cannot compute the rotation angle. Metrics not computed");
+                    throw new RuntimeException();
                 }
 
                 imageChannel.setRotationAngle(rotationAngle*180/Math.PI);
@@ -183,7 +178,8 @@ public class ArgoSlideProcessing {
                 gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi((pR.getX()-4*ovalRadius+0.5), pR.getY()-4*ovalRadius+0.5, 8*ovalRadius, 8*ovalRadius));});
 
                 // get the ideal grid
-                List<Point2D> idealGridPoints = Processing.getIdealGridPoints(crossRoi, (int)Math.sqrt(gridPoints.size() + 1), xStepAvg, yStepAvg, rotationAngle);
+                List<Point2D> idealGridPoints = Processing.getIdealGridPoints(crossRoi, Math.min((int)Math.sqrt(gridPoints.size() + 1), argoGrid.getMaxNbPointsPerLine()),
+                        xStepAvg, yStepAvg, rotationAngle);
 
                 // sort the computed grid points according to ideal grid order
                 gridPoints = Processing.sortFromReference(Arrays.asList(roiManager.getRoisAsArray()), idealGridPoints);

@@ -13,7 +13,6 @@ import ij.gui.OvalRoi;
 import ij.gui.Roi;
 import ij.measure.CurveFitter;
 import ij.measure.ResultsTable;
-import ij.plugin.RoiEnlarger;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageStatistics;
 
@@ -48,8 +47,8 @@ public class Processing {
      * @param userParticleThreshold user defined value of the threshold on particle size
      * @param userRingRadius user defined value of the analysis circle radius around each ring
      * @param argoSlide The name of the ArgoSlide selected in the GUI
-     * @param argoSpacing distance between two rings in the grid
-     * @param argoFOV FoV of the pattern B of the ArgoSlide
+     * @param argoSpacing distance between two rings in the grid in um
+     * @param argoFOV FoV of the pattern B of the ArgoSlide in um
      * @param argoNPoints number of rings in the same line
      */
     public static void run(Retriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
@@ -174,6 +173,9 @@ public class Processing {
      *
      * @param imp
      * @param rm
+     * @param segMethod
+     * @param argoFOV
+     * @param imagePixelSize
      * @return
      */
     protected static Roi getCentralCross(ImagePlus imp, RoiManager rm, double imagePixelSize, String segMethod, int argoFOV){
@@ -279,6 +281,7 @@ public class Processing {
      *
      * @param values
      * @param pixelSize
+     * @param argoSpacing
      * @return
      */
     protected static double getAverageStep(List<Double> values, double pixelSize, int argoSpacing){
@@ -324,14 +327,82 @@ public class Processing {
      * @param values
      * @param xCross
      * @param yCross
+     * @param argoSpacing
+     * @param imp
+     * @param ovalRadius
+     * @param pixelSize
+     *
      * @return angle in radian
      */
-    protected static double getRotationAngle(List<Point2D> values, double xCross, double yCross, double pixelSize,
-                                             int argoSpacing, double ovalRadius, ImagePlus imp){
+    protected static ArgoGrid computeRotationAndFinalFoV(List<Point2D> values, double xCross, double yCross, double pixelSize,
+                                                         int argoSpacing, double ovalRadius, ImagePlus imp){
 
+        // get the points in the center lines (horizontal, left and right, vertical, top and bottom)
+        ArgoGrid argoGrid = getCentralLines(values, xCross, yCross, pixelSize, argoSpacing, ovalRadius, imp);
+        List<Point2D> leftLine = argoGrid.getLeftPoints();
+        List<Point2D> rightLine = argoGrid.getRightPoints();
+        List<Point2D> topLine = argoGrid.getTopPoints();
+        List<Point2D> bottomLine = argoGrid.getBottomPoints();
+
+        if(!leftLine.isEmpty() && !rightLine.isEmpty() && !topLine.isEmpty() && !bottomLine.isEmpty()) {
+
+            Collections.reverse(leftLine);
+            leftLine.addAll(rightLine);
+
+            Collections.reverse(topLine);
+            topLine.addAll(bottomLine);
+
+            double[] xArrayH = leftLine.stream().mapToDouble(Point2D::getX).toArray();
+            double[] yArrayH = leftLine.stream().mapToDouble(Point2D::getY).toArray();
+            double[] xArrayV = topLine.stream().mapToDouble(Point2D::getX).toArray();
+            double[] yArrayV = topLine.stream().mapToDouble(Point2D::getY).toArray();
+
+            // do a curve fitting of type : y = a*x + b
+            CurveFitter fitter = new CurveFitter(xArrayH, yArrayH);
+            fitter.doFit(CurveFitter.STRAIGHT_LINE);
+            double hCoefDir = fitter.getParams()[1];
+            double angle1 = Math.atan2(hCoefDir, 1);
+
+            // do a curve fitting of type : y = a*x + b
+            CurveFitter fitter2 = new CurveFitter(xArrayV, yArrayV);
+            fitter2.doFit(CurveFitter.STRAIGHT_LINE);
+            double vCoefDir = fitter2.getParams()[1];
+            double angle2 = Math.atan2(vCoefDir, 1);
+
+            // correction due to vertical line
+            if (angle2 > 0)
+                angle2 = angle2 - Math.PI/2;
+            else if(angle2 < 0) angle2 = angle2 + Math.PI/2;
+
+            argoGrid.setRotationAngle((angle1 + angle2)/2);
+            argoGrid.setMaxNbPointsPerLine(Math.min(leftLine.size(), Math.min(rightLine.size(), Math.min(topLine.size(), bottomLine.size()))) * 2 + 1);
+        }else {
+            argoGrid.setRotationAngle(Double.NaN);
+            argoGrid.setMaxNbPointsPerLine(-1);
+        }
+
+        return argoGrid;
+    }
+
+    /**
+     * extract from the detected rings all the rings located in the central vertical and horizontal lines (i.e. along the cross)
+     *
+     * @param values
+     * @param xCross
+     * @param yCross
+     * @param pixelSize
+     * @param argoSpacing
+     * @param ovalRadius
+     * @param imp
+     *
+     * @return an ArgoGrid object containing the list of points on top, at the bottom, on the left and on the right of the cross.
+     */
+    private static ArgoGrid getCentralLines(List<Point2D> values, double xCross, double yCross, double pixelSize,
+                                            int argoSpacing, double ovalRadius, ImagePlus imp){
         Point2D.Double vectToLeft = new Point2D.Double(-argoSpacing/pixelSize, 0);
         double initX = xCross;
         double initY = yCross;
+        ArgoGrid argoGrid = new ArgoGrid();
 
         // find all points along the central horizontal line to the left of the cross
         List<Point2D> lineLeft = new ArrayList<>();
@@ -416,106 +487,13 @@ public class Processing {
             }
         }while (theoPoint.getY() > ovalRadius);
 
+        argoGrid.setBottomPoints(lineBottom);
+        argoGrid.setLeftPoints(lineLeft);
+        argoGrid.setRightPoints(lineRight);
+        argoGrid.setTopPoints(lineTop);
 
-
-        if(!lineLeft.isEmpty() && !lineRight.isEmpty() && !lineTop.isEmpty() && !lineBottom.isEmpty()) {
-
-            Collections.reverse(lineLeft);
-            lineLeft.addAll(lineRight);
-
-            Collections.reverse(lineTop);
-            lineTop.addAll(lineBottom);
-
-            double[] xArrayH = lineLeft.stream().mapToDouble(Point2D::getX).toArray();
-            double[] yArrayH = lineLeft.stream().mapToDouble(Point2D::getY).toArray();
-            double[] xArrayV = lineTop.stream().mapToDouble(Point2D::getX).toArray();
-            double[] yArrayV = lineTop.stream().mapToDouble(Point2D::getY).toArray();
-
-            // do a curve fitting of type : y = a*x + b
-            CurveFitter fitter = new CurveFitter(xArrayH, yArrayH);
-            fitter.doFit(CurveFitter.STRAIGHT_LINE);
-            double a = fitter.getParams()[1];
-            double angle1 = Math.atan2(a, 1);
-
-            // do a curve fitting of type : y = a*x + b
-            CurveFitter fitter2 = new CurveFitter(yArrayV, xArrayV);
-            fitter2.doFit(CurveFitter.STRAIGHT_LINE);
-            a = fitter2.getParams()[1];
-            double angle2 = Math.atan2(a, 1);
-
-            return (angle1 + angle2)/2;
-
-        }
-        return Double.NaN;
-
-        /*// sort all points in natural order of their distance to image center
-        List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(xCross,yCross))).collect(Collectors.toList());
-
-        // extract corners
-        int lastIdx = values.size()-1;
-        List<Point2D> cornerPoints = Arrays.asList(sortedPoints.get(lastIdx), sortedPoints.get(lastIdx - 1), sortedPoints.get(lastIdx - 2), sortedPoints.get(lastIdx - 3));
-
-        // get the top left and top right corners
-        List<Point2D> topLeftCornerList = cornerPoints.stream().filter(e->e.getX()<xCross && e.getY()<yCross).collect(Collectors.toList());
-        List<Point2D> topRightCornerList = cornerPoints.stream().filter(e->e.getX()>xCross && e.getY()<yCross).collect(Collectors.toList());
-        List<Point2D> bottomLeftCornerList = cornerPoints.stream().filter(e->e.getX()<xCross && e.getY()>yCross).collect(Collectors.toList());
-        List<Point2D> bottomRightCornerList = cornerPoints.stream().filter(e->e.getX()>xCross && e.getY()>yCross).collect(Collectors.toList());
-
-        // force to have the 4 corners
-        if(!topLeftCornerList.isEmpty() && !topRightCornerList.isEmpty() && !bottomLeftCornerList.isEmpty() && !bottomRightCornerList.isEmpty()){
-            // get the points
-            Point2D topLeftCorner = topLeftCornerList.get(0);
-            Point2D topRightCorner = topRightCornerList.get(0);
-            Point2D bottomLeftCorner = bottomLeftCornerList.get(0);
-            Point2D bottomRightCorner = bottomRightCornerList.get(0);
-
-            // compute vector of the quadrilateral shape formed by the 4 corners
-            Point2D vectTLTR = new Point2D.Double(topLeftCorner.getX() - topRightCorner.getX(), topLeftCorner.getY() - topRightCorner.getY());
-            Point2D vectTLBL = new Point2D.Double(topLeftCorner.getX() - bottomLeftCorner.getX(), topLeftCorner.getY() - bottomLeftCorner.getY());
-            Point2D vectTRBR = new Point2D.Double(topRightCorner.getX() - bottomRightCorner.getX(), topRightCorner.getY() - bottomRightCorner.getY());
-            Point2D vectBLBR = new Point2D.Double(bottomLeftCorner.getX() - bottomRightCorner.getX(), bottomLeftCorner.getY() - bottomRightCorner.getY());
-
-            // compute the dot product
-            double dotProduct1 = (vectTLBL.getX() * vectTLTR.getX()) +(vectTLBL.getY() * vectTLTR.getY());
-            double dotProduct2 = (vectTLTR.getX() * vectTRBR.getX()) +(vectTLTR.getY() * vectTRBR.getY());
-            double dotProduct3 = (vectTRBR.getX() * vectBLBR.getX()) +(vectTRBR.getY() * vectBLBR.getY());
-            double dotProduct4 = (vectTLBL.getX() * vectBLBR.getX()) +(vectTLBL.getY() * vectBLBR.getY());
-
-            // compute the inner angles of the quadrilateral shape
-            double angle1 = Math.acos((dotProduct1) / (topRightCorner.distance(topLeftCorner) * topLeftCorner.distance(bottomLeftCorner)));
-            double angle2 = Math.acos((dotProduct2) / (topRightCorner.distance(topLeftCorner) * topRightCorner.distance(bottomRightCorner)));
-            double angle3 = Math.acos((dotProduct3) / (topRightCorner.distance(bottomRightCorner) * bottomLeftCorner.distance(bottomRightCorner)));
-            double angle4 = Math.acos((dotProduct4) / (topLeftCorner.distance(bottomLeftCorner) * bottomLeftCorner.distance(bottomRightCorner)));
-
-            double upperBound = 93 * Math.PI / 180;
-            double lowerBound = 87 * Math.PI / 180;
-
-            // only compute the pattern rotation angle IF the quadrilateral shape is a rectangle (i.e. angles at 90°)
-            if(angle1 > lowerBound && angle1 < upperBound && angle2 > lowerBound && angle2 < upperBound &&
-                angle3 > lowerBound && angle3 < upperBound && angle4 > lowerBound && angle4 < upperBound){
-
-                IJLogger.info("Rotation angle", "Corner rings are correctly detected" );
-
-                // compute the rotation angle
-                double theta = 0;
-                if(Math.abs(topRightCorner.getX() - topLeftCorner.getX()) > 0.01){
-                    theta = Math.atan2(topRightCorner.getY() - topLeftCorner.getY(),topRightCorner.getX() - topLeftCorner.getX());
-                }
-
-                return theta;
-            }else{
-                IJLogger.error("Rotation angle", "Corner rings are not correctly detected as they do not form a rectangle : " +
-                        (angle1*180/Math.PI)+"°, "+(angle2*180/Math.PI)+"°, "+(angle3*180/Math.PI)+"°, "+(angle4*180/Math.PI)+". " +
-                        "Angles should be between "+(lowerBound*180/Math.PI)+" and "+(upperBound*180/Math.PI));
-                return Double.NaN;
-            }
-
-        }else{
-            IJLogger.error("Rotation angle","At least one corner is missing ; The rotation angle cannot be determined");
-            return Double.NaN;
-        }*/
+        return argoGrid;
     }
-
 
     /**
      * generate an ideal grid of points, based on the computed spacing between rings and the on the rotation angle
@@ -585,6 +563,7 @@ public class Processing {
      *
      * @param gridPoints
      * @param idealGridPoints
+     * @param pixelSize
      * @return
      */
     protected static List<Double> computeFieldDistortion(List<Point2D> gridPoints, List<Point2D> idealGridPoints, double pixelSize){
@@ -624,6 +603,7 @@ public class Processing {
      * @param gridPoints
      * @param imp
      * @param lineLength
+     * @param pixelSize
      * @return
      */
     protected static List<Double> computeFWHM(List<Point2D> gridPoints, ImagePlus imp, int lineLength, double pixelSize){

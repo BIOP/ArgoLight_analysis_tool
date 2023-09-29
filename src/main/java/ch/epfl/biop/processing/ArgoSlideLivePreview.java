@@ -66,7 +66,7 @@ public class ArgoSlideLivePreview {
                 particleThreshold, userThresholdingMethod, ovalRadius);
 
         if(gridPoints.isEmpty()){
-            IJLogger.error("Ring detection", "No rings are detected on the current image. " +
+            IJLogger.error("Live Preview", "No rings are detected on the current image. " +
                     "Cannot compute metrics");
             rotationAngle = 10;
             xStepAvg = -1;
@@ -87,28 +87,27 @@ public class ArgoSlideLivePreview {
         yStepAvg = Processing.getAverageStep(smallerGrid.stream().map(Point2D::getY).collect(Collectors.toList()), pixelSizeImage, argoSpacing);
 
         // get the rotation angle
-        try {
-            // get the rotation angle
-            rotationAngle = Processing.getRotationAngle(gridPoints, xCross, yCross, pixelSizeImage, argoSpacing, ovalRadius, imp);
-            if(Double.isNaN(rotationAngle)){
-                IJLogger.warn("Your image is not properly centered. Try with image center as reference center...");
-               /* rotationAngle = Processing.getRotationAngle(gridPoints, (double) imp.getWidth() / 2, (double) imp.getHeight() / 2);
-                if(Double.isNaN(rotationAngle)){
-                    IJLogger.error("Compute Rotation angle","At least 2 corners rings are missing in the detection" +
-                            "step. Please have a look to the image and increase the exposure time");
-                    rotationAngle = 10;
-                }*/
-            }
-        }catch(Exception e){
 
+        // get the rotation angle
+        ArgoGrid argoGrid = Processing.computeRotationAndFinalFoV(gridPoints, xCross, yCross, pixelSizeImage, argoSpacing, ovalRadius, imp);
+        rotationAngle = argoGrid.getRotationAngle();
+        if(Double.isNaN(rotationAngle)){
+            IJLogger.warn("Live Preview","Cannot compute the rotation angle. Metrics not computed");
+            rotationAngle = 10;
+            xStepAvg = -1;
+            yStepAvg = -1;
+            imp.setOverlay(null);
+            return;
         }
+
         // create grid point ROIs
         List<Roi> gridPointRois = new ArrayList<>();
         for(Point2D pR : gridPoints)
             gridPointRois.add(new OvalRoi((pR.getX() - 4 * ovalRadius + 0.5), pR.getY() - 4 * ovalRadius + 0.5, 8 * ovalRadius, 8 * ovalRadius));
 
         // get the ideal grid
-        List<Point2D> idealGridPoints = Processing.getIdealGridPoints(crossRoi, (int) Math.sqrt(gridPoints.size() + 1), xStepAvg, yStepAvg, rotationAngle);
+        List<Point2D> idealGridPoints = Processing.getIdealGridPoints(crossRoi, Math.min((int) Math.sqrt(gridPoints.size() + 1), argoGrid.getMaxNbPointsPerLine()),
+                xStepAvg, yStepAvg, rotationAngle);
 
         // sort the computed grid points according to ideal grid order
         gridPoints = Processing.sortFromReference(gridPointRois, idealGridPoints);
