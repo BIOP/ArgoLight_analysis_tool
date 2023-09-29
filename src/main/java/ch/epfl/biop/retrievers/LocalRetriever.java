@@ -75,14 +75,14 @@ public class LocalRetriever implements Retriever{
         List<String> processedFiles = listProcessedFiles(this.resultsFolderPath, microscopeName);
 
         // filter the list to only process images that have not already been processed
-        List<File> filteredImagesFile = filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()),
-                                                     processedFiles, argoSlideName);
+        List<File> filteredImageFileList = filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()),
+                                                     processedFiles, argoSlideName, microscopeName.replace("_",""));
 
         // create a unique ID for each new raw image
         Map<String,File> filteredImagesMap = new HashMap<>();
-        for(File file : filteredImagesFile){
+        for(File imageFile : filteredImageFileList){
             String uuid = UUID.randomUUID().toString().replace("-","");
-            filteredImagesMap.put(uuid,file);
+            filteredImagesMap.put(uuid,imageFile);
         }
 
         this.filteredFiles = filteredImagesMap;
@@ -114,15 +114,16 @@ public class LocalRetriever implements Retriever{
                     .collect(Collectors.toList());
 
             if (microscopeList.isEmpty()){
-                IJLogger.error("Load images","The folder "+resultsFolder.getName() +" does not contain any "+microscopeName+" folder");
+                IJLogger.warn("Load local images","The folder '"+resultsFolder.getName() +"' does not contain any '"+microscopeName+"' folder");
+                IJLogger.warn("Load local images","Cannot check for already processed images. All images will be processed");
                 return Collections.emptyList();
             }else{
                 // select the existing microscope folder
-                IJLogger.info("Load images","Select folder "+microscopeList.get(0).getAbsolutePath());
+                IJLogger.info("Load local images","Select folder "+microscopeList.get(0).getAbsolutePath());
                 microscopeResultsFolder = new File(microscopeList.get(0).getAbsolutePath());
             }
         }else{
-            IJLogger.error("Load images","The folder "+resultsFolder.getName() +" is empty");
+            IJLogger.error("Load local images","The folder "+resultsFolder.getName() +" is empty");
             return Collections.emptyList();
         }
 
@@ -162,18 +163,22 @@ public class LocalRetriever implements Retriever{
      *
      * @param imageFiles list of raw files
      * @param processedFiles list of processed images
+     * @param argoSlideName Name of the selected ArgoSlide
+     * @param microscopeName Name of the selected microscope
      * @return list of non-processed images
      */
-    private List<File> filterImages(List<File> imageFiles, List<String> processedFiles, String argoSlideName){
-        if(processedFiles == null || processedFiles.isEmpty())
-            return imageFiles;
+    private List<File> filterImages(List<File> imageFiles, List<String> processedFiles, String argoSlideName, String microscopeName){
+        if(processedFiles == null)
+            processedFiles = new ArrayList<>();
 
         List<File> filteredFiles = new ArrayList<>();
-        for(File rawImgFolder : imageFiles){
-            String rawImgName = rawImgFolder.getName();
+        for(File rawImgFile : imageFiles){
+            String rawImgName = rawImgFile.getName();
             List<String> dup = processedFiles.stream().filter(e -> e.contains(rawImgName)).collect(Collectors.toList());
-            if(dup.isEmpty() && rawImgFolder.getName().toLowerCase().contains(argoSlideName.toLowerCase()))
-                filteredFiles.add(rawImgFolder);
+            if(dup.isEmpty() &&
+                    rawImgName.toLowerCase().contains(argoSlideName.toLowerCase()) &&
+                    rawImgName.toLowerCase().contains(microscopeName.toLowerCase()))
+                filteredFiles.add(rawImgFile);
         }
         return filteredFiles;
     }

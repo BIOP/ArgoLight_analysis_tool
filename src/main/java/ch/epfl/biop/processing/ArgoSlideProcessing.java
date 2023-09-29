@@ -168,7 +168,6 @@ public class ArgoSlideProcessing {
                 IJLogger.info("Channel "+c,"yStepAvg = " +yStepAvg + " pix");
 
                 // get the rotation angle
-                IJLogger.info("Channel "+c,"Give a first try to compute rotation angle with the central cross as reference center...");
                 ArgoGrid argoGrid = Processing.computeRotationAndFinalFoV(gridPoints, xCross, yCross, pixelSizeImage, argoSpacing, ovalRadius, channel);
 
                 double rotationAngle = argoGrid.getRotationAngle();

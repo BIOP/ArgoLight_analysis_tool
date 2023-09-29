@@ -65,8 +65,9 @@ public class OMERORetriever implements Retriever {
                 this.datasetId = datasetWrapper.getId();
 
                 List<ImageWrapper> imageWrapperList = datasetWrapper.getImages(this.client);
-                this.images = filterImages(imageWrapperList, processAllRawImages, argoSlideName);
+                this.images = filterImages(imageWrapperList, processAllRawImages, argoSlideName, microscopeName.replace("_",""));
                 return true;
+
             } else if(datasetWrapperList.isEmpty())
                 IJLogger.warn("Load OMERO images","Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name '"+microscopeName+"'");
             else IJLogger.warn("Load OMERO images","More than one dataset refer to "+microscopeName+" Please, group these datasets or change their name.");
@@ -85,21 +86,28 @@ public class OMERORetriever implements Retriever {
      * @param imageWrapperList List of image to filter
      * @param processAllRawImages true if you want to process all images within the dataset, regardless if
      *                            they have already been processed one.
+     * @param argoSlideName Name the imaged slide
+     * @param microscopeName Name of the microscope
      * @return the filtered list
      */
-    private Map<String,ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages, String argoSlideName) {
+    private Map<String,ImageWrapper> filterImages(List<ImageWrapper> imageWrapperList, boolean processAllRawImages,
+                                                  String argoSlideName, String microscopeName) {
+
         // get all images without the tags "raw" nor "process" and remove macro images from vsi files.
         List<ImageWrapper> filteredWrappers = imageWrapperList.stream().filter(e -> {
             try {
                 if (!processAllRawImages)
                     return (e.getTags(this.client).stream().noneMatch(t -> (t.getName().equals(Tools.RAW_TAG) || t.getName().equals(Tools.PROCESSED_TAG)))
-                            && !(e.getName().contains("[macro image]")) && (e.getName().toLowerCase().contains(argoSlideName.toLowerCase())));
+                            && !(e.getName().contains("[macro image]")) && (e.getName().toLowerCase().contains(argoSlideName.toLowerCase()))
+                            && (e.getName().toLowerCase().contains(microscopeName.toLowerCase())));
                 else
                     return (e.getTags(this.client).stream().noneMatch(t -> t.getName().equals(Tools.PROCESSED_TAG))
-                            && !(e.getName().contains("[macro image]")) && (e.getName().toLowerCase().contains(argoSlideName.toLowerCase())));
+                            && !(e.getName().contains("[macro image]")) && (e.getName().toLowerCase().contains(argoSlideName.toLowerCase()))
+                            && (e.getName().toLowerCase().contains(microscopeName.toLowerCase())));
             } catch (ServiceException | AccessException | ExecutionException ex) {
                 throw new RuntimeException(ex);
             }
+
         }).collect(Collectors.toList());
 
         Map<String,ImageWrapper> imageWrapperMap = new HashMap<>();
