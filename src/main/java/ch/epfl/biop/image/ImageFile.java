@@ -26,15 +26,15 @@ public class ImageFile {
      */
     public enum FILETYPE{
         SINGLE("Single file",
-                Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)_(?<fov>[a-zA-Z]*)_(?<serie>.*)\\.(?<extension>.*)"),
+                Pattern.compile("(?<microscope>[^_]*)_(?<argoslide>[^_]*)_(?<pattern>[^_]*)_d(?<date>[\\d]*)_o(?<objective>[a-zA-Z0-9]*?)_(?<immersion>[^_]*?)_(?<fov>[a-zA-Z]*)_(?<serie>.*)\\.(?<extension>.*)"),
                 Pattern.compile(".*[\\.][a-zA-Z0-9]*")),
 
         MULTIPLE_OMERO("File coming from a fileset",
-                 Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)\\.(?<extension>[\\w]*).*\\[(?<fov>[a-zA-Z]*)_(?<serie>.*)\\]"),
+                 Pattern.compile("(?<microscope>[^_]*)_(?<argoslide>[^_]*)_(?<pattern>[^_]*)_d(?<date>[\\d]*)_o(?<objective>[a-zA-Z0-9]*?)_(?<immersion>[^_]*?)\\.(?<extension>[\\w]*).*\\[(?<fov>[a-zA-Z]*)_(?<serie>.*)\\]"),
                 Pattern.compile(".*[\\.].*\\[.*\\]")),
 
         MULTIPLE_LOCAL("File coming from a fileset",
-                Pattern.compile("(?<microscope>.*)_(?<argoslide>.*)_(?<pattern>.*)_d(?<date>[\\d]*)_o(?<objective>.*?)_(?<immersion>.*?)\\.(?<extension>[\\w]*).*\\- (?<fov>[a-zA-Z]*)_(?<serie>.*)"),
+                Pattern.compile("(?<microscope>[^_]*)_(?<argoslide>[^_]*)_(?<pattern>[^_]*)_d(?<date>[\\d]*)_o(?<objective>[a-zA-Z0-9]*?)_(?<immersion>[^_]*?)\\.(?<extension>[\\w]*).*\\- (?<fov>[a-zA-Z]*)_(?<serie>.*)"),
                 Pattern.compile(".*[\\.].*\\-.*")),
 
         //TODO see if there is conflicted with others

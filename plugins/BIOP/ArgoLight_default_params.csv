@@ -1,7 +1,7 @@
-OMERO Host,omero-poc.epfl.ch,,,,,,,,,,,,,
-OMERO Port,4064,,,,,,,,,,,,,
-Project ID,2004,,,,,,,,,,,,,
-Microscopes,LSM700_INT1,LSM700_INT2,LSM700_UP2,LSM710,LSM980,SP8_FLIM,SP8_INT1,SP8_UP1,SP8_UP2,SP8_STED,Visitron_CSU_W1,Nikon_CSU_W1,CELLXCELLENCE,SIM_STORM
-ArgoSlides,ArgoSLG482,ArgoSIM,,,,,,,,,,,,
-Root folder,D:\Remy\ArgoLight\new protocole\Raw Data,,,,,,,,,,,,,
-Saving folder,D:\Remy\ArgoLight\new protocole,,,,,,,,,,,,,
+OMERO Host,omero-poc.epfl.ch
+OMERO Port,4064
+Project ID,2004
+Microscopes,LSM700_INT1,LSM700_INT2,LSM700_UP2,LSM710,LSM980,SP8_FLIM,SP8_INT1,SP8_UP1,SP8_UP2,SP8_STED,CSU_W1_V,CSU_W1_N,CELLXCELLENCE,SIM_STORM
+ArgoSlides,ArgoSLG482,ArgoSIM
+Root folder,D:\Remy\ArgoLight\new protocole\Raw Data
+Saving folder,D:\Remy\ArgoLight\new protocole

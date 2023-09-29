@@ -413,7 +413,14 @@ public class Processing {
                 Point2D.Double finalTheoPoint = theoPoint;
                 List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(finalTheoPoint.getX(),finalTheoPoint.getY()))).collect(Collectors.toList());
                 Point2D closerRing = sortedPoints.get(0);
-                lineLeft.add(closerRing);
+
+                if(!lineLeft.isEmpty()){
+                    Point2D lastPoint = lineLeft.get(lineLeft.size() -1);
+                    if(closerRing.distance(lastPoint) == 0)
+                        break;
+                    else lineLeft.add(closerRing);
+                }else
+                    lineLeft.add(closerRing);
 
                 vectToLeft = new Point2D.Double(closerRing.getX() - initX, closerRing.getY() - initY);
 
@@ -435,7 +442,15 @@ public class Processing {
                 Point2D.Double finalTheoPoint = theoPoint;
                 List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(finalTheoPoint.getX(),finalTheoPoint.getY()))).collect(Collectors.toList());
                 Point2D closerRing = sortedPoints.get(0);
-                lineRight.add(closerRing);
+
+                if(!lineRight.isEmpty()){
+                    Point2D lastPoint = lineRight.get(lineRight.size() -1);
+                    if(closerRing.distance(lastPoint) == 0)
+                        break;
+                    else lineRight.add(closerRing);
+                }else
+                    lineRight.add(closerRing);
+
 
                 vectToRight = new Point2D.Double(closerRing.getX() - initX, closerRing.getY() - initY);
 
@@ -456,7 +471,14 @@ public class Processing {
                 Point2D.Double finalTheoPoint = theoPoint;
                 List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(finalTheoPoint.getX(),finalTheoPoint.getY()))).collect(Collectors.toList());
                 Point2D closerRing = sortedPoints.get(0);
-                lineBottom.add(closerRing);
+
+                if(!lineBottom.isEmpty()){
+                    Point2D lastPoint = lineBottom.get(lineBottom.size() -1);
+                    if(closerRing.distance(lastPoint) == 0)
+                        break;
+                    else lineBottom.add(closerRing);
+                }else
+                    lineBottom.add(closerRing);
 
                 vectToBottom = new Point2D.Double(closerRing.getX() - initX, closerRing.getY() - initY);
 
@@ -474,11 +496,18 @@ public class Processing {
 
         do{
             theoPoint = new Point2D.Double(initX + vectToTop.getX(), initY + vectToTop.getY());
-            if(theoPoint.getY() > ovalRadius){
+            if(theoPoint.getY() > ovalRadius/2){
                 Point2D.Double finalTheoPoint = theoPoint;
                 List<Point2D> sortedPoints = values.stream().sorted(Comparator.comparing(e->e.distance(finalTheoPoint.getX(),finalTheoPoint.getY()))).collect(Collectors.toList());
                 Point2D closerRing = sortedPoints.get(0);
-                lineTop.add(closerRing);
+
+                if(!lineTop.isEmpty()){
+                    Point2D lastPoint = lineTop.get(lineTop.size() -1);
+                    if(closerRing.distance(lastPoint) == 0)
+                        break;
+                    else lineTop.add(closerRing);
+                }else
+                    lineTop.add(closerRing);
 
                 vectToTop = new Point2D.Double(closerRing.getX() - initX, closerRing.getY() - initY);
 
