@@ -1477,7 +1477,7 @@ public class ArgoLightCommand implements Command {
                 double particleThreshPreview = (double) spThreshParticles.getValue();
                 double ringRadiusPreview = (double) spRingRadius.getValue();
                 ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV);
                 labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
                 labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
                 labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1492,7 +1492,7 @@ public class ArgoLightCommand implements Command {
                 double particleThreshPreview = (double) spThreshParticles.getValue();
                 double ringRadiusPreview = (double) spRingRadius.getValue();
                 ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV);
                 labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
                 labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
                 labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1507,7 +1507,7 @@ public class ArgoLightCommand implements Command {
                 double particleThreshPreview = (double) spThreshParticles.getValue();
                 double ringRadiusPreview = (double) spRingRadius.getValue();
                 ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV);
                 labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
                 labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
                 labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1522,7 +1522,7 @@ public class ArgoLightCommand implements Command {
                 double particleThreshPreview = (double) spThreshParticles.getValue();
                 double ringRadiusPreview = (double) spRingRadius.getValue();
                 ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV);
                 labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
                 labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
                 labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1537,7 +1537,7 @@ public class ArgoLightCommand implements Command {
                 double particleThreshPreview = (double) spThreshParticles.getValue();
                 double ringRadiusPreview = (double) spRingRadius.getValue();
                 ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV);
                 labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
                 labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
                 labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
@@ -1643,7 +1643,7 @@ public class ArgoLightCommand implements Command {
                 double particleThreshPreview = (double) spThreshParticles.getValue();
                 double ringRadiusPreview = (double) spRingRadius.getValue();
                 ArgoSlideLivePreview.run(this.imageForLivePreview, this.pixelSizeForLivePreview, sigmaPreview, medianRadiusPreview, thresholdMethodPreview,
-                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV, currentArgoNRings);
+                        particleThreshPreview, ringRadiusPreview, currentArgoSpacing, currentArgoFoV);
                 labXAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getXAvgStep()));
                 labYAverageStep.setText(String.valueOf(ArgoSlideLivePreview.getYAvgStep()));
                 labRotationAngle.setText(String.valueOf(ArgoSlideLivePreview.getRotationAngle()));
