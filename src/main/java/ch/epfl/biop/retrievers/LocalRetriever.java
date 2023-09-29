@@ -35,7 +35,9 @@ public class LocalRetriever implements Retriever{
 
     @Override
     public boolean loadImages(String parentTarget, String microscopeName, boolean processAllImages, String argoSlideName) {
-        // check the existence of teh parent folder (i.e. where microscope folder with images should be located)
+        // check the existence of the parent folder (i.e. where microscope folder with images should be located)
+        this.processAllImages = processAllImages;
+
         File parentFolder = new File(parentTarget);
         if(!parentFolder.exists()){
             IJLogger.error("Load local images", "The parent folder '"+parentTarget+"' doesn't exists");
@@ -75,7 +77,7 @@ public class LocalRetriever implements Retriever{
         List<String> processedFiles = listProcessedFiles(this.resultsFolderPath, microscopeName);
 
         // filter the list to only process images that have not already been processed
-        List<File> filteredImageFileList = filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()),
+        List<File> filteredImageFileList = filterImages(Arrays.stream(rawImgFiles).collect(Collectors.toList()), processAllImages,
                                                      processedFiles, argoSlideName, microscopeName.replace("_",""));
 
         // create a unique ID for each new raw image
@@ -162,13 +164,15 @@ public class LocalRetriever implements Retriever{
      * remove from the list all processed images
      *
      * @param imageFiles list of raw files
+     * @param processAllImages true to redo the analysis of all images, processed and unprocessed.
      * @param processedFiles list of processed images
      * @param argoSlideName Name of the selected ArgoSlide
      * @param microscopeName Name of the selected microscope
      * @return list of non-processed images
      */
-    private List<File> filterImages(List<File> imageFiles, List<String> processedFiles, String argoSlideName, String microscopeName){
-        if(processedFiles == null)
+    private List<File> filterImages(List<File> imageFiles, boolean processAllImages, List<String> processedFiles,
+                                    String argoSlideName, String microscopeName){
+        if(processedFiles == null || processAllImages)
             processedFiles = new ArrayList<>();
 
         List<File> filteredFiles = new ArrayList<>();

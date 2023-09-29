@@ -12,6 +12,7 @@ public interface Retriever {
      * @param parentTarget parent container with all the microscopes
      * @param microscopeName name of the microscope to process
      * @param processAllImages true if you want to process all available images, regardless if they have already been processed
+     * @param argoSlideName The name of the selected ArgoSlide
      */
     boolean loadImages(String parentTarget, String microscopeName, boolean processAllImages, String argoSlideName);
 
