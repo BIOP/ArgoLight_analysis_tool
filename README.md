@@ -174,9 +174,8 @@ A live preview mode enable you to set dynamically the processing parameters and 
 3. Click on `Live preview` button
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/34b2a1ba-7bbf-4485-b204-77bfb420747e" width="80%">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/9e25e1c9-bd74-4f83-94a8-94ebf489067c" width="80%">
 </p>
-
 
 4. On the popup, add the OMERO ID of a typical image or the path of the image you want to open
 5. Click on `Load`. The image should display in Fiji. the first channel is automatically displayed
@@ -184,7 +183,7 @@ A live preview mode enable you to set dynamically the processing parameters and 
 7. When satisfied with the results, click on `OK`. The new parameters will be used for the current simulation.
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/0a88f9c5-a838-47ae-84b1-2e1ab431e455" width="80%">
+  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/f8e04ab0-38e8-4ca0-8e22-d67fef353414" width="80%">
 </p>
 
 
