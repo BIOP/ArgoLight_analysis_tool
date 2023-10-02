@@ -13,7 +13,9 @@ Results are automatically saved locally.
 ## Installation
 - Download the latest version of our plugin. Unzip it and copy both .jar files into the **Plugins->BIOP** folder of Fiji
 - Activate the update site **OMERO 5.5-5.6** (On Fiji, go on `Help -> Update...`, then click on `Manage Update sites`)
+- Activate the update site **PTBIOP** (On Fiji, go on `Help -> Update...`, then click on `Manage Update sites`)
 - Restart Fiji
+
 
 ## Requirements
 
