@@ -11,7 +11,7 @@
 
 	<groupId>ch.epfl.biop</groupId>
 	<artifactId>argolight_analysis_tool</artifactId>
-	<version>0.2.2-SNAPSHOT</version>
+	<version>1.0.1-SNAPSHOT</version>
 
 	<name>ArgoLight analysis tool</name>
 	<description>Code to control the quality of images taken with our microscopes</description>
