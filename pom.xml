@@ -130,8 +130,8 @@
 		<license.licenseName>gpl_v3</license.licenseName>
 		<license.copyrightOwners>ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP)</license.copyrightOwners>
 
-		<simple-omero-client.version>5.15.0</simple-omero-client.version>
-		<omero-gateway.version>5.8.1</omero-gateway.version>
+		<simple-omero-client.version>5.18.0</simple-omero-client.version>
+		<!--<omero-gateway.version>5.9.1</omero-gateway.version>-->
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<!--<scijava.app.directory>C:/Fiji.app/</scijava.app.directory>
@@ -178,7 +178,7 @@
 		<dependency>
 			<groupId>org.openmicroscopy</groupId>
 			<artifactId>omero-gateway</artifactId>
-			<version>${omero-gateway.version}</version>
+			<!--<version>${omero-gateway.version}</version>-->
 		</dependency>
 
 		<dependency>
