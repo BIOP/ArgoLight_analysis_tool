@@ -11,9 +11,10 @@ It is also possible to have your images on a local computer. In that case, you d
 Results are automatically saved locally.
 
 ## Installation
-- Download the latest version of our plugin. Unzip it and copy both .jar files into the **Plugins->BIOP** folder of Fiji
-- Activate the update site **OMERO 5.5-5.6** (On Fiji, go on `Help -> Update...`, then click on `Manage Update sites`)
+- Activate the update sites **OMERO 5.5-5.6** and **PTBIOP** (On Fiji, go on `Help -> Update...`, then click on `Manage Update sites`)
 - Restart Fiji
+
+Remarque : the plugin works with [simple-omero-client](https://github.com/GReD-Clermont/simple-omero-client) API (v5.15.0 or later).
 
 ## Requirements
 
