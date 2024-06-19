@@ -33,6 +33,25 @@ public class LocalRetriever implements Retriever{
         this.resultsFolderPath = resultsFolderPath;
     }
 
+    /**
+     * List the sub-folders from the parent Directory
+     *
+     * @param parentDirectory
+     * @return
+     */
+    public static List<String> listMicroscopes(File parentDirectory){
+        if(parentDirectory.exists()) {
+            File[] childFiles = parentDirectory.listFiles();
+            if (childFiles != null)
+                return Arrays.stream(childFiles).filter(File::isDirectory).map(File::getName).collect(Collectors.toList());
+            else
+                IJLogger.error("The root folder '"+parentDirectory+"' is not a folder. Cannot list microscopes from a file.");
+        } else {
+            IJLogger.error("The root folder '" + parentDirectory + "' doesn't exist. Cannot list microscopes from there.");
+        }
+         return Collections.emptyList();
+    }
+
     @Override
     public boolean loadImages(String parentTarget, String microscopeName, boolean processAllImages, String argoSlideName) {
         // check the existence of the parent folder (i.e. where microscope folder with images should be located)

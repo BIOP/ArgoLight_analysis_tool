@@ -32,6 +32,33 @@ public class OMERORetriever implements Retriever {
     }
 
     /**
+     * List the datasets names from the parent project
+     *
+     * @param client
+     * @param projectIdString
+     * @return
+     */
+    public static List<String> listMicroscopes(Client client, String projectIdString){
+        long projectId = -1;
+
+        try {
+            projectId = Long.parseLong(projectIdString);
+        } catch (Exception e){
+            IJLogger.error(projectId +" is not a valid ID for projects. It should be an positive integer.");
+        }
+
+        if(projectId > 0) {
+            try {
+                return client.getProject(projectId).getDatasets().stream().map(DatasetWrapper::getName).sorted().collect(Collectors.toList());
+            } catch (AccessException | ServiceException | ExecutionException e) {
+                IJLogger.error("Datasets cannot be listed from project ID " + projectId);
+            }
+        }else IJLogger.error(projectId +" is not a valid ID for projects. It should be positive.");
+
+        return Collections.emptyList();
+    }
+
+    /**
      * Retrieve from OMERO images that need to be processed.
      *
      * @param parentTarget where to look for images
@@ -54,10 +81,10 @@ public class OMERORetriever implements Retriever {
 
         try {
             // get the ArgoSim project
-            ProjectWrapper project_wpr = this.client.getProject(projectId);
+            ProjectWrapper projectWrapper = this.client.getProject(projectId);
 
             // get the specified dataset
-            List<DatasetWrapper> datasetWrapperList = project_wpr.getDatasets().stream().filter(e -> e.getName().toLowerCase().contains(microscopeName)).collect(Collectors.toList());
+            List<DatasetWrapper> datasetWrapperList = projectWrapper.getDatasets().stream().filter(e -> e.getName().toLowerCase().contains(microscopeName)).collect(Collectors.toList());
 
             if (datasetWrapperList.size() == 1) {
                 DatasetWrapper datasetWrapper = datasetWrapperList.get(0);
@@ -69,7 +96,7 @@ public class OMERORetriever implements Retriever {
                 return true;
 
             } else if(datasetWrapperList.isEmpty())
-                IJLogger.warn("Load OMERO images","Project "+project_wpr.getName()+ "("+projectId+") does not contain any dataset with name '"+microscopeName+"'");
+                IJLogger.warn("Load OMERO images","Project "+projectWrapper.getName()+ "("+projectId+") does not contain any dataset with name '"+microscopeName+"'");
             else IJLogger.warn("Load OMERO images","More than one dataset refer to "+microscopeName+" Please, group these datasets or change their name.");
             return false;
 

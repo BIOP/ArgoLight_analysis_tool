@@ -72,7 +72,8 @@ public class ArgoLightCommand implements Command {
     private String userHost;
     private String userPort;
     private String userProjectID;
-    private List<String> userMicroscopes;
+    private List<String> omeroMicroscopes = Collections.emptyList();
+    private List<String> localMicroscopes = Collections.emptyList();
     private List<String> userArgoSlides;
     private String defaultArgoSlide;
     private Map<String, List<String>> argoSlidesParameters = Collections.emptyMap();
@@ -244,7 +245,7 @@ public class ArgoLightCommand implements Command {
         } catch (Exception e){
             finalPopupMessage = false;
         } finally {
-            if(isOmeroRetriever) {
+            if(this.client.isConnected()) {
                 this.client.disconnect();
                 IJLogger.info("Disconnected from OMERO ");
             }
@@ -303,6 +304,14 @@ public class ArgoLightCommand implements Command {
         tfProjectID.setFont(stdFont);
         tfProjectID.setColumns(15);
 
+        JButton bConnectToOmero = new JButton("Connect");
+        bConnectToOmero.setFont(stdFont);
+
+        // button to do live
+        JButton bLivePreview = new JButton("Live preview");
+        bLivePreview.setFont(stdFont);
+        bLivePreview.setEnabled(false);
+
         // Root folder selection for local retriever
         JLabel labRootFolder  = new JLabel("Root Folder");
         labRootFolder.setFont(stdFont);
@@ -313,28 +322,38 @@ public class ArgoLightCommand implements Command {
         labRootFolder.setEnabled(false);
         tfRootFolder.setEnabled(false);
 
-        // button to choose root folder
-        JButton bRootFolder = new JButton("Choose folder");
-        bRootFolder.setFont(stdFont);
-        bRootFolder.addActionListener(e->{
-            JFileChooser directoryChooser = new JFileChooser();
-            directoryChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-            directoryChooser.setDialogTitle("Choose the microscopes' root folder");
-            directoryChooser.showDialog(generalPane,"Select");
-
-            if (directoryChooser.getSelectedFile() != null)
-                tfRootFolder.setText(directoryChooser.getSelectedFile().getAbsolutePath());
-        });
-
-        bRootFolder.setEnabled(false);
-
         // Microscope choice
         JLabel labMicroscope = new JLabel("Microscope");
         labMicroscope.setFont(stdFont);
         DefaultComboBoxModel<String> modelCmbMicroscope = new DefaultComboBoxModel<>();
         JComboBox<String> cbMicroscope = new JComboBox<>(modelCmbMicroscope);
         cbMicroscope.setFont(stdFont);
-        userMicroscopes.forEach(cbMicroscope::addItem);
+        omeroMicroscopes.forEach(cbMicroscope::addItem);
+        cbMicroscope.setEnabled(false);
+
+        // button to choose root folder
+        JButton bRootFolder = new JButton("Choose folder");
+        bRootFolder.setFont(stdFont);
+        bRootFolder.addActionListener(e->{
+            JFileChooser directoryChooser = new JFileChooser();
+            directoryChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            if(new File(userRootFolder).exists())
+                directoryChooser.setCurrentDirectory(new File(userRootFolder));
+            directoryChooser.setDialogTitle("Choose the microscopes' root folder");
+            directoryChooser.showDialog(generalPane,"Select");
+
+            if (directoryChooser.getSelectedFile() != null){
+                File selectedRootFolder = directoryChooser.getSelectedFile();
+                tfRootFolder.setText(selectedRootFolder.getAbsolutePath());
+                userRootFolder = selectedRootFolder.getAbsolutePath();
+                localMicroscopes = LocalRetriever.listMicroscopes(selectedRootFolder);
+                cbMicroscope.removeAllItems();
+                localMicroscopes.forEach(cbMicroscope::addItem);
+                cbMicroscope.setSelectedItem(localMicroscopes);
+            }
+        });
+
+        bRootFolder.setEnabled(false);
 
         // Argoslide choice
         JLabel labArgoSlide = new JLabel("ArgoSlide");
@@ -345,6 +364,7 @@ public class ArgoLightCommand implements Command {
         userArgoSlides.forEach(cbArgoSlide::addItem);
         if(defaultArgoSlide != null && !defaultArgoSlide.isEmpty())
             cbArgoSlide.setSelectedItem(defaultArgoSlide);
+        cbArgoSlide.setEnabled(false);
 
         // Root folder selection for local sender
         JLabel labSavingFolder  = new JLabel("Saving Folder");
@@ -362,7 +382,7 @@ public class ArgoLightCommand implements Command {
         bSavingFolder.addActionListener(e->{
             JFileChooser directoryChooser = new JFileChooser();
             directoryChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-            directoryChooser.setDialogTitle("Choose the microscopes' root folder");
+            directoryChooser.setDialogTitle("Choose the microscopes' saving folder");
             directoryChooser.showDialog(generalPane,"Select");
 
             if (directoryChooser.getSelectedFile() != null)
@@ -375,6 +395,7 @@ public class ArgoLightCommand implements Command {
         JCheckBox chkSaveHeatMap = new JCheckBox("Save heat maps");
         chkSaveHeatMap.setSelected(false);
         chkSaveHeatMap.setFont(stdFont);
+        chkSaveHeatMap.setEnabled(false);
 
         // checkbox to remove previous data
         JCheckBox chkRemovePreviousRun = new JCheckBox("Remove previous runs");
@@ -389,12 +410,14 @@ public class ArgoLightCommand implements Command {
         chkAllImages.addActionListener(e->{
             chkRemovePreviousRun.setEnabled(chkAllImages.isSelected());
         });
+        chkAllImages.setEnabled(false);
 
         // Radio button to choose local retriever
         ButtonGroup senderChoice = new ButtonGroup();
         JRadioButton rbLocalSender = new JRadioButton("Local");
         rbLocalSender.setFont(stdFont);
         rbLocalSender.setSelected(false);
+        rbLocalSender.setEnabled(false);
         senderChoice.add(rbLocalSender);
         rbLocalSender.addActionListener(e -> {
             tfSavingFolder.setEnabled(rbLocalSender.isSelected());
@@ -407,6 +430,7 @@ public class ArgoLightCommand implements Command {
         rbOmeroSender.setAlignmentX(JPanel.RIGHT_ALIGNMENT);
         rbOmeroSender.setFont(stdFont);
         rbOmeroSender.setSelected(true);
+        rbOmeroSender.setEnabled(false);
         senderChoice.add(rbOmeroSender);
         rbOmeroSender.addActionListener(e -> {
             tfSavingFolder.setEnabled(!rbOmeroSender.isSelected());
@@ -414,6 +438,13 @@ public class ArgoLightCommand implements Command {
             bSavingFolder.setEnabled(!rbOmeroSender.isSelected());
         });
 
+        // button to configure argoslide settings
+        JButton bArgoSlideSettings = new JButton("Settings");
+        bArgoSlideSettings.setFont(stdFont);
+        bArgoSlideSettings.addActionListener(e->{
+            createArgoSettingsPane(String.valueOf(cbArgoSlide.getSelectedItem()));
+        });
+        bArgoSlideSettings.setEnabled(false);
 
         // Radio button to choose OMERO retriever
         ButtonGroup retrieverChoice = new ButtonGroup();
@@ -425,19 +456,31 @@ public class ArgoLightCommand implements Command {
             labRootFolder.setEnabled(!rbOmeroRetriever.isSelected());
             tfRootFolder.setEnabled(!rbOmeroRetriever.isSelected());
             bRootFolder.setEnabled(!rbOmeroRetriever.isSelected());
-            tfUsername.setEnabled(rbOmeroRetriever.isSelected());
-            tfPassword.setEnabled(rbOmeroRetriever.isSelected());
+            tfUsername.setEnabled(rbOmeroRetriever.isSelected() && !this.client.isConnected());
+            tfPassword.setEnabled(rbOmeroRetriever.isSelected() && !this.client.isConnected());
             labHost.setEnabled(rbOmeroRetriever.isSelected());
             labUsername.setEnabled(rbOmeroRetriever.isSelected());
             labPassword.setEnabled(rbOmeroRetriever.isSelected());
             rbOmeroSender.setEnabled(rbOmeroRetriever.isSelected());
             labProjectID.setEnabled(rbOmeroRetriever.isSelected());
-            tfProjectID.setEnabled(rbOmeroRetriever.isSelected());
+            tfProjectID.setEnabled(rbOmeroRetriever.isSelected() && !this.client.isConnected());
             tfSavingFolder.setEnabled(!rbOmeroRetriever.isSelected());
             labSavingFolder.setEnabled(!rbOmeroRetriever.isSelected());
             bSavingFolder.setEnabled(!rbOmeroRetriever.isSelected());
             rbOmeroSender.setSelected(rbOmeroRetriever.isSelected());
             rbLocalSender.setSelected(!rbOmeroRetriever.isSelected());
+            bConnectToOmero.setEnabled(rbOmeroRetriever.isSelected() && !this.client.isConnected());
+            cbMicroscope.setEnabled(!rbOmeroRetriever.isSelected() || this.client.isConnected());
+            cbArgoSlide.setEnabled(!rbOmeroRetriever.isSelected() || this.client.isConnected());
+            bArgoSlideSettings.setEnabled(!rbOmeroRetriever.isSelected() || this.client.isConnected());
+            chkSaveHeatMap.setEnabled(!rbOmeroRetriever.isSelected() || this.client.isConnected());
+            chkAllImages.setEnabled(!rbOmeroRetriever.isSelected() || this.client.isConnected());
+            rbOmeroSender.setEnabled(!rbOmeroRetriever.isSelected() || this.client.isConnected());
+            rbLocalSender.setEnabled(!rbOmeroRetriever.isSelected() || this.client.isConnected());
+            bLivePreview.setEnabled(!rbOmeroRetriever.isSelected() || this.client.isConnected());
+            cbMicroscope.removeAllItems();
+            omeroMicroscopes.forEach(cbMicroscope::addItem);
+            cbMicroscope.setSelectedItem(omeroMicroscopes);
         });
 
         // Radio button to choose local retriever
@@ -457,11 +500,24 @@ public class ArgoLightCommand implements Command {
             tfRootFolder.setEnabled(rbLocalRetriever.isSelected());
             labRootFolder.setEnabled(rbLocalRetriever.isSelected());
             rbOmeroSender.setSelected(!rbLocalRetriever.isSelected());
-            rbLocalSender.setSelected(rbLocalRetriever.isSelected());
             rbOmeroSender.setEnabled(!rbLocalRetriever.isSelected());
+            rbLocalSender.setSelected(rbLocalRetriever.isSelected());
             tfSavingFolder.setEnabled(rbLocalRetriever.isSelected());
             labSavingFolder.setEnabled(rbLocalRetriever.isSelected());
             bSavingFolder.setEnabled(rbLocalRetriever.isSelected());
+            bConnectToOmero.setEnabled(!rbLocalRetriever.isSelected());
+            cbMicroscope.setEnabled(rbLocalRetriever.isSelected());
+            cbArgoSlide.setEnabled(rbLocalRetriever.isSelected());
+            bArgoSlideSettings.setEnabled(rbLocalRetriever.isSelected());
+            chkSaveHeatMap.setEnabled(rbLocalRetriever.isSelected());
+            chkAllImages.setEnabled(rbLocalRetriever.isSelected());
+            rbLocalSender.setEnabled(rbLocalRetriever.isSelected());
+            bLivePreview.setEnabled(rbLocalRetriever.isSelected());
+
+            localMicroscopes = LocalRetriever.listMicroscopes(new File(tfRootFolder.getText()));
+            cbMicroscope.removeAllItems();
+            localMicroscopes.forEach(cbMicroscope::addItem);
+            cbMicroscope.setSelectedItem(localMicroscopes);
         });
 
 
@@ -472,9 +528,9 @@ public class ArgoLightCommand implements Command {
             createSettingsPane();
             setDefaultGeneralParams();
             labHost.setText(userHost +":"+ userPort);
-            cbMicroscope.removeAllItems();
-            userMicroscopes.forEach(cbMicroscope::addItem);
-            cbMicroscope.setSelectedItem(userMicroscopes);
+            /*cbMicroscope.removeAllItems();
+            omeroMicroscopes.forEach(cbMicroscope::addItem);
+            cbMicroscope.setSelectedItem(omeroMicroscopes);*/
             cbArgoSlide.removeAllItems();
             userArgoSlides.forEach(cbArgoSlide::addItem);
             cbArgoSlide.setSelectedItem(userArgoSlides);
@@ -490,16 +546,6 @@ public class ArgoLightCommand implements Command {
             createProcessingSettingsPane();
         });
 
-        // button to configure argoslide settings
-        JButton bArgoSlideSettings = new JButton("Settings");
-        bArgoSlideSettings.setFont(stdFont);
-        bArgoSlideSettings.addActionListener(e->{
-            createArgoSettingsPane(String.valueOf(cbArgoSlide.getSelectedItem()));
-        });
-
-        // button to do live
-        JButton bLivePreview = new JButton("Live preview");
-        bLivePreview.setFont(stdFont);
         bLivePreview.addActionListener(e->{
             boolean isOmeroImage = false;
             if(rbOmeroRetriever.isSelected()) {
@@ -510,6 +556,27 @@ public class ArgoLightCommand implements Command {
             }
 
             createLiveSettingsPane(isOmeroImage, (String)cbArgoSlide.getSelectedItem());
+        });
+
+        // OMERO connection action
+        bConnectToOmero.addActionListener(e->{
+            if(!this.client.isConnected())
+                if(connectToOmero(this.client, tfUsername.getText(), tfPassword.getPassword())){
+                    cbMicroscope.setEnabled(true);
+                    cbArgoSlide.setEnabled(true);
+                    bArgoSlideSettings.setEnabled(true);
+                    chkSaveHeatMap.setEnabled(true);
+                    chkAllImages.setEnabled(true);
+                    rbOmeroSender.setEnabled(true);
+                    rbLocalSender.setEnabled(true);
+                    tfUsername.setEnabled(false);
+                    tfPassword.setEnabled(false);
+                    tfProjectID.setEnabled(false);
+                    omeroMicroscopes = OMERORetriever.listMicroscopes(this.client, tfProjectID.getText());
+                    cbMicroscope.removeAllItems();
+                    omeroMicroscopes.forEach(cbMicroscope::addItem);
+                    cbMicroscope.setSelectedItem(omeroMicroscopes);
+                }
         });
 
         // build everything together
@@ -579,6 +646,10 @@ public class ArgoLightCommand implements Command {
         constraints.gridx = 1;
         constraints.gridy = omeroRetrieverRow++;
         omeroPane.add(tfProjectID, constraints);
+
+        constraints.gridx = 1;
+        constraints.gridy = omeroRetrieverRow++;
+        omeroPane.add(bConnectToOmero, constraints);
 
         constraints.gridwidth = 2; // span two rows
         constraints.gridx = 1;
@@ -895,37 +966,6 @@ public class ArgoLightCommand implements Command {
         tfProject.setFont(stdFont);
         tfProject.setColumns(15);
 
-        // list of tested microscopes
-        JLabel labMicroscope = new JLabel("Microscopes");
-        labMicroscope.setFont(stdFont);
-        JTextField tfMicroscope = new JTextField(String.join(",", userMicroscopes));
-        tfMicroscope.setFont(stdFont);
-        tfMicroscope.setColumns(15);
-
-        // button to select a csv file containing all microscopes
-        JButton bChooseMicroscope = new JButton("Open file");
-        bChooseMicroscope.setFont(stdFont);
-        bChooseMicroscope.addActionListener(e->{
-            // define the file chooser
-            JFileChooser fileChooser = new JFileChooser();
-            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-            fileChooser.setDialogTitle("Choose the microscopes' csv file");
-            fileChooser.showDialog(generalPane,"Select");
-
-            if (fileChooser.getSelectedFile() != null) {
-                File rootFolder = fileChooser.getSelectedFile();
-                if(!rootFolder.exists())
-                    showErrorMessage("No files", "The file you selected does not exist. Please check your path / file");
-                else if(!rootFolder.getAbsolutePath().endsWith(".csv"))
-                    showErrorMessage("Wrong file type", "The file you selected is not a .csv file. Please select a .csv file");
-                else {
-                    List<String> microscopes = parseUserCSV(rootFolder);
-                    String microscopesList = String.join(",", microscopes);
-                    tfMicroscope.setText(microscopesList);
-                }
-            }
-        });
-
         // list of available argoslides
         JLabel labArgoslide = new JLabel("Argoslides");
         labArgoslide.setFont(stdFont);
@@ -1035,18 +1075,6 @@ public class ArgoLightCommand implements Command {
 
         constraints.gridx = 0;
         constraints.gridy = settingsRow;
-        settingsPane.add(labMicroscope, constraints);
-
-        constraints.gridx = 1;
-        constraints.gridy = settingsRow;
-        settingsPane.add(tfMicroscope, constraints);
-
-        constraints.gridx = 2;
-        constraints.gridy = settingsRow++;
-        settingsPane.add(bChooseMicroscope, constraints);
-
-        constraints.gridx = 0;
-        constraints.gridy = settingsRow;
         settingsPane.add(labArgoslide, constraints);
 
         constraints.gridx = 1;
@@ -1121,7 +1149,6 @@ public class ArgoLightCommand implements Command {
             saveUserDefinedGeneralParams(userHost,
                     userPort,
                     userProjectID,
-                    tfMicroscope.getText(),
                     tfArgoslide.getText(),
                     userRootFolder,
                     userSaveFolder);
@@ -1996,7 +2023,6 @@ public class ArgoLightCommand implements Command {
         userPort = defaultParams.containsKey(portKey) ?
                 (defaultParams.get(portKey).isEmpty() ? defaultPort : defaultParams.get(portKey).get(0)) :
                 defaultPort;
-        userMicroscopes = defaultParams.getOrDefault(microscopeKey, Collections.emptyList());
         userArgoSlides = defaultParams.getOrDefault(argoSlidesKey, Collections.emptyList());
         userProjectID = defaultParams.containsKey(projectIdKey) ?
                 (defaultParams.get(projectIdKey).isEmpty() ? "-1" : defaultParams.get(projectIdKey).get(0)) :
@@ -2178,12 +2204,11 @@ public class ArgoLightCommand implements Command {
      * @param host
      * @param port
      * @param projectID
-     * @param microscopes
      * @param argoSlides
      * @param rootFolder
      * @param savingFolder
      */
-    private void saveUserDefinedGeneralParams(String host, String port, String projectID, String microscopes,
+    private void saveUserDefinedGeneralParams(String host, String port, String projectID,
                                               String argoSlides, String rootFolder, String savingFolder) {
         File directory = new File(folderName);
 
@@ -2197,7 +2222,6 @@ public class ArgoLightCommand implements Command {
             buffer.write(hostKey+","+host + "\n");
             buffer.write(portKey+","+port + "\n");
             buffer.write(projectIdKey+","+projectID + "\n");
-            buffer.write(microscopeKey+","+microscopes + "\n");
             buffer.write(argoSlidesKey +","+argoSlides + "\n");
             buffer.write(rootFolderKey+","+rootFolder + "\n");
             buffer.write(saveFolderKey+","+savingFolder + "\n");
