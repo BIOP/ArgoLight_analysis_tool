@@ -18,6 +18,7 @@ public class ImageChannel {
     final private int channelId;
     final private int imageWidth;
     final private int imageHeight;
+    final private double pixelSize;
     private List<Double> ringsFWHM = new ArrayList<>();
     private List<Double> ringsFieldDistortion = new ArrayList<>();
     private List<Double> ringsFieldUniformity = new ArrayList<>();
@@ -27,10 +28,11 @@ public class ImageChannel {
     private Map<String, String> keyValues = new TreeMap<>();
     private Roi centerCross;
 
-    public ImageChannel(int id, int width, int height){
+    public ImageChannel(int id, int width, int height, double pixelSize){
         this.channelId = id;
         this.imageWidth = width;
         this.imageHeight = height;
+        this.pixelSize = pixelSize;
     }
 
     /**
@@ -138,8 +140,9 @@ public class ImageChannel {
      * @param imageName
      * @return a heatmap of the FWHM computed on each ring for the current channel
      */
-    public ImagePlus getFWHMHeatMap(String imageName){
-        ImagePlus img =  Tools.computeHeatMap(this.ringsFWHM, imageName+"_ch"+this.channelId+"_FWHM");
+    public ImagePlus getFWHMHeatMap(String imageName, int argoSpacing){
+        ImagePlus img =  Tools.computeHeatMap(this.ringsFWHM, imageName+"_ch"+this.channelId+"_FWHM",
+                this.imageWidth, this.imageHeight, this.centerCross, this.rotationAngle, this.pixelSize, argoSpacing);
         img.setProperty(Tools.PROCESSED_FEATURE, Tools.FWHM_TAG);
         return img;
     }
@@ -148,8 +151,9 @@ public class ImageChannel {
      * @param imageName
      * @return a heatmap of the field distortion computed on each ring for the current channel
      */
-    public ImagePlus getFieldDistortionHeatMap(String imageName){
-        ImagePlus img = Tools.computeHeatMap(this.ringsFieldDistortion, imageName+"_ch"+this.channelId+"_FieldDistortion");
+    public ImagePlus getFieldDistortionHeatMap(String imageName, int argoSpacing){
+        ImagePlus img = Tools.computeHeatMap(this.ringsFieldDistortion, imageName+"_ch"+this.channelId+"_FieldDistortion",
+                this.imageWidth, this.imageHeight, this.centerCross, this.rotationAngle, this.pixelSize, argoSpacing);
         img.setProperty(Tools.PROCESSED_FEATURE, Tools.FIELD_DISTORTION_TAG);
         return img;
     }
@@ -158,8 +162,9 @@ public class ImageChannel {
      * @param imageName
      * @return a heatmap of the field uniformity computed on each ring for the current channel
      */
-    public ImagePlus getFieldUniformityHeatMap(String imageName){
-        ImagePlus img =  Tools.computeHeatMap(this.ringsFieldUniformity, imageName+"_ch"+this.channelId+"_FieldUniformity");
+    public ImagePlus getFieldUniformityHeatMap(String imageName, int argoSpacing){
+        ImagePlus img =  Tools.computeHeatMap(this.ringsFieldUniformity, imageName+"_ch"+this.channelId+"_FieldUniformity",
+                this.imageWidth, this.imageHeight, this.centerCross, this.rotationAngle, this.pixelSize, argoSpacing);
         img.setProperty(Tools.PROCESSED_FEATURE, Tools.FIELD_UNIFORMITY_TAG);
         return img;
     }
@@ -171,8 +176,8 @@ public class ImageChannel {
         Map<String, Double> channelSummaryMap = new TreeMap<>();
         // general metrics
         channelSummaryMap.put("Channel",(double)this.channelId);
-        channelSummaryMap.put("Rotation_angle__deg", this.rotationAngle);
-        IJLogger.info("Channel "+this.channelId, "Rotation angle :"+this.rotationAngle);
+        channelSummaryMap.put("Rotation_angle__deg", (this.rotationAngle*180/Math.PI));
+        IJLogger.info("Channel "+this.channelId, "Rotation angle :"+(this.rotationAngle*180/Math.PI) +" deg");
 
         // get image centring statistics
         ImageStatistics crossStats = this.centerCross.getStatistics();

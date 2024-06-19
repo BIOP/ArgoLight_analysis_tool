@@ -94,7 +94,7 @@ public class Processing {
                     // send image results (metrics, rings, tags, key-values)
                     sender.initialize(imageFile, retriever);
                     sender.sendTags(imageFile.getTags());
-                    sendResults(sender, imageFile, savingHeatMaps, isOldProtocol);
+                    sendResults(sender, imageFile, savingHeatMaps, isOldProtocol, argoSpacing);
 
                     // metrics summary to populate parent table
                     Map<List<String>, List<List<Double>>> allChannelMetrics = imageFile.summaryForParentTable();
@@ -119,7 +119,7 @@ public class Processing {
      * @param savingHeatMaps
      * @param isOldProtocol
      */
-    private static void sendResults(Sender sender, ImageFile imageFile, boolean savingHeatMaps, boolean isOldProtocol){
+    private static void sendResults(Sender sender, ImageFile imageFile, boolean savingHeatMaps, boolean isOldProtocol, int argoSpacing){
         Map<String, String> keyValues = imageFile.getKeyValues();
 
         // send PCC table
@@ -147,9 +147,9 @@ public class Processing {
 
             // send heat maps
             if (savingHeatMaps) {
-                if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.PARTIAL_FOV)) sender.sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension()));
-                if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.PARTIAL_FOV)) sender.sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension()));
-                if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.FULL_FOV)) sender.sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension()));
+                if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.PARTIAL_FOV)) sender.sendHeatMaps(channel.getFieldDistortionHeatMap(imageFile.getImgNameWithoutExtension(), argoSpacing));
+                if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.PARTIAL_FOV)) sender.sendHeatMaps(channel.getFieldUniformityHeatMap(imageFile.getImgNameWithoutExtension(), argoSpacing));
+                if(isOldProtocol || !imageFile.getImagedFoV().equals(Tools.FULL_FOV)) sender.sendHeatMaps(channel.getFWHMHeatMap(imageFile.getImgNameWithoutExtension(), argoSpacing));
             }
         }
 
@@ -211,17 +211,17 @@ public class Processing {
      * @param imp
      * @param crossRoi
      * @param medianRadius
-     * @param overRadius
+     * @param ovalRadius
      * @param prtThreshold
      * @param sigma
      * @param segMethod
      * @return
      */
     protected static List<Point2D> getGridPoint(ImagePlus imp, Roi crossRoi, double sigma, double medianRadius,
-                                                double prtThreshold, String segMethod, int overRadius){
+                                                double prtThreshold, String segMethod, int ovalRadius){
 
         // get the statistics
-        Roi enlargedRectangle = new Roi(new Rectangle(overRadius, overRadius, imp.getWidth()-2*overRadius, imp.getHeight()-2*overRadius ));
+        Roi enlargedRectangle = new Roi(new Rectangle(ovalRadius, ovalRadius, imp.getWidth()-2*ovalRadius, imp.getHeight()-2*ovalRadius ));
 
         // find ring centers
         ImagePlus imp2 = imp.duplicate();

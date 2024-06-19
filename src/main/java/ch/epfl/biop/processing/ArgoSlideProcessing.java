@@ -113,7 +113,7 @@ public class ArgoSlideProcessing {
             IJ.run("Close All", "");
             roiManager.reset();
 
-            ImageChannel imageChannel = new ImageChannel(c, imp.getWidth(), imp.getHeight());
+            ImageChannel imageChannel = new ImageChannel(c, imp.getWidth(), imp.getHeight(), pixelSizeImage);
 
             // extract the current channel
             ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + c, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
@@ -176,7 +176,7 @@ public class ArgoSlideProcessing {
                     throw new RuntimeException();
                 }
 
-                imageChannel.setRotationAngle(rotationAngle*180/Math.PI);
+                imageChannel.setRotationAngle(rotationAngle);
                 IJLogger.info("Channel "+c,"Rotation angle theta = "+rotationAngle*180/Math.PI + "°");
 
                 // create grid point ROIs

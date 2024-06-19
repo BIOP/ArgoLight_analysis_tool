@@ -250,6 +250,7 @@ public class ArgoLightCommand implements Command {
                 IJLogger.info("Disconnected from OMERO ");
             }
         }
+        IJLogger.info("ArgoLight Analysis Tool exited");
 
         if(finalPopupMessage) {
             showInfoMessage("Processing Done", "All images have been analyzed and results saved");
@@ -2335,6 +2336,7 @@ public class ArgoLightCommand implements Command {
 
     @Override
     public void run() {
+        IJLogger.info("ArgoLight Analysis Tool Launched");
         createGui();
     }
 }

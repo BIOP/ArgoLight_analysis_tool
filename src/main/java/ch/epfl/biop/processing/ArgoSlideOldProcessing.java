@@ -58,7 +58,7 @@ public class ArgoSlideOldProcessing {
             IJ.run("Close All", "");
             roiManager.reset();
 
-            ImageChannel imageChannel = new ImageChannel(c, imp.getWidth(), imp.getHeight());
+            ImageChannel imageChannel = new ImageChannel(c, imp.getWidth(), imp.getHeight(), pixelSizeImage);
 
             // extract the current channel
             ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + c, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());

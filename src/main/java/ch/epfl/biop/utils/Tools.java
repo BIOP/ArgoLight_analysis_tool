@@ -4,6 +4,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.process.FloatProcessor;
+import ij.process.ImageStatistics;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
 import java.io.BufferedReader;
@@ -22,7 +23,7 @@ import java.util.Comparator;
 import java.util.List;
 
 public class Tools {
-    final private static int HEAT_MAP_SIZE = 256;
+    final private static int HEAT_MAP_SCALED_SIZE = 256;
     final private static String HEAT_MAP_BIT_DEPTH = "32-bit black";
 
     final public static String SEPARATION_CHARACTER = "%";
@@ -154,7 +155,8 @@ public class Tools {
      * @param title of the heatmap
      * @return the corresponding imagePlus
      */
-    public static ImagePlus computeHeatMap(List<Double> values, String title){
+    public static ImagePlus computeHeatMap(List<Double> values, String title, int imgWidth, int imgHeight, Roi cross,
+                                           double rotation, double pixelSize, int argoSpacing){
         int nPoints = (int) Math.sqrt(values.size() + 1);
         ImagePlus imp = IJ.createImage(title, HEAT_MAP_BIT_DEPTH, nPoints, nPoints, 1);
 
@@ -163,16 +165,44 @@ public class Tools {
         FloatProcessor fp = new FloatProcessor(nPoints, nPoints, values.stream().mapToDouble(Double::doubleValue).toArray());
         values.remove((int)Math.floor(values.size()/2.0)); // remove that value
         imp.getProcessor().setPixels(1, fp);
+        ImagePlus heatMapScaledImp = IJ.createImage(title, HEAT_MAP_BIT_DEPTH, HEAT_MAP_SCALED_SIZE*imgWidth/imgHeight, HEAT_MAP_SCALED_SIZE, 1);
 
-        // enlarged the heat map to have a decent image size at the end
-        ImagePlus enlarged_imp = imp.resize(HEAT_MAP_SIZE, HEAT_MAP_SIZE, "none");
-        enlarged_imp.setTitle(title);
+        // compute the percentage of the target on the full image
+        double ratio = (nPoints * argoSpacing / pixelSize) / imgWidth;
+
+        // compute the final width/height of the heatmap on the final image
+        int targetScaledSize = (int)(heatMapScaledImp.getWidth() * ratio);
+
+        // enlarged the target heat map to have a decent image size at the end
+        ImagePlus enlarged_imp = imp.resize(targetScaledSize, targetScaledSize, "none");
+
+        // get pre-computed scaling factors
+        double cos = Math.cos(rotation);
+        double sin = Math.sin(rotation);
+        double halfSize = targetScaledSize/2.0;
+        ImageStatistics crossStat = cross.getStatistics();
+        double scaledCrossX = crossStat.xCentroid * heatMapScaledImp.getWidth() / imgWidth;
+        double scaledCrossY = crossStat.yCentroid * heatMapScaledImp.getHeight() / imgHeight;
+
+        for(int i = 0; i < enlarged_imp.getWidth(); i++){
+            for(int j = 0; j < enlarged_imp.getHeight(); j++){
+                // compute the coordinates in the final image
+                int transformX = (int)((i - halfSize)*cos - (j - halfSize)*sin + scaledCrossX);
+                int transformY = (int)((i - halfSize)*sin + (j - halfSize)*cos + scaledCrossY);
+                // fill the final image
+                if(transformX >= 0 && transformX < heatMapScaledImp.getWidth() && transformY >= 0 && transformY < heatMapScaledImp.getHeight()){
+                    heatMapScaledImp.getProcessor().putPixelValue(transformX, transformY, enlarged_imp.getProcessor().getPixelValue(i,j));
+                }
+            }
+        }
+
+        heatMapScaledImp.setTitle(title);
 
         // color the heat map with a lookup table
-        IJ.run(enlarged_imp, "Fire", "");
-        enlarged_imp.show();
+        IJ.run(heatMapScaledImp, "Fire", "");
+        heatMapScaledImp.show();
 
-        return enlarged_imp;
+        return heatMapScaledImp;
     }
 
     /**
