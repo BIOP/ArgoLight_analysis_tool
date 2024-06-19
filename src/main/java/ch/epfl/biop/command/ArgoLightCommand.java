@@ -262,7 +262,7 @@ public class ArgoLightCommand implements Command {
             IJLogger.info("Successful connection to OMERO");
             return true;
         } catch (ServiceException e) {
-            IJLogger.error("Cannot connect to OMERO");
+            IJLogger.error("Cannot connect to OMERO", e);
             showErrorMessage("OMERO connections", "OMERO connection fails. Please check host, port and credentials");
             return false;
         }

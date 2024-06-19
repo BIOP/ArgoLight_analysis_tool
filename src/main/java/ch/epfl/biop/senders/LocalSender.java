@@ -195,7 +195,7 @@ public class LocalSender implements Sender{
                 out.close();
                 IJLogger.info("Sending "+roiTitle + " ROIs","The ROIs have been successfully saved in " + path);
             } catch (IOException e) {
-                IJLogger.error("Sending "+roiTitle + " ROIs", "An error occurs during zip saving process");
+                IJLogger.error("Sending "+roiTitle + " ROIs", "An error occurs during zip saving process", e);
             } finally {
                 if (out != null)
                     try {
@@ -310,7 +310,7 @@ public class LocalSender implements Sender{
             groupTags = this.client.getTags();
             imageTags = imageWrapper.getTags(this.client);
         }catch(OMEROServerError | ServiceException | AccessException | ExecutionException e){
-            IJLogger.error("Adding tag","Cannot retrieve existing & linked tags from OMERO");
+            IJLogger.error("Adding tag","Cannot retrieve existing & linked tags from OMERO", e);
             return;
         }
 
@@ -333,7 +333,7 @@ public class LocalSender implements Sender{
                     IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());
 
             } catch (ServiceException |  AccessException | ExecutionException e) {
-                IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + imageWrapper.getId());
+                IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + imageWrapper.getId(), e);
             }
         }
     }
@@ -395,7 +395,7 @@ public class LocalSender implements Sender{
                 }
                 IJLogger.info("Cleaning target", "Tags unlinked");
             } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
-                IJLogger.error("Cleaning target", "Cannot unlink tags for image "+this.imageWrapper.getId());
+                IJLogger.error("Cleaning target", "Cannot unlink tags for image "+this.imageWrapper.getId(), e);
             }
         }
     }

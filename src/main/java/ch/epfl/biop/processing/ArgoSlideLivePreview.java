@@ -138,8 +138,7 @@ public class ArgoSlideLivePreview {
             overlay.add(crossRoi);
             imp.setOverlay(overlay);
         }catch (Exception e){
-            IJLogger.error("Live Preview", "An error occurred during processing" +e);
-            IJLogger.error("Live Processing", e.toString());
+            IJLogger.error("Live Preview", "An error occurred during processing", e);
             rotationAngle = 10;
             xStepAvg = -1;
             yStepAvg = -1;

@@ -103,7 +103,7 @@ public class Processing {
                         summaryMap.put(uniqueID, allChannelMetrics.values().iterator().next());
 
                 } catch (Exception e) {
-                    IJLogger.error("An error occurred during processing ; cannot analyse the image " + imgTitle);
+                    IJLogger.error("An error occurred during processing ; cannot analyse the image " + imgTitle, e);
                 }
             }
         }

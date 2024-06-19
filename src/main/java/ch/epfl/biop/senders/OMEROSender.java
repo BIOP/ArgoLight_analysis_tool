@@ -87,7 +87,7 @@ public class OMEROSender implements Sender{
             groupTags = this.client.getTags();
             imageTags = imageWrapper.getTags(this.client);
         }catch(OMEROServerError | ServiceException | AccessException | ExecutionException e){
-            IJLogger.error("Adding tag","Cannot retrieve existing & linked tags from OMERO");
+            IJLogger.error("Adding tag","Cannot retrieve existing & linked tags from OMERO", e);
             return;
         }
 
@@ -110,7 +110,7 @@ public class OMEROSender implements Sender{
                     IJLogger.info("Adding tag","The tag " + tag + " is already applied on the image " + imageWrapper.getId());
 
             } catch (ServiceException |  AccessException | ExecutionException e) {
-                IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + imageWrapper.getId());
+                IJLogger.error("Adding tag","The tag " + tag + " could not be applied on the image " + imageWrapper.getId(), e);
             }
         }
     }
@@ -128,7 +128,7 @@ public class OMEROSender implements Sender{
             }
             IJLogger.info("Cleaning target", "Tags unlinked");
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
-            IJLogger.error("Cleaning target", "Cannot unlink tags for image "+this.imageWrapper.getId());
+            IJLogger.error("Cleaning target", "Cannot unlink tags for image "+this.imageWrapper.getId(), e);
         }
 
         // delete key-value pairs
@@ -148,7 +148,7 @@ public class OMEROSender implements Sender{
                 IJLogger.info("Cleaning target", "Key-values removed");
             }
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
-            IJLogger.error("Cleaning target", "Cannot delete key-values for image "+this.imageWrapper.getId());
+            IJLogger.error("Cleaning target", "Cannot delete key-values for image "+this.imageWrapper.getId(), e);
         }
 
         // delete tables
@@ -163,7 +163,7 @@ public class OMEROSender implements Sender{
                 IJLogger.info("Cleaning target", "Tables removed");
             }
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
-            IJLogger.error("Cleaning target", "Cannot delete tables for image "+this.imageWrapper.getId());
+            IJLogger.error("Cleaning target", "Cannot delete tables for image "+this.imageWrapper.getId(), e);
         }
 
         // delete ROIs
@@ -183,7 +183,7 @@ public class OMEROSender implements Sender{
 
 
         } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
-            IJLogger.error("Cleaning target", "Cannot delete ROIs for image "+this.imageWrapper.getId());
+            IJLogger.error("Cleaning target", "Cannot delete ROIs for image "+this.imageWrapper.getId(), e);
         }
 
         // delete parent table once
@@ -202,7 +202,7 @@ public class OMEROSender implements Sender{
                     IJLogger.info("Cleaning target", "Parent table removed");
                 }
             } catch (ExecutionException | DSOutOfServiceException | DSAccessException | OMEROServerError | InterruptedException e){
-                IJLogger.error("Cleaning target", "Cannot delete parent tables for image "+this.imageWrapper.getId());
+                IJLogger.error("Cleaning target", "Cannot delete parent tables for image "+this.imageWrapper.getId(), e);
             }
         }
     }
@@ -236,7 +236,7 @@ public class OMEROSender implements Sender{
             sendTags(tags, analysisImage_wpr);
 
         } catch (ServiceException | AccessException | ExecutionException | OMEROServerError e) {
-            IJLogger.error("Sending heatmap", "Cannot upload heat maps on OMERO");
+            IJLogger.error("Sending heatmap", "Cannot upload heat maps on OMERO", e);
         }
 
         // delete the file after upload
@@ -261,7 +261,7 @@ public class OMEROSender implements Sender{
                 this.imageWrapper.link(this.client, newKeyValues);
                 IJLogger.info("Sending Key-values","Key-values have been successfully applied on the image " + imageWrapper.getId());
             } catch (ServiceException | AccessException | ExecutionException e) {
-                IJLogger.error("Sending Key-Values", "Key-values could not be uploaded and linked to the image " + this.imageWrapper.getId());
+                IJLogger.error("Sending Key-Values", "Key-values could not be uploaded and linked to the image " + this.imageWrapper.getId(), e);
             }
         } else IJLogger.warn("Sending Key-Values", "There is no key-values to send to OMERO");
     }
@@ -284,7 +284,7 @@ public class OMEROSender implements Sender{
                 this.imageWrapper.saveROIs(this.client, omeroRois);
                 IJLogger.info("Sending "+roiTitle + " ROIs","The ROIs have been successfully uploaded and linked to the image " + imageWrapper.getId());
             } catch (ExecutionException | DSOutOfServiceException | DSAccessException e){
-                IJLogger.error("Sending "+roiTitle + " ROIs","Error during saving ROIs on OMERO.");
+                IJLogger.error("Sending "+roiTitle + " ROIs","Error during saving ROIs on OMERO.", e);
             }
         } else IJLogger.info("Sending "+roiTitle + " ROIs","There is no Annotations to upload on OMERO");
 
@@ -321,7 +321,7 @@ public class OMEROSender implements Sender{
                 this.imageWrapper.addTable(this.client, tableWrapper);
                 IJLogger.info("Sending PCC table","PCC table has been successfully uploaded and linked to the image " + imageWrapper.getId());
             } catch (DSAccessException | ServiceException | ExecutionException e) {
-                IJLogger.error("Sending PCC table","Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
+                IJLogger.error("Sending PCC table","Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId(), e);
             }
         } else IJLogger.warn("Saving PCC table","No results to save");
     }
@@ -345,7 +345,7 @@ public class OMEROSender implements Sender{
             if(table != null) this.client.deleteTable(table);
             IJLogger.info("Sending "+tableName+" table",tableName+" table has been successfully uploaded and linked to the image " + imageWrapper.getId());
         } catch (DSAccessException | ServiceException | ExecutionException | OMEROServerError | InterruptedException e) {
-            IJLogger.error("Sending "+tableName+" table","Cannot add the "+tableName+" table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
+            IJLogger.error("Sending "+tableName+" table","Cannot add the "+tableName+" table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId(), e);
         }
     }
 
@@ -388,7 +388,7 @@ public class OMEROSender implements Sender{
 
             IJLogger.info("Update parent table","New analysis summaries have been uploaded and linked to dataset " + dataset.getName() + " : " + dataset.getId());
         } catch (DSAccessException | ServiceException | ExecutionException e) {
-            IJLogger.error("Update parent table","Cannot add the summaries to the parent table on dataset " + this.datasetId);
+            IJLogger.error("Update parent table","Cannot add the summaries to the parent table on dataset " + this.datasetId, e);
         }
     }
 
@@ -487,7 +487,7 @@ public class OMEROSender implements Sender{
             repoWrapper.addTable(this.client, tableWrapper);
 
         } catch (DSAccessException | ServiceException | ExecutionException e) {
-            IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId());
+            IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId(), e);
         }
     }
 
@@ -523,9 +523,9 @@ public class OMEROSender implements Sender{
             this.client.deleteTable(tableWrapper);
 
         } catch (ServiceException | AccessException | ExecutionException e) {
-            IJLogger.error("Cannot add results to previous table " + tableWrapper.getName() + " : " + tableWrapper.getId());
+            IJLogger.error("Cannot add results to previous table " + tableWrapper.getName() + " : " + tableWrapper.getId(), e);
         } catch (OMEROServerError | InterruptedException e ){
-            IJLogger.error("Cannot delete previous table " + tableWrapper.getName() + " : " + tableWrapper.getId());
+            IJLogger.error("Cannot delete previous table " + tableWrapper.getName() + " : " + tableWrapper.getId(), e);
         }
     }
 
@@ -618,7 +618,7 @@ public class OMEROSender implements Sender{
             } else
                 return null;
         }catch(ServiceException | AccessException | ExecutionException e){
-            IJLogger.error("Could not get tables attached to " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
+            IJLogger.error("Could not get tables attached to " + repoWrapper.getName()+" ("+repoWrapper.getId()+")", e);
             return null;
         }
     }
@@ -639,7 +639,7 @@ public class OMEROSender implements Sender{
             }
            return null;
         }catch(ExecutionException | DSOutOfServiceException | DSAccessException e){
-            IJLogger.error("Could not get table "+tableName+" attached to " + repoWrapper.getName()+" ("+repoWrapper.getId()+")");
+            IJLogger.error("Could not get table "+tableName+" attached to " + repoWrapper.getName()+" ("+repoWrapper.getId()+")", e);
             return null;
         }
     }

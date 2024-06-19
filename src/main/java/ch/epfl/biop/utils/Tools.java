@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -54,6 +55,10 @@ public class Tools {
                 (localTime.getSecond() < 10 ? "0"+localTime.getSecond():localTime.getSecond());
 
     }
+    public static String getErrorStackTraceAsString(Exception e){
+        return Arrays.stream(e.getStackTrace()).map(StackTraceElement::toString).reduce("",(a, b)->a + "     at "+b+"\n");
+    }
+
 
     /**
      * Create and save a new csv file.
@@ -71,7 +76,7 @@ public class Tools {
                 return true;
             }
         }catch (IOException e){
-            IJLogger.error("Saving csv file", "Error when saving csv in "+file.getAbsolutePath());
+            IJLogger.error("Saving csv file", "Error when saving csv in "+file.getAbsolutePath(), e);
             return false;
         }
     }
@@ -92,7 +97,7 @@ public class Tools {
             }
             return rows;
         }catch (IOException e){
-            IJLogger.error("Reading csv file", "Error when reading csv "+table.getAbsolutePath());
+            IJLogger.error("Reading csv file", "Error when reading csv "+table.getAbsolutePath(), e);
             return Collections.emptyList();
         }
     }
@@ -111,7 +116,7 @@ public class Tools {
                 return true;
             }
         }catch (IOException e){
-            IJLogger.error("Updating csv File", "Error when trying to update csv file in "+file.getAbsolutePath());
+            IJLogger.error("Updating csv File", "Error when trying to update csv file in "+file.getAbsolutePath(), e);
             return false;
         }
     }
@@ -204,7 +209,7 @@ public class Tools {
     private static List<Double> computePCC(List<ImagePlus> impList1, List<ImagePlus> impList2){
         // check lists' length
         if(impList1.size() != impList2.size()) {
-            IJ.log("[ERROR] [computePCC] -- Images lists do not have the same size :  "+impList1.size()+" vs " +impList2.size());
+            IJLogger.error("computePCC","Images lists do not have the same size :  "+impList1.size()+" vs " +impList2.size());
             return new ArrayList<>();
         }
 
@@ -228,7 +233,7 @@ public class Tools {
     private static double computePCC(ImagePlus imp1, ImagePlus imp2){
         // check image dimensions
         if(imp1.getWidth() != imp2.getWidth() || imp1.getHeight() != imp2.getHeight()) {
-            IJ.log("[ERROR] [computePCC] -- Image patches do not have the same dimensions ; w x h : "+imp1.getWidth()+" x " +imp1.getHeight() +" and " + imp2.getWidth()+" x "+imp2.getHeight());
+            IJLogger.error("computePCC","Image patches do not have the same dimensions ; w x h : "+imp1.getWidth()+" x " +imp1.getHeight() +" and " + imp2.getWidth()+" x "+imp2.getHeight());
             return Double.NaN;
         }
 

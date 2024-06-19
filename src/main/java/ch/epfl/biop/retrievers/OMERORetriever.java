@@ -44,14 +44,14 @@ public class OMERORetriever implements Retriever {
         try {
             projectId = Long.parseLong(projectIdString);
         } catch (Exception e){
-            IJLogger.error(projectId +" is not a valid ID for projects. It should be an positive integer.");
+            IJLogger.error(projectId +" is not a valid ID for projects. It should be an positive integer.", e);
         }
 
         if(projectId > 0) {
             try {
                 return client.getProject(projectId).getDatasets().stream().map(DatasetWrapper::getName).sorted().collect(Collectors.toList());
             } catch (AccessException | ServiceException | ExecutionException e) {
-                IJLogger.error("Datasets cannot be listed from project ID " + projectId);
+                IJLogger.error("Datasets cannot be listed from project ID " + projectId, e);
             }
         }else IJLogger.error(projectId +" is not a valid ID for projects. It should be positive.");
 
@@ -75,7 +75,7 @@ public class OMERORetriever implements Retriever {
         try {
             projectId = Long.parseLong(parentTarget);
         } catch (Exception e){
-            IJLogger.error("Load OMERO images", "The project ID '"+parentTarget+"' is not an integer number");
+            IJLogger.error("Load OMERO images", "The project ID '"+parentTarget+"' is not an integer number", e);
             return false;
         }
 
@@ -101,7 +101,7 @@ public class OMERORetriever implements Retriever {
             return false;
 
         } catch(Exception e){
-            IJLogger.error("Load OMERO images","Cannot retrieve images in project "+projectId+", dataset '"+microscopeName+"'");
+            IJLogger.error("Load OMERO images","Cannot retrieve images in project "+projectId+", dataset '"+microscopeName+"'", e);
             return false;
         }
     }
