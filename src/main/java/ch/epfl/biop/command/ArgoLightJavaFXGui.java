@@ -91,7 +91,7 @@ public class ArgoLightJavaFXGui /*implements Command*/{
         }
 
         try {
-            OMERORetriever omeroRetriever = new OMERORetriever(client);
+            OMERORetriever omeroRetriever = new OMERORetriever(client, false);
             omeroRetriever.loadImages(defaultProjectID, microscope, allImages, "ArgoSLG482");
             int nImages = omeroRetriever.getNImages();
 

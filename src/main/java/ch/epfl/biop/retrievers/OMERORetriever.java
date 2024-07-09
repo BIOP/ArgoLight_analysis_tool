@@ -23,38 +23,51 @@ import java.util.stream.Collectors;
  */
 public class OMERORetriever implements Retriever {
     final private Client client;
+    final private boolean isMicAtProjectLevel;
     private Map<String,ImageWrapper> images = new HashMap<>();
     private long datasetId = -1;
     private boolean processAllRawImages = false;
 
-    public OMERORetriever(Client client){
+    public OMERORetriever(Client client, boolean isMicAtProjectLevel){
         this.client = client;
+        this.isMicAtProjectLevel = isMicAtProjectLevel;
     }
 
     /**
      * List the datasets names from the parent project
      *
-     * @param client
-     * @param projectIdString
-     * @return
+     * @param client object that handle the OMERO connection.
+     * @param projectName name of the project to look for
+     * @return list of datasets within the project
      */
-    public static List<String> listMicroscopes(Client client, String projectIdString){
-        long projectId = -1;
+    public static List<String> listDatasets(Client client, String projectName){
+
+        List<ProjectWrapper> projectList = new ArrayList<>();
 
         try {
-            projectId = Long.parseLong(projectIdString);
-        } catch (Exception e){
-            IJLogger.error(projectId +" is not a valid ID for projects. It should be an positive integer.", e);
+            projectList = client.getProjects(projectName);
+        } catch (AccessException | ServiceException | ExecutionException e) {
+            IJLogger.error("Project '"+projectName+"' cannot be found. Please check its name", e);
         }
 
-        if(projectId > 0) {
-            try {
-                return client.getProject(projectId).getDatasets().stream().map(DatasetWrapper::getName).sorted().collect(Collectors.toList());
-            } catch (AccessException | ServiceException | ExecutionException e) {
-                IJLogger.error("Datasets cannot be listed from project ID " + projectId, e);
-            }
-        }else IJLogger.error(projectId +" is not a valid ID for projects. It should be positive.");
+        if(projectList.size() > 0)
+            return projectList.get(0).getDatasets().stream().map(DatasetWrapper::getName).sorted().collect(Collectors.toList());
 
+        return Collections.emptyList();
+    }
+
+    /**
+     * List the projects of the current logged-in user, in its default group
+     *
+     * @param client object that handle the OMERO connection.
+     * @return list of projects
+     */
+    public static List<String> listProjects(Client client){
+        try {
+            return client.getProjects(client.getUser()).stream().map(ProjectWrapper::getName).sorted().collect(Collectors.toList());
+        } catch (AccessException | ServiceException | ExecutionException e) {
+            IJLogger.error("Project cannot be listed from user '" + client.getUser().getUserName() + "' in group' "+client.getUser().getDefaultGroup().getName()+"'", e);
+        }
         return Collections.emptyList();
     }
 
@@ -71,20 +84,32 @@ public class OMERORetriever implements Retriever {
     @Override
     public boolean loadImages(String parentTarget, String microscopeName, boolean processAllRawImages, String argoSlideName) {
         this.processAllRawImages = processAllRawImages;
-        long projectId;
-        try {
-            projectId = Long.parseLong(parentTarget);
-        } catch (Exception e){
-            IJLogger.error("Load OMERO images", "The project ID '"+parentTarget+"' is not an integer number", e);
-            return false;
+        String datasetName;
+        String projectName;
+
+        // set the names
+        if(this.isMicAtProjectLevel){
+            datasetName = parentTarget;
+            projectName = microscopeName;
+        }else{
+            datasetName = microscopeName;
+            projectName = parentTarget;
         }
 
         try {
             // get the ArgoSim project
-            ProjectWrapper projectWrapper = this.client.getProject(projectId);
+            List<ProjectWrapper> projectlist = this.client.getProjects(projectName);
+
+            ProjectWrapper projectWrapper;
+            if(projectlist.size() > 0)
+                projectWrapper = projectlist.get(0);
+            else{
+                IJLogger.error("Load OMERO images","The project '"+projectName+"' doesn't exist on OMERO. Please check its name.");
+                return false;
+            }
 
             // get the specified dataset
-            List<DatasetWrapper> datasetWrapperList = projectWrapper.getDatasets().stream().filter(e -> e.getName().toLowerCase().contains(microscopeName)).collect(Collectors.toList());
+            List<DatasetWrapper> datasetWrapperList = projectWrapper.getDatasets().stream().filter(e -> e.getName().contains(datasetName)).collect(Collectors.toList());
 
             if (datasetWrapperList.size() == 1) {
                 DatasetWrapper datasetWrapper = datasetWrapperList.get(0);
@@ -96,12 +121,12 @@ public class OMERORetriever implements Retriever {
                 return true;
 
             } else if(datasetWrapperList.isEmpty())
-                IJLogger.warn("Load OMERO images","Project "+projectWrapper.getName()+ "("+projectId+") does not contain any dataset with name '"+microscopeName+"'");
-            else IJLogger.warn("Load OMERO images","More than one dataset refer to "+microscopeName+" Please, group these datasets or change their name.");
+                IJLogger.warn("Load OMERO images","Project "+projectWrapper.getName()+ " ("+projectWrapper.getId()+") does not contain any dataset with name '"+datasetName+"'");
+            else IJLogger.warn("Load OMERO images","More than one dataset refer to "+datasetName+" Please, group these datasets or change their name.");
             return false;
 
         } catch(Exception e){
-            IJLogger.error("Load OMERO images","Cannot retrieve images in project "+projectId+", dataset '"+microscopeName+"'", e);
+            IJLogger.error("Load OMERO images","Cannot retrieve images in project "+projectName+", dataset '"+datasetName+"'", e);
             return false;
         }
     }

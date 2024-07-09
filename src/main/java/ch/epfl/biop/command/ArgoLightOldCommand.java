@@ -59,7 +59,7 @@ public class ArgoLightOldCommand /*extends DynamicCommand implements Command*/ {
         }
 
         try{
-            OMERORetriever omeroRetriever = new OMERORetriever(client);
+            OMERORetriever omeroRetriever = new OMERORetriever(client, false);
             omeroRetriever.loadImages(""+argoLightProjectId, microscope, isProcessingAllRawImages, "ArgoSLG482");
             int nImages = omeroRetriever.getNImages();
 
