@@ -21,6 +21,7 @@ import net.imagej.ImageJ;
 import org.scijava.command.Command;
 import org.scijava.plugin.Plugin;
 
+import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
@@ -34,11 +35,14 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JRadioButton;
+import javax.swing.JRootPane;
 import javax.swing.JSeparator;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerModel;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.UIManager;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dialog;
 import java.awt.Font;
@@ -90,6 +94,7 @@ public class ArgoLightCommand implements Command {
     private boolean isDefaultThresholdMethod;
     private boolean isDefaultParticleThresh;
     private boolean isDefaultRingRadius;
+    private boolean startsProcessing = false;
 
     private JDialog mainDialog;
     private JDialog settingsDialog;
@@ -276,6 +281,8 @@ public class ArgoLightCommand implements Command {
         String title = "Metrology with ArgoLight plugin";
         JDialog generalPane = new JDialog();
 
+        JPanel omeroPane = new JPanel();
+
         setDefaultGeneralParams();
         setDefaultArgoParams();
         setDefaultProcessingParams();
@@ -328,6 +335,9 @@ public class ArgoLightCommand implements Command {
         JButton bLivePreview = new JButton("Live preview");
         bLivePreview.setFont(stdFont);
         bLivePreview.setEnabled(false);
+
+        JButton bOk = new JButton("OK");
+        bOk.setFont(stdFont);
 
         // Root folder selection for local retriever
         JLabel labRootFolder  = new JLabel("Root Folder");
@@ -554,6 +564,10 @@ public class ArgoLightCommand implements Command {
             cbMicroscope.removeAllItems();
             omeroMicroscopes.forEach(cbMicroscope::addItem);
             cbMicroscope.setSelectedItem(omeroMicroscopes);
+
+            if(rbOmeroRetriever.isSelected() && !this.client.isConnected())
+                omeroPane.getRootPane().setDefaultButton(bConnectToOmero);
+            else omeroPane.getRootPane().setDefaultButton(bOk);
         });
 
         // Radio button to choose local retriever
@@ -594,6 +608,8 @@ public class ArgoLightCommand implements Command {
             cbMicroscope.removeAllItems();
             localMicroscopes.forEach(cbMicroscope::addItem);
             cbMicroscope.setSelectedItem(localMicroscopes);
+
+            omeroPane.getRootPane().setDefaultButton(bOk);
         });
 
         cbMicroscope.addItemListener(e->{
@@ -659,12 +675,49 @@ public class ArgoLightCommand implements Command {
                     cbMicroscope.removeAllItems();
                     omeroMicroscopes.forEach(cbMicroscope::addItem);
                     cbMicroscope.setSelectedItem(omeroMicroscopes);
+                    bConnectToOmero.setEnabled(false);
 
                     omeroProjects = OMERORetriever.listProjects(this.client);
                     cbProject.removeAllItems();
                     omeroProjects.forEach(cbProject::addItem);
                     cbProject.setSelectedItem(omeroProjects);
+
+                    // change the default button (when pressing enter with the keyboard)
+                    omeroPane.getRootPane().setDefaultButton(bOk);
+                    cbProject.requestFocus();
                 }
+        });
+
+        bOk.addActionListener(e->{
+            startsProcessing = true;
+            mainDialog.dispose();
+
+            char[] password = tfPassword.getPassword();
+
+            String folderName;
+            if(rbOmeroProject.isSelected() && rbOmeroRetriever.isSelected())
+                folderName = (String)cbDataset.getSelectedItem();
+            else folderName = (String)cbProject.getSelectedItem();
+
+            runProcessing(rbOmeroRetriever.isSelected(),
+                    tfUsername.getText(),
+                    password,
+                    folderName,
+                    rbOmeroProject.isSelected(),
+                    tfRootFolder.getText(),
+                    ((String)cbMicroscope.getSelectedItem()),
+                    ((String)cbArgoSlide.getSelectedItem()),
+                    rbOmeroSender.isSelected(),
+                    tfSavingFolder.getText(),
+                    chkSaveHeatMap.isSelected(),
+                    chkAllImages.isSelected(),
+                    chkRemovePreviousRun.isSelected());
+        });
+
+        JButton bCancel = new JButton("Cancel");
+        bCancel.setFont(stdFont);
+        bCancel.addActionListener(e->{
+            mainDialog.dispose();
         });
 
         // build everything together
@@ -672,7 +725,6 @@ public class ArgoLightCommand implements Command {
         constraints.fill = GridBagConstraints.BOTH;
         constraints.insets = new Insets(5,5,5,5);
 
-        JPanel omeroPane = new JPanel();
         int omeroRetrieverRow = 0;
         omeroPane.setLayout(new GridBagLayout());
 
@@ -890,48 +942,50 @@ public class ArgoLightCommand implements Command {
         omeroPane.add(bGeneralSettings, constraints);
 
         constraints.gridx = 1;
-        constraints.gridy = omeroRetrieverRow;
+        constraints.gridy = omeroRetrieverRow++;
         omeroPane.add(bProcessingSettings, constraints);
 
-        JOptionPane pane = new JOptionPane(omeroPane, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null,
-                null, null);
-        mainDialog = pane.createDialog(null, title);
+        JPanel okCancelPane = new JPanel();
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        okCancelPane.add(bOk);
+        constraints.gridy = 1;
+        okCancelPane.add(bCancel);
 
-        pane.selectInitialValue();
+        constraints.gridx = 3;
+        constraints.gridy = omeroRetrieverRow;
+        omeroPane.add(okCancelPane, constraints);
+
+        mainDialog = new JDialog();
+        mainDialog.setModal(true);
+        mainDialog.setTitle(title);
+        mainDialog.getContentPane().setLayout(new BorderLayout());
+        omeroPane.setBorder(BorderFactory.createEmptyBorder(20,20,20,20));
+        mainDialog.getContentPane().add(omeroPane);
         mainDialog.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
+        mainDialog.setResizable(false);
+
+        if (JDialog.isDefaultLookAndFeelDecorated()) {
+            boolean supportsWindowDecorations =
+                    UIManager.getLookAndFeel().getSupportsWindowDecorations();
+            if (supportsWindowDecorations) {
+                mainDialog.setUndecorated(true);
+                mainDialog.getRootPane().setWindowDecorationStyle(JRootPane.PLAIN_DIALOG);
+            }
+        }
+
+        mainDialog.pack();
+        mainDialog.setLocationRelativeTo(null);
+
+        // initiate focus
+        tfUsername.requestFocusInWindow();
+        omeroPane.getRootPane().setDefaultButton(bConnectToOmero);
+
         mainDialog.setVisible(true);
         mainDialog.dispose();
 
-        Object selectedValue = pane.getValue();
-        int opt = JOptionPane.CLOSED_OPTION;
-
-        if(selectedValue instanceof Integer)
-            opt = (Integer) selectedValue;
-
-        // create the general pane
-        if(opt == JOptionPane.OK_OPTION){
-            char[] password = tfPassword.getPassword();
-
-            String folderName;
-            if(rbOmeroProject.isSelected() && rbOmeroRetriever.isSelected())
-                folderName = (String)cbDataset.getSelectedItem();
-            else folderName = (String)cbProject.getSelectedItem();
-
-            runProcessing(rbOmeroRetriever.isSelected(),
-                    tfUsername.getText(),
-                    password,
-                    folderName,
-                    rbOmeroProject.isSelected(),
-                    tfRootFolder.getText(),
-                    ((String)cbMicroscope.getSelectedItem()),
-                    ((String)cbArgoSlide.getSelectedItem()),
-                    rbOmeroSender.isSelected(),
-                    tfSavingFolder.getText(),
-                    chkSaveHeatMap.isSelected(),
-                    chkAllImages.isSelected(),
-                    chkRemovePreviousRun.isSelected());
-        }else{
-            if(this.client.isConnected()) {
+        if(!startsProcessing) {
+            if (this.client.isConnected()) {
                 this.client.disconnect();
                 IJLogger.info("Disconnected from OMERO ");
             }
