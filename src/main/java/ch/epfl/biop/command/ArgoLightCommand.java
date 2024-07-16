@@ -65,7 +65,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * This plugin runs image analysis pipeline on ArgoLight slide, pattern B, to measure the quality of objectives over
@@ -163,8 +162,6 @@ public class ArgoLightCommand implements Command {
      * Handle OMERO connection, run processing on all images and send results back to the initial location
      *
      * @param isOmeroRetriever
-     * @param username
-     * @param password
      * @param rootFolderPath
      * @param microscope
      * @param argoSlide
@@ -174,7 +171,7 @@ public class ArgoLightCommand implements Command {
      * @param allImages
      * @param cleanTargetSelection
      */
-    private void runProcessing(boolean isOmeroRetriever, String username, char[] password, String omeroFolderName, boolean isMicOnProject,
+    private void runProcessing(boolean isOmeroRetriever, String omeroFolderName, boolean isMicOnProject,
                                String rootFolderPath, String microscope, String argoSlide, boolean isOmeroSender, String savingFolderPath,
                                boolean saveHeatMaps, boolean allImages, boolean cleanTargetSelection){
         boolean finalPopupMessage = true;
@@ -208,13 +205,12 @@ public class ArgoLightCommand implements Command {
 
             if(isOmeroRetriever) {
                 // connect to OMERO
-                if(!this.client.isConnected())
-                    if(!connectToOmero(this.client, username, password)) {
-                        password = null;
-                        IJLogger.info("ArgoLight Analysis Tool exited");
-                        return;
-                    }
-                password = null;
+                if(!this.client.isConnected()) {
+                    IJLogger.error("Not connect to OMERO");
+                    IJLogger.info("ArgoLight Analysis Tool exited");
+                    return;
+                }
+
                 retriever = new OMERORetriever(this.client, isMicOnProject);
                 rawTarget = omeroFolderName;
             }
@@ -687,6 +683,7 @@ public class ArgoLightCommand implements Command {
             if(connection_state.equals(CONNECTION_STATE.DISCONNECTED)) {
                 if (!this.client.isConnected())
                     if (connectToOmero(this.client, tfUsername.getText(), tfPassword.getPassword())) {
+                        tfPassword.setText("");
                         omeroMicroscopes = OMERORetriever.listDatasets(this.client, (String) cbProject.getSelectedItem());
                         omeroProjects = OMERORetriever.listProjects(this.client);
                         connection_state = CONNECTION_STATE.CONNECTED;
@@ -700,7 +697,6 @@ public class ArgoLightCommand implements Command {
                     client.disconnect();
                     IJLogger.info("Disconnected from OMERO ");
 
-                    tfPassword.setText("");
                     enableButton = false;
                     connection_state = CONNECTION_STATE.DISCONNECTED;
                     omeroMicroscopes = Collections.emptyList();
@@ -746,8 +742,6 @@ public class ArgoLightCommand implements Command {
             else folderName = (String)cbProject.getSelectedItem();
 
             runProcessing(rbOmeroRetriever.isSelected(),
-                    tfUsername.getText(),
-                    password,
                     folderName,
                     rbOmeroProject.isSelected(),
                     tfRootFolder.getText(),
