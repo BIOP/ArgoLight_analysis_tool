@@ -210,9 +210,11 @@ public class ArgoLightCommand implements Command {
                 // connect to OMERO
                 if(!this.client.isConnected())
                     if(!connectToOmero(this.client, username, password)) {
+                        password = null;
                         IJLogger.info("ArgoLight Analysis Tool exited");
                         return;
                     }
+                password = null;
                 retriever = new OMERORetriever(this.client, isMicOnProject);
                 rawTarget = omeroFolderName;
             }
@@ -698,6 +700,7 @@ public class ArgoLightCommand implements Command {
                     client.disconnect();
                     IJLogger.info("Disconnected from OMERO ");
 
+                    tfPassword.setText("");
                     enableButton = false;
                     connection_state = CONNECTION_STATE.DISCONNECTED;
                     omeroMicroscopes = Collections.emptyList();
