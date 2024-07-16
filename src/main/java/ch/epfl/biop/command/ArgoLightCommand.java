@@ -50,6 +50,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Point;
+import java.awt.event.ItemEvent;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -64,6 +65,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * This plugin runs image analysis pipeline on ArgoLight slide, pattern B, to measure the quality of objectives over
@@ -139,8 +141,20 @@ public class ArgoLightCommand implements Command {
 
     final private Font stdFont = new Font("Calibri", Font.PLAIN, 17);
     final private Font titleFont = new Font("Calibri", Font.BOLD, 22);
+    private enum CONNECTION_STATE{
+        CONNECTED("Disconnect"),
+        DISCONNECTED("Connect");
+
+        private final String name;
+
+        CONNECTION_STATE(String name) {
+            this.name = name;
+        }
+        String getName() { return this.name; }
+    }
 
     final private Client client = new Client();
+    private CONNECTION_STATE connection_state = CONNECTION_STATE.DISCONNECTED;
     private ImagePlus imageForLivePreview = null;
     private double pixelSizeForLivePreview;
 
@@ -166,20 +180,24 @@ public class ArgoLightCommand implements Command {
         boolean finalPopupMessage = true;
         if(!isOmeroRetriever && !new File(rootFolderPath).exists()){
             showWarningMessage("Root folder not accessible", "The root folder "+rootFolderPath+" does not exist");
+            IJLogger.info("ArgoLight Analysis Tool exited");
             return;
         }
         if(!isOmeroSender && !new File(savingFolderPath).exists()){
             showWarningMessage("Saving folder not accessible", "The saving folder "+savingFolderPath+" does not exist");
+            IJLogger.info("ArgoLight Analysis Tool exited");
             return;
         }
         if(argoSlide == null || argoSlide.isEmpty() || argoSlide.equalsIgnoreCase("null")){
             showWarningMessage("No ArgoSlide selected", "You need to create an ArgoSlide first. " +
                     "Click on 'General Settings' and fill 'ArgoSlides' field");
+            IJLogger.info("ArgoLight Analysis Tool exited");
             return;
         }
         if(!argoSlidesParameters.containsKey(argoSlide)){
             showWarningMessage("No ArgoSlide settings", "You need to create settings for '"+argoSlide+"' ArgoSlide. " +
                     "Click on 'Settings' under 'Choose your ArgoSlide' and fill the fields");
+            IJLogger.info("ArgoLight Analysis Tool exited");
             return;
         }
 
@@ -191,8 +209,10 @@ public class ArgoLightCommand implements Command {
             if(isOmeroRetriever) {
                 // connect to OMERO
                 if(!this.client.isConnected())
-                    if(!connectToOmero(this.client, username, password))
+                    if(!connectToOmero(this.client, username, password)) {
+                        IJLogger.info("ArgoLight Analysis Tool exited");
                         return;
+                    }
                 retriever = new OMERORetriever(this.client, isMicOnProject);
                 rawTarget = omeroFolderName;
             }
@@ -329,7 +349,8 @@ public class ArgoLightCommand implements Command {
         JLabel labMicroscopeFolder = new JLabel("Microscopes folder on");
         labMicroscopeFolder.setFont(stdFont);
 
-        JButton bConnectToOmero = new JButton("Connect");
+        connection_state = CONNECTION_STATE.DISCONNECTED;
+        JButton bConnectToOmero = new JButton(connection_state.getName());
         bConnectToOmero.setFont(stdFont);
 
         // button to do live
@@ -360,10 +381,12 @@ public class ArgoLightCommand implements Command {
         cbMicroscope.setEnabled(false);
 
         cbProject.addItemListener(e->{
-            omeroMicroscopes = OMERORetriever.listDatasets(this.client, (String) cbProject.getSelectedItem());
-            cbMicroscope.removeAllItems();
-            omeroMicroscopes.forEach(cbMicroscope::addItem);
-            cbMicroscope.setSelectedItem(omeroProjects);
+            if(e.getStateChange() == ItemEvent.SELECTED) {
+                omeroMicroscopes = OMERORetriever.listDatasets(this.client, (String) cbProject.getSelectedItem());
+                cbMicroscope.removeAllItems();
+                omeroMicroscopes.forEach(cbMicroscope::addItem);
+                cbMicroscope.setSelectedItem(omeroProjects);
+            }
         });
 
         // button to choose root folder
@@ -657,36 +680,55 @@ public class ArgoLightCommand implements Command {
 
         // OMERO connection action
         bConnectToOmero.addActionListener(e->{
-            if(!this.client.isConnected())
-                if(connectToOmero(this.client, tfUsername.getText(), tfPassword.getPassword())){
-                    cbMicroscope.setEnabled(true);
-                    cbArgoSlide.setEnabled(true);
-                    bArgoSlideSettings.setEnabled(true);
-                    bLivePreview.setEnabled(true);
-                    chkSaveHeatMap.setEnabled(true);
-                    chkAllImages.setEnabled(true);
-                    rbOmeroSender.setEnabled(true);
-                    rbLocalSender.setEnabled(true);
-                    tfUsername.setEnabled(false);
-                    tfPassword.setEnabled(false);
-                    cbProject.setEnabled(true);
-                    rbOmeroDataset.setEnabled(true);
-                    rbOmeroProject.setEnabled(true);
-                    omeroMicroscopes = OMERORetriever.listDatasets(this.client, (String)cbProject.getSelectedItem());
-                    cbMicroscope.removeAllItems();
-                    omeroMicroscopes.forEach(cbMicroscope::addItem);
-                    cbMicroscope.setSelectedItem(omeroMicroscopes);
-                    bConnectToOmero.setEnabled(false);
+            boolean enableButton = true;
 
-                    omeroProjects = OMERORetriever.listProjects(this.client);
-                    cbProject.removeAllItems();
-                    omeroProjects.forEach(cbProject::addItem);
-                    cbProject.setSelectedItem(omeroProjects);
+            if(connection_state.equals(CONNECTION_STATE.DISCONNECTED)) {
+                if (!this.client.isConnected())
+                    if (connectToOmero(this.client, tfUsername.getText(), tfPassword.getPassword())) {
+                        omeroMicroscopes = OMERORetriever.listDatasets(this.client, (String) cbProject.getSelectedItem());
+                        omeroProjects = OMERORetriever.listProjects(this.client);
+                        connection_state = CONNECTION_STATE.CONNECTED;
 
-                    // change the default button (when pressing enter with the keyboard)
-                    omeroPane.getRootPane().setDefaultButton(bOk);
-                    cbProject.requestFocus();
+                        // change the default button (when pressing enter with the keyboard)
+                        omeroPane.getRootPane().setDefaultButton(bOk);
+                        cbProject.requestFocus();
+                    }
+            }else{
+                if (this.client.isConnected()) {
+                    client.disconnect();
+                    IJLogger.info("Disconnected from OMERO ");
+
+                    enableButton = false;
+                    connection_state = CONNECTION_STATE.DISCONNECTED;
+                    omeroMicroscopes = Collections.emptyList();
+                    omeroProjects = Collections.emptyList();
+                    omeroPane.getRootPane().setDefaultButton(bConnectToOmero);
+                    bConnectToOmero.requestFocus();
                 }
+            }
+
+            cbMicroscope.setEnabled(enableButton);
+            cbArgoSlide.setEnabled(enableButton);
+            bArgoSlideSettings.setEnabled(enableButton);
+            bLivePreview.setEnabled(enableButton);
+            chkSaveHeatMap.setEnabled(enableButton);
+            chkAllImages.setEnabled(enableButton);
+            rbOmeroSender.setEnabled(enableButton);
+            rbLocalSender.setEnabled(enableButton);
+            tfUsername.setEnabled(!enableButton);
+            tfPassword.setEnabled(!enableButton);
+            cbProject.setEnabled(enableButton);
+            rbOmeroDataset.setEnabled(enableButton);
+            rbOmeroProject.setEnabled(enableButton);
+            bConnectToOmero.setText(connection_state.getName());
+
+            cbMicroscope.removeAllItems();
+            omeroMicroscopes.forEach(cbMicroscope::addItem);
+            cbMicroscope.setSelectedItem(omeroMicroscopes);
+
+            cbProject.removeAllItems();
+            omeroProjects.forEach(cbProject::addItem);
+            cbProject.setSelectedItem(omeroProjects);
         });
 
         bOk.addActionListener(e->{
