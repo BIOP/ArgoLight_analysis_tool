@@ -248,6 +248,7 @@ public class ArgoLightCommand implements Command {
             }
         } catch (Exception e){
             finalPopupMessage = false;
+            IJLogger.error("Unexpected issue occurred", e);
         } finally {
             if(this.client.isConnected()) {
                 this.client.disconnect();

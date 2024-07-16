@@ -151,11 +151,11 @@ public class OMERORetriever implements Retriever {
                 if (!processAllRawImages)
                     return (e.getTags(this.client).stream().noneMatch(t -> (t.getName().equals(Tools.RAW_TAG) || t.getName().equals(Tools.PROCESSED_TAG)))
                             && !(e.getName().contains("[macro image]")) && (e.getName().toLowerCase().contains(argoSlideName.toLowerCase()))
-                            && (e.getName().toLowerCase().contains(microscopeName.toLowerCase())));
+                            && (microscopeName.toLowerCase().contains(e.getName().split("_")[0].toLowerCase())));
                 else
                     return (e.getTags(this.client).stream().noneMatch(t -> t.getName().equals(Tools.PROCESSED_TAG))
                             && !(e.getName().contains("[macro image]")) && (e.getName().toLowerCase().contains(argoSlideName.toLowerCase()))
-                            && (e.getName().toLowerCase().contains(microscopeName.toLowerCase())));
+                            && (microscopeName.toLowerCase().contains(e.getName().split("_")[0].toLowerCase())));
             } catch (ServiceException | AccessException | ExecutionException ex) {
                 throw new RuntimeException(ex);
             }
