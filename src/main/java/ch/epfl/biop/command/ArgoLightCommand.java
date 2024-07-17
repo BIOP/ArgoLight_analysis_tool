@@ -206,7 +206,7 @@ public class ArgoLightCommand implements Command {
             if(isOmeroRetriever) {
                 // connect to OMERO
                 if(!this.client.isConnected()) {
-                    IJLogger.error("Not connect to OMERO");
+                    IJLogger.error("Not connected to OMERO");
                     IJLogger.info("ArgoLight Analysis Tool exited");
                     return;
                 }
