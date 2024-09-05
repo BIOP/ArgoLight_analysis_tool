@@ -50,6 +50,7 @@ import java.util.stream.LongStream;
  */
 public class OMEROSender implements Sender{
     final Client client;
+    final private String ARGOLIGHT_NAMESPACE = "ArgoLight analysis";
     final private String date;
     final private boolean cleanTarget;
     final private String datasetId;
@@ -251,11 +252,12 @@ public class OMEROSender implements Sender{
         IJLogger.info("Sending Key-values");
         if(!keyValues.isEmpty()) {
             List<NamedValue> namedValues = new ArrayList<>();
+            namedValues.add(new NamedValue("Processing date", this.date));
             keyValues.forEach((key, value) -> namedValues.add(new NamedValue(key, value)));
 
             // create a new MapAnnotation
             MapAnnotationWrapper newKeyValues = new MapAnnotationWrapper(namedValues);
-            newKeyValues.setNameSpace("ArgoLight analysis "+this.date); // "openmicroscopy.org/omero/client/mapAnnotation"
+            newKeyValues.setNameSpace(ARGOLIGHT_NAMESPACE);
             try {
                 // upload key-values on OMERO
                 this.imageWrapper.link(this.client, newKeyValues);
