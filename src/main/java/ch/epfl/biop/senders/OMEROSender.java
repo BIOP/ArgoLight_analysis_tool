@@ -6,6 +6,7 @@ import ch.epfl.biop.utils.IJLogger;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.utils.Tools;
 import fr.igred.omero.Client;
+import fr.igred.omero.annotations.FileAnnotationWrapper;
 import fr.igred.omero.annotations.MapAnnotationWrapper;
 import fr.igred.omero.annotations.TableWrapper;
 import fr.igred.omero.annotations.TagAnnotationWrapper;
@@ -133,6 +134,7 @@ public class OMEROSender implements Sender{
         }
 
         // delete key-value pairs
+        // TODO see to what extent it's possible to restrict the fiter to the particular namespace without breaking everything
         try {
             IJLogger.info("Cleaning target", "Removing key-values from image "+this.imageWrapper.getId());
             List<IObject> keyValues = this.client.getMetadata()
@@ -153,6 +155,7 @@ public class OMEROSender implements Sender{
         }
 
         // delete tables
+        // TODO see to what extent it's possible to restrict the fiter to the particular namespace without breaking everything
         try {
             IJLogger.info("Cleaning target", "Removing tables from image "+this.imageWrapper.getId());
             List<TableWrapper> tables = this.imageWrapper.getTables(this.client);
@@ -188,6 +191,7 @@ public class OMEROSender implements Sender{
         }
 
         // delete parent table once
+        // TODO see to what extent it's possible to restrict the fiter to the particular namespace without breaking everything
         if(this.cleanParent){
             this.cleanParent = false;
             try {
@@ -320,9 +324,9 @@ public class OMEROSender implements Sender{
             try {
                 TableWrapper tableWrapper = new TableWrapper(new TableData(columns, measurements));
                 tableWrapper.setName(this.date + "_PCC_table");
-                this.imageWrapper.addTable(this.client, tableWrapper);
+                sendAttachment(this.client, this.imageWrapper, tableWrapper);
                 IJLogger.info("Sending PCC table","PCC table has been successfully uploaded and linked to the image " + imageWrapper.getId());
-            } catch (DSAccessException | ServiceException | ExecutionException e) {
+            } catch (DSOutOfServiceException | DSAccessException | ExecutionException e) {
                 IJLogger.error("Sending PCC table","Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId(), e);
             }
         } else IJLogger.warn("Saving PCC table","No results to save");
@@ -343,10 +347,10 @@ public class OMEROSender implements Sender{
         // send table to OMERO
         try {
             tableWrapper.setName(tableName);
-            this.imageWrapper.addTable(this.client, tableWrapper);
+            sendAttachment(this.client, this.imageWrapper, tableWrapper);
             if(table != null) this.client.deleteTable(table);
             IJLogger.info("Sending "+tableName+" table",tableName+" table has been successfully uploaded and linked to the image " + imageWrapper.getId());
-        } catch (DSAccessException | ServiceException | ExecutionException | OMEROServerError | InterruptedException e) {
+        } catch (DSOutOfServiceException | DSAccessException | ExecutionException | OMEROServerError | InterruptedException e) {
             IJLogger.error("Sending "+tableName+" table","Cannot add the "+tableName+" table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId(), e);
         }
     }
@@ -393,6 +397,32 @@ public class OMEROSender implements Sender{
             IJLogger.error("Update parent table","Cannot add the summaries to the parent table on dataset " + this.datasetId, e);
         }
     }
+
+    /**
+     * Saves the table on OMERO, link it to the right image and assign it the right namespace
+     *
+     * @param client the OMERO client that handles the connection
+     * @param repoWrapper the image on which to link the table
+     * @param tableWrapper the table to link
+     * @throws DSAccessException
+     * @throws DSOutOfServiceException
+     * @throws ExecutionException
+     */
+    private void sendAttachment(Client client, GenericRepositoryObjectWrapper<?> repoWrapper, TableWrapper tableWrapper)
+            throws DSAccessException, DSOutOfServiceException, ExecutionException {
+        repoWrapper.addTable(client, tableWrapper);
+        long fileId = tableWrapper.getFileId();
+        FileAnnotationWrapper originalFile = repoWrapper.getFileAnnotations(client)
+                .stream()
+                .filter(e -> e.getFileID() == fileId)
+                .findFirst()
+                .orElse(null);
+        if(originalFile != null){
+            originalFile.setNameSpace(ARGOLIGHT_NAMESPACE);
+            client.getDm().updateObject(client.getCtx(), originalFile.asDataObject().asIObject(), null);
+        }
+    }
+
 
     /**
      * Create a new OMERO table
@@ -486,9 +516,9 @@ public class OMEROSender implements Sender{
             for (Object[] row : fullRows) tableWrapper.addRow(row);
 
             // add the table to OMERO
-            repoWrapper.addTable(this.client, tableWrapper);
+            sendAttachment(this.client, repoWrapper, tableWrapper);
 
-        } catch (DSAccessException | ServiceException | ExecutionException e) {
+        } catch (DSOutOfServiceException | DSAccessException | ExecutionException e) {
             IJLogger.error("Cannot add the results table to image " + this.imageWrapper.getName() + " : " + this.imageWrapper.getId(), e);
         }
     }
@@ -519,12 +549,12 @@ public class OMEROSender implements Sender{
             newTable.setName(date + "_" + repoWrapper.getName() + "_Table");
 
             // add the new table
-            repoWrapper.addTable(this.client, newTable);
+            sendAttachment(this.client, repoWrapper, newTable);
 
             // delete the previous table
             this.client.deleteTable(tableWrapper);
 
-        } catch (ServiceException | AccessException | ExecutionException e) {
+        } catch (DSOutOfServiceException | DSAccessException | ExecutionException e) {
             IJLogger.error("Cannot add results to previous table " + tableWrapper.getName() + " : " + tableWrapper.getId(), e);
         } catch (OMEROServerError | InterruptedException e ){
             IJLogger.error("Cannot delete previous table " + tableWrapper.getName() + " : " + tableWrapper.getId(), e);
@@ -600,6 +630,7 @@ public class OMEROSender implements Sender{
      * @return
      */
     private static TableWrapper getLastOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper) {
+        // TODO see to what extent it's possible to restrict the filter to the particular namespace without breaking everything
         try {
             // Prepare a Table
             List<TableWrapper> repoTables = repoWrapper.getTables(client);
@@ -634,6 +665,7 @@ public class OMEROSender implements Sender{
      * @return
      */
     private static TableWrapper getOmeroTable(Client client, GenericRepositoryObjectWrapper<?> repoWrapper, String tableName){
+        // TODO see to what extent it's possible to restrict the filter to the particular namespace without breaking everything
         try {
             List<TableWrapper> tableList = repoWrapper.getTables(client).stream().filter(e -> e.getName().contains(tableName)).collect(Collectors.toList());
             if(!tableList.isEmpty()){
