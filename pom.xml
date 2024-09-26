@@ -130,7 +130,7 @@
 		<license.licenseName>gpl_v3</license.licenseName>
 		<license.copyrightOwners>ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP)</license.copyrightOwners>
 
-		<simple-omero-client.version>5.18.0</simple-omero-client.version>
+		<simple-omero-client.version>5.19.0</simple-omero-client.version>
 		<!--<omero-gateway.version>5.9.1</omero-gateway.version>-->
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
