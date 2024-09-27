@@ -174,7 +174,7 @@ public class Tools {
         int targetScaledSize = (int)(heatMapScaledImp.getWidth() * ratio);
 
         // enlarged the target heat map to have a decent image size at the end
-        ImagePlus enlarged_imp = imp.resize(targetScaledSize, targetScaledSize, "none");
+        ImagePlus enlarged_imp = imp.resize(Math.max(targetScaledSize, 1), Math.max(targetScaledSize, 1), "none");
 
         // get pre-computed scaling factors
         double cos = Math.cos(rotation);
