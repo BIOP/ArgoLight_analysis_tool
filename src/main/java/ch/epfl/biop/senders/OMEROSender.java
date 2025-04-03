@@ -543,15 +543,17 @@ public class OMEROSender implements Sender{
             for (Object[] row : fullRows) tableWrapper.addRow(row);
 
             // duplicate the table
-            TableWrapper newTable = new TableWrapper(tableWrapper.createTable());
+            Long tableId = tableWrapper.getId();
+            tableWrapper.setId(-1l);
 
             // set table name (with the new date)
-            newTable.setName(date + "_" + repoWrapper.getName() + "_Table");
+            tableWrapper.setName(date + "_" + repoWrapper.getName() + "_Table");
 
             // add the new table
-            sendAttachment(this.client, repoWrapper, newTable);
+            sendAttachment(this.client, repoWrapper, tableWrapper);
 
             // delete the previous table
+            tableWrapper.setId(tableId);
             this.client.deleteTable(tableWrapper);
 
         } catch (DSOutOfServiceException | DSAccessException | ExecutionException e) {
