@@ -24,7 +24,7 @@ Remarque : the plugin works with [simple-omero-client](https://github.com/GReD-C
   - One image with pixel size = 60 nm, centered on the middle cross, with minimal rotation, to be able to measure the FWHM. It corresponds to the partialFoV image. This image is used to compute FWHM.
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/6cbb1dd5-6b21-41a2-9095-1a71f325886c" width="60%">
+  <img src="resources/ArgoLight_Plugin_Image_Type_Example.png" width="60%">
 </p>
 
 ### For images on OMERO
@@ -32,7 +32,7 @@ Remarque : the plugin works with [simple-omero-client](https://github.com/GReD-C
 - The name of the dataset/project must contain the name of the microscope
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/cf9b01b4-76be-46e4-963a-0efe2554c04b" width="50%">
+  <img src="resources/ArgoLight_Plugin_OMERO_hierarchy_v2.png" width="50%">
 </p>
 
 - Images have to be named according the following structure
@@ -50,7 +50,7 @@ Remarque : the plugin works with [simple-omero-client](https://github.com/GReD-C
 - Your images should be separated according to the microscope used (i.e. one dataset per microscope). All the folders should be located under the same parent folder.
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/068c27ce-e5fe-41a3-b8a5-027f630e1e56" width="50%">
+  <img src="resources/ArgoLight_Plugin_Local_Raw_hierarchy.png" width="50%">
 </p>
 
 
@@ -73,7 +73,7 @@ Remarque : the plugin works with [simple-omero-client](https://github.com/GReD-C
 Launch the plugin by hitting `Plugins -> BIOP -> Argolight analysis tool`
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/92996dc8-bc1f-4bc3-9f68-68194382f14a" width="50%">
+  <img src="resources/ArgoLight_Plugin_Main_Gui_v3.png" width="50%">
 </p>
 
 ### Basic configurations -- To do the first time you use the plugin
@@ -94,7 +94,7 @@ In the csv file, you should have one ArgoSlide by line. If you enter ArgoSlides 
 6. Then, press OK. 
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/950ae675-3259-4f61-b45e-bc8f19805f09" width="50%">
+  <img src="resources/ArgoLight_Plugin_General_Settings_v4.png" width="50%">
 </p>
 
 #### ArgoSlide settings
@@ -108,7 +108,7 @@ In the csv file, you should have one ArgoSlide by line. If you enter ArgoSlides 
 These settings are saved for the selected ArgoSlide. If you have multiple slides, you need to select each slide and apply their respective settings.
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/18dd27a3-1bcf-4c91-a7ca-77061c709b64" width="50%">
+  <img src="resources/ArgoLight_Plugin_ArgoSlide_Settings.png" width="50%">
 </p>
 
 ### Quick start
@@ -138,7 +138,7 @@ If you choose to save results locally, you are asked to provide the parent folde
 4. You can choose, in case you would like to process all images, to remove all results from previous run(s).
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/0ca177bf-2ae4-411f-bc4b-6d1b73af6af9" width="50%">
+  <img src="resources/ArgoLight_Plugin_Output_location_settings.png" width="50%">
 </p>
 
 ### Processing settings
@@ -156,7 +156,7 @@ If you check the `default` box, then hard-coded default parameters are used.
 
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/766e44b8-6fc5-414c-af54-fb0da6defd13" width="40%">
+  <img src="resources/ArgoLight_Plugin_Processing_Settings.png" width="40%">
 </p>
 
 ### Live preview
@@ -168,7 +168,7 @@ A live preview mode enable you to set dynamically the processing parameters and 
 4. Click on `Live preview` button.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/b94d8511-44a8-4d43-8dd1-0c442c1685f2" width="80%">
+  <img src="resources/ArgoLight_Plugin_Live_Preview_1_v3.png" width="80%">
 </p>
 
 5. On the popup, add the OMERO ID of a typical image or the path of the image you want to open
@@ -177,13 +177,13 @@ A live preview mode enable you to set dynamically the processing parameters and 
 7. When satisfied with the results, click on `OK`. The new parameters will be used for the current simulation.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/c54c36b6-c759-4e3a-9c1c-dc827d87f714" width="80%">
+  <img src="resources/ArgoLight_Plugin_Live_Preview_2_v3.png" width="80%">
 </p>
 
 9. Confirm if you want the overwrite default settings by the live settings, or use them in the current simulation or just discard them.
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/a2a1bb4f-c2a3-4f9d-82fb-ed77bb292833" width="50%">
+  <img src="resources/ArgoLight_Plugin_Live_Preview_3.png" width="50%">
 </p>
 
 ## Analysis results
@@ -194,26 +194,26 @@ A live preview mode enable you to set dynamically the processing parameters and 
 - Computed metrics are saved as OMERO.table attach to the image and, if specified, in the form of heat maps.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/0aad7ed6-f9cd-413f-acfc-c42d4fea26e7" width="80%">
+  <img src="resources/ArgoLight_Plugin_OMERO_Results_v3.png" width="80%">
 </p>
 
 - Detected rings, as well as ideal ring positions, are saved as ROIs, grouped by ring type (i.e. ideal or detected).
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/fe9f7ab5-6751-4f28-8829-becb0b106b84" width="80%">
+  <img src="resources/ArgoLight_Plugin_OMERO_ROIs.png" width="80%">
 </p>
 
 - A per-image summary is finally attached to the parent dataset. It groups relevant information that may be used to follow, in time, the different metrics and therefore assess objective quality. Because not all metrics are computed on all images, `-1` replaces the metric value for image on which this metrics is not computed (ex : `-1` for FWHM on all 200nm pixel size images).
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/6d29f95b-e68e-4cd4-97b9-f927b56c34d5" width="80%">
+  <img src="resources/ArgoLight_Plugin_OMERO_Summary_table.png" width="80%">
 </p>
 
 
 In case of local saving, the same outputs are saved in a results folder, with .txt file for the key-value pairs, .csv files for the tables and .zip for ROIs (readable on Fiji).
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/b21ed28d-7840-4381-b073-f8727980449f" width="80%">
+  <img src="resources/ArgoLight_Plugin_Local_Results_v2.png" width="80%">
 </p>
 
 ## Monitor data with OMERO.parade
@@ -223,27 +223,27 @@ OMERO.parade is a plugin of OMERO.web for data mining. Fields coming from an OME
 1. Move your OMERO dataset at the root (i.e. outside any project)
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/add1f4b8-deb2-44b8-a627-d4a69ec141d9" width="40%">
+  <img src="resources/ArgoLight_Plugin_Parade_Move_Dataset.png" width="40%">
 </p>
 
 
 2. Select the dataset and switch to `Parade`
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/856c6dd2-5f70-4418-8ba1-83af24cec082" width="20%">
+  <img src="resources/ArgoLight_Plugin_Parade_Selection.png" width="20%">
 </p>
 
 3. Click on the `graph mode`
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/8e582087-43a2-4c28-bee5-5e4f2ff67f41" width="40%">
+  <img src="resources/ArgoLight_Plugin_Parade_Graph_Mode_Selection.png" width="40%">
 </p>
 
 
 4. Select different metrics to monitor like `Acquisition date`, `field distortion avg`, `field uniformity avg`...
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/7ef28813-fe16-4378-a696-8eafa15a0eec" width="30%">
+  <img src="resources/ArgoLight_Plugin_Parade_Select_Data.png" width="30%">
 </p>
 
 
@@ -252,20 +252,20 @@ OMERO.parade is a plugin of OMERO.web for data mining. Fields coming from an OME
   - For `FWHM` metrics, you must filter images with `partialFoV` tag 
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/80432ed7-b292-448f-ac6c-6b60e7decba0" width="80%">
+  <img src="resources/ArgoLight_Plugin_Parade_Add_Tags.png" width="80%">
 </p>
 
 6. Select `Acquisition date` for the x-axis
 7. Select one metrics for the y-axis.
 
 <p align="center">
-  <img src="https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/a157293e-9b08-44ee-a894-f4b7e8f6b85d" width="70%">
+  <img src="resources/ArgoLight_Plugin_Parade_Graph_Exemple.png" width="70%">
 </p>
 
 
 8. Each dot represent one image. Clicking on one of them highlights the corresponding image on the left tree and displays annotations/metadata attached on the right. This is particularly useful when you deal with outliers.
 
-![ArgoLight_Plugin_Parade_Graph_Image_Selection](https://github.com/BIOP/ArgoLight_analysis_tool/assets/64911638/a842afa0-62ca-47d3-93f1-f41a8c460937)
+![ArgoLight_Plugin_Parade_Graph_Image_Selection](resources/ArgoLight_Plugin_Parade_Graph_Image_Selection.png)
 
 
 
