@@ -134,7 +134,7 @@ public class ArgoLightCommand implements Command {
     final private String ringRadiusKey = "Analyzed ring radius";
 
     final private String folderName = "." + File.separator + "plugins" + File.separator + "BIOP";
-    final private String fileName = "ArgoLight_default_params.csv";
+    final private String generalSettingsFileName = "ArgoLight_default_params.csv";
     final private String processingFileName = "ArgoLight_default_processing_params.csv";
     final private String argoSlideFileName = "ArgoLight_default_argoslide_params.csv";
 
@@ -1189,15 +1189,73 @@ public class ArgoLightCommand implements Command {
             fileChooser.showDialog(generalPane,"Select");
 
             if (fileChooser.getSelectedFile() != null) {
-                File rootFolder = fileChooser.getSelectedFile();
-                if(!rootFolder.exists())
+                File userSelectedFile = fileChooser.getSelectedFile();
+                if(!userSelectedFile.exists())
                     showErrorMessage("No files", "The file you selected does not exist. Please check your path / file");
-                else if(!rootFolder.getAbsolutePath().endsWith(".csv"))
+                else if(!userSelectedFile.getAbsolutePath().endsWith(".csv"))
                     showErrorMessage("Wrong file type", "The file you selected is not a .csv file. Please select a .csv file");
                 else {
-                    List<String> argoslides = parseUserCSV(rootFolder);
-                    String argoslidesList = String.join(",", argoslides);
-                    tfArgoslide.setText(argoslidesList);
+                    Map<String, List<String>> argoSettings = getUserDefinedParams(userSelectedFile);
+                    Map<String, List<String>> tempMap = new HashMap<>();
+                    boolean readyToSave = true;
+
+                    for(String argoSlide : argoSettings.keySet()){
+                        boolean isDefault = false;
+                        int spacing = defaultArgoSpacing;
+                        int fov = defaultArgoFoV;
+                        int nRings = defaultArgoNRings;
+                        List<String> values = argoSettings.get(argoSlide);
+                        if(!values.isEmpty()){
+                            try {
+                                isDefault = Boolean.parseBoolean(values.get(0));
+                            }catch(Exception e1){
+                                IJLogger.error("Cannot parse properly the default argoslide ; default values will be used");
+                                readyToSave = false;
+                            }
+                        }
+                        if(values.size() > 1){
+                            try {
+                                spacing = Integer.parseInt(values.get(1));
+                            }catch(Exception e1){
+                                IJLogger.error("Cannot parse properly the ring spacing ; default values will be used");
+                                readyToSave = false;
+                            }
+                        }
+                        if(values.size() > 2){
+                            try {
+                                fov = Integer.parseInt(values.get(2));
+                            }catch(Exception e1){
+                                IJLogger.error("Cannot parse properly the argoslide fov ; default values will be used");
+                                readyToSave = false;
+                            }
+                        }
+                        if(values.size() > 3){
+                            try {
+                                nRings = Integer.parseInt(values.get(3));
+                            }catch(Exception e1){
+                                IJLogger.error("Cannot parse properly the number of rings ; default values will be used");
+                                readyToSave = false;
+                            }
+                        }
+                        // create a new entry for the current argoSlide with the new parameters
+                        List<String> argoslideParamList = new ArrayList<>();
+                        argoslideParamList.add(String.valueOf(isDefault));
+                        argoslideParamList.add(String.valueOf(spacing));
+                        argoslideParamList.add(String.valueOf(fov));
+                        argoslideParamList.add(String.valueOf(nRings));
+                        tempMap.put(argoSlide, argoslideParamList);
+                    }
+
+                    if(readyToSave) {
+                        String argoSlidesList = String.join(",", argoSettings.keySet());
+                        tfArgoslide.setText(argoSlidesList);
+                        argoSlidesParameters = tempMap;
+                        saveArgoSlideParams();
+                        setDefaultArgoParams();
+                    }else{
+                        showErrorMessage("ArgoSlide settings", "The provided CSV is not correctly formatted. " +
+                                "Please refer to help menu to have a look on how to format the csv file.");
+                    }
                 }
             }
         });
@@ -2134,7 +2192,8 @@ public class ArgoLightCommand implements Command {
      */
     private void setDefaultProcessingParams(){
         // read the csv file for processing settings
-        Map<String, List<String>> defaultParams = getUserDefinedParams(processingFileName);
+        File processingFile = new File(folderName + File.separator + processingFileName);
+        Map<String, List<String>> defaultParams = getUserDefinedParams(processingFile);
 
         // check and set the validity of each metrics
         Double val = checkAndSetValidityOfReadMetric(defaultParams, sigmaKey, defaultSigma, sigmaUpperBound);
@@ -2204,7 +2263,8 @@ public class ArgoLightCommand implements Command {
      */
     private void setDefaultGeneralParams(){
         // read the csv file
-        Map<String, List<String>> defaultParams = getUserDefinedParams(fileName);
+        File generalSettingsFile = new File(folderName + File.separator + generalSettingsFileName);
+        Map<String, List<String>> defaultParams = getUserDefinedParams(generalSettingsFile);
 
         // assign default or read value
         userHost = defaultParams.containsKey(hostKey) ?
@@ -2225,7 +2285,8 @@ public class ArgoLightCommand implements Command {
      */
     private void setDefaultArgoParams(){
         // read the csv file
-        Map<String, List<String>> readArgoSlides = getUserDefinedParams(argoSlideFileName);
+        File argoslideSettingsFile = new File(folderName + File.separator + argoSlideFileName);
+        Map<String, List<String>> readArgoSlides = getUserDefinedParams(argoslideSettingsFile);
         Map<String, List<String>> cleanArgoSlides  = new HashMap<>();
 
         // check all slides
@@ -2304,11 +2365,10 @@ public class ArgoLightCommand implements Command {
 
     /**
      * read the specified csv file
-     * @param fileName
+     * @param file
      * @return a map of read metrics and the values attached to them.
      */
-    private Map<String, List<String>> getUserDefinedParams(String fileName){
-        File file = new File(folderName + File.separator + fileName);
+    private Map<String, List<String>> getUserDefinedParams(File file){
         Map<String, List<String>> default_params = new HashMap<>();
 
         if(!file.exists())
@@ -2319,7 +2379,8 @@ public class ArgoLightCommand implements Command {
             BufferedReader br = new BufferedReader(new FileReader(file));
             String line;
             while ((line = br.readLine()) != null){   //returns a Boolean value
-                String[] items = line.split(",");
+                String cleanLine = line.replaceAll("\ufeff", "").replaceAll("ï»¿", "");
+                String[] items = cleanLine.split(",");
                 List<String> values = new ArrayList<>(Arrays.asList(items).subList(1, items.length));
                 default_params.put(items[0],values);
             }
@@ -2361,29 +2422,6 @@ public class ArgoLightCommand implements Command {
         JOptionPane.showMessageDialog(new JFrame(), content, title, type);
     }
 
-    /**
-     * read the csv file containing a list of microscopes used.
-     * The format should be : one microscope per line
-     *
-     * @param file
-     * @return
-     */
-    private List<String> parseUserCSV(File file){
-        List<String> items = new ArrayList<>();
-        try {
-            //parsing a CSV file into BufferedReader class constructor
-            BufferedReader br = new BufferedReader(new FileReader(file));
-            String line;
-            while ((line = br.readLine()) != null){   //returns a Boolean value
-                items.add(line.replaceAll("\ufeff", "").replaceAll("ï»¿",""));
-            }
-            br.close();
-            return items;
-        } catch (IOException e) {
-            showWarningMessage("CSV parsing","Couldn't parse the csv file. No default microscopes to add");
-            return Collections.emptyList();
-        }
-    }
 
     /**
      * Write a csv file containing all user-defined general parameters
@@ -2401,7 +2439,7 @@ public class ArgoLightCommand implements Command {
             directory.mkdir();
 
         try {
-            File file = new File(directory.getAbsoluteFile() + File.separator + fileName);
+            File file = new File(directory.getAbsoluteFile() + File.separator + generalSettingsFileName);
             // write the file
             BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
             buffer.write(hostKey+","+host + "\n");
@@ -2471,12 +2509,7 @@ public class ArgoLightCommand implements Command {
      */
     private  Map<String, List<String>> saveUserDefinedArgoSlideParams(String argoSlide, int argoSpacing,
                                                                       int argoFov, int argoNRings, boolean isDefault) {
-        File directory = new File(folderName);
-
-        if(!directory.exists())
-            directory.mkdir();
-
-        // create a tmp mao to be able to modify it
+        // create a tmp map to be able to modify it
         Map<String, List<String>> tempMap = new HashMap<>(argoSlidesParameters);
 
         // set all ArgoSlides to NO-DEFAULT in case of setting the current one to default
@@ -2493,24 +2526,38 @@ public class ArgoLightCommand implements Command {
         argoslideParamList.add(String.valueOf(argoFov));
         argoslideParamList.add(String.valueOf(argoNRings));
         tempMap.put(argoSlide, argoslideParamList);
+        argoSlidesParameters = tempMap;
+
+        return saveArgoSlideParams();
+    }
+
+    /**
+     * Write a csv file containing all user-defined ArgoSlides parameters
+     *
+     * @return
+     */
+    private  Map<String, List<String>> saveArgoSlideParams() {
+        File directory = new File(folderName);
+
+        if(!directory.exists())
+            directory.mkdir();
 
         try {
             File file = new File(directory.getAbsoluteFile() + File.separator + argoSlideFileName);
             // write the file
             BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
-            for(String argoSlideKey : tempMap.keySet()){
-                String argoSlideParamCSV = String.join(",", tempMap.get(argoSlideKey));
+            for(String argoSlideKey : argoSlidesParameters.keySet()){
+                String argoSlideParamCSV = String.join(",", argoSlidesParameters.get(argoSlideKey));
                 buffer.write(argoSlideKey+","+ argoSlideParamCSV + "\n");
             }
             // close the file
             buffer.close();
 
         } catch (IOException e) {
-            showWarningMessage("CSV writing","Couldn't write the csv for ArgoSlide '"+argoSlide+"' parameters.");
+            showWarningMessage("CSV writing","Couldn't write the csv for ArgoSlide parameters.");
         }
-        return tempMap;
+        return argoSlidesParameters;
     }
-
 
     public static void main(String... args){
         final ImageJ ij = new ImageJ();
