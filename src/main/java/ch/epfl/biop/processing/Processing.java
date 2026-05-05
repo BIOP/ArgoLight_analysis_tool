@@ -123,8 +123,9 @@ public class Processing {
         Map<String, String> keyValues = imageFile.getKeyValues();
 
         // send PCC table
-        if (imageFile.getNChannels() > 1)
+        if (imageFile.getNChannels() > 1) {
             sender.sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
+        }
 
         List<List<Double>> distortionValues = new ArrayList<>();
         List<List<Double>> uniformityValues = new ArrayList<>();

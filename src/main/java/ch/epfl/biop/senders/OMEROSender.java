@@ -93,19 +93,22 @@ public class OMEROSender implements Sender{
             return;
         }
 
+        // filter unique tags
+        List<String> uniqueTags = tags.stream().distinct().collect(Collectors.toList());
+
         // loop on tags to add
-        for(String tag : tags) {
+        for(String tag : uniqueTags) {
             try {
                 // get the corresponding tag in the list of available tags if exists
                 List<TagAnnotationWrapper> rawTag = groupTags.stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
 
                 // check if the tag is already applied to the current image
-                boolean isTagAlreadyExists = imageTags
+                boolean isTagAlreadyExisting = imageTags
                         .stream()
                         .anyMatch(t -> t.getName().equals(tag));
 
                 // add the tag to the current image if it is not already the case
-                if (!isTagAlreadyExists) {
+                if (!isTagAlreadyExisting) {
                     imageWrapper.link(this.client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
                     IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + imageWrapper.getId());
                 } else

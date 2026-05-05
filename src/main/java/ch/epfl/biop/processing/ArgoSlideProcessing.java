@@ -244,7 +244,8 @@ public class ArgoSlideProcessing {
         roiManager.close();
         IJ.run("Close All", "");
 
-        if(NChannels > 1)
+        if(NChannels > 1) {
             imageFile.computePCC();
+        }
     }
 }
