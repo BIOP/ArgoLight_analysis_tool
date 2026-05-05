@@ -82,7 +82,7 @@ public class ArgoLightCommand implements Command {
     private List<String> localMicroscopes = Collections.emptyList();
     private List<String> userArgoSlides;
     private String defaultArgoSlide;
-    private Map<String, List<String>> argoSlidesParameters = Collections.emptyMap();
+    private final Map<String, List<String>> argoSlidesParameters = new HashMap<>();
     private String userRootFolder;
     private String userSaveFolder;
     private double userSigma;
@@ -1146,7 +1146,7 @@ public class ArgoLightCommand implements Command {
 
             // replace old values
             argoSlidesParameters.clear();
-            argoSlidesParameters = newMap;
+            argoSlidesParameters.putAll(newMap);
         }
     }
 
@@ -1249,8 +1249,9 @@ public class ArgoLightCommand implements Command {
                     if(readyToSave) {
                         String argoSlidesList = String.join(",", argoSettings.keySet());
                         tfArgoslide.setText(argoSlidesList);
-                        argoSlidesParameters = tempMap;
-                        saveArgoSlideParams();
+                        argoSlidesParameters.clear();
+                        argoSlidesParameters.putAll(tempMap);
+                        saveArgoSlideParams(tempMap);
                         setDefaultArgoParams();
                     }else{
                         showErrorMessage("ArgoSlide settings", "The provided CSV is not correctly formatted. " +
@@ -2328,7 +2329,7 @@ public class ArgoLightCommand implements Command {
 
         // replace old parameters
         argoSlidesParameters.clear();
-        argoSlidesParameters = cleanArgoSlides;
+        argoSlidesParameters.putAll(cleanArgoSlides);
     }
 
     /**
@@ -2526,9 +2527,10 @@ public class ArgoLightCommand implements Command {
         argoslideParamList.add(String.valueOf(argoFov));
         argoslideParamList.add(String.valueOf(argoNRings));
         tempMap.put(argoSlide, argoslideParamList);
-        argoSlidesParameters = tempMap;
 
-        return saveArgoSlideParams();
+        saveArgoSlideParams(tempMap);
+
+        return tempMap;
     }
 
     /**
@@ -2536,7 +2538,7 @@ public class ArgoLightCommand implements Command {
      *
      * @return
      */
-    private  Map<String, List<String>> saveArgoSlideParams() {
+    private void saveArgoSlideParams(Map<String, List<String>> argoSlidesParametersMap) {
         File directory = new File(folderName);
 
         if(!directory.exists())
@@ -2546,8 +2548,8 @@ public class ArgoLightCommand implements Command {
             File file = new File(directory.getAbsoluteFile() + File.separator + argoSlideFileName);
             // write the file
             BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
-            for(String argoSlideKey : argoSlidesParameters.keySet()){
-                String argoSlideParamCSV = String.join(",", argoSlidesParameters.get(argoSlideKey));
+            for(String argoSlideKey : argoSlidesParametersMap.keySet()){
+                String argoSlideParamCSV = String.join(",", argoSlidesParametersMap.get(argoSlideKey));
                 buffer.write(argoSlideKey+","+ argoSlideParamCSV + "\n");
             }
             // close the file
@@ -2556,7 +2558,6 @@ public class ArgoLightCommand implements Command {
         } catch (IOException e) {
             showWarningMessage("CSV writing","Couldn't write the csv for ArgoSlide parameters.");
         }
-        return argoSlidesParameters;
     }
 
     public static void main(String... args){
