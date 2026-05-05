@@ -691,6 +691,8 @@ public class ArgoLightCommand implements Command {
                         // change the default button (when pressing enter with the keyboard)
                         omeroPane.getRootPane().setDefaultButton(bOk);
                         cbProject.requestFocus();
+                    }else{
+                        return;
                     }
             }else{
                 if (this.client.isConnected()) {
