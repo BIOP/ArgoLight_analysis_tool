@@ -117,7 +117,7 @@ public class ArgoSlideProcessing {
 
             // extract the current channel
             ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + c, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
-            imp.setPosition(c+1,1,1);
+            imp.setPosition(c+1,(int)((imp.getNSlices() + 1)/2),(int)((imp.getNFrames() + 1)/2));
             channel.setProcessor(imp.getProcessor());
             channel.show();
 
