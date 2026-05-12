@@ -30,6 +30,8 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -209,6 +211,26 @@ public class LocalSender implements Sender{
     @Override
     public void sendResultsTable(List<List<Double>> values, List<Integer> channelIdList, boolean createNewTable, String tableName){
         IJLogger.info("Sending "+tableName+" table");
+
+        // Make sure that the different columns have the same number of rows i.e. all channels properly detected
+        // If it's not the case, each column with nRows < nMaxRow will have -1 instead
+        SortedSet<Integer> sizes = new TreeSet<>();
+        for(List<Double> val: values){
+            sizes.add(val.size());
+        }
+
+        if(sizes.size() > 1){
+            int maxSize = sizes.last();
+            for(List<Double> val: values){
+                if(val.size() != maxSize){
+                    val.clear();
+                    for(int i = 0; i< maxSize;i++){
+                        val.add(-1d);
+                    }
+                }
+            }
+        }
+
         String text = createNewTable(values, channelIdList);
 
         File file = new File(this.imageFolder + File.separator + tableName + "_" + Tools.PARENT_TABLE_SUFFIX + ".csv");
