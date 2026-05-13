@@ -18,7 +18,6 @@ import loci.formats.FormatException;
 import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
 import net.imagej.ImageJ;
-import omero.gateway.exception.DSAccessException;
 import org.scijava.Cancelable;
 import org.scijava.command.Command;
 import org.scijava.plugin.Parameter;
