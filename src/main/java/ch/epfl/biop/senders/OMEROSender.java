@@ -42,6 +42,8 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -93,19 +95,22 @@ public class OMEROSender implements Sender{
             return;
         }
 
+        // filter unique tags
+        List<String> uniqueTags = tags.stream().distinct().collect(Collectors.toList());
+
         // loop on tags to add
-        for(String tag : tags) {
+        for(String tag : uniqueTags) {
             try {
                 // get the corresponding tag in the list of available tags if exists
                 List<TagAnnotationWrapper> rawTag = groupTags.stream().filter(t -> t.getName().equals(tag)).collect(Collectors.toList());
 
                 // check if the tag is already applied to the current image
-                boolean isTagAlreadyExists = imageTags
+                boolean isTagAlreadyExisting = imageTags
                         .stream()
                         .anyMatch(t -> t.getName().equals(tag));
 
                 // add the tag to the current image if it is not already the case
-                if (!isTagAlreadyExists) {
+                if (!isTagAlreadyExisting) {
                     imageWrapper.link(this.client, rawTag.isEmpty() ? new TagAnnotationWrapper(new TagAnnotationData(tag)) : rawTag.get(0));
                     IJLogger.info("Adding tag","The tag " + tag + " has been successfully applied on the image " + imageWrapper.getId());
                 } else
@@ -339,6 +344,27 @@ public class OMEROSender implements Sender{
         // get the last OMERO table
         TableWrapper table = getOmeroTable(this.client, this.imageWrapper, tableName);
 
+        // Make sure that the different columns have the same number of rows i.e. all channels properly detected
+        // If it's not the case, each column with nRows < nMaxRow will have -1 instead
+        SortedSet<Integer> sizes = new TreeSet<>();
+        for(List<Double> val: values){
+            sizes.add(val.size());
+        }
+
+        if(sizes.size() > 1){
+            IJLogger.warn("Not all rings have been detected on all the channels. Only measurements for channels " +
+                    "with all rings detected will be sent.");
+            int maxSize = sizes.last();
+            for(List<Double> val: values){
+               if(val.size() != maxSize){
+                   val.clear();
+                   for(int i = 0; i< maxSize; i++){
+                       val.add(-1d);
+                   }
+               }
+            }
+        }
+
         // populate existing table or create a new one
         if(!createNewTable && table != null)
             tableWrapper = addNewColumnsToTable(table, values, channelIdList, this.date);
@@ -436,7 +462,7 @@ public class OMEROSender implements Sender{
         List<List<Object>> measurements = new ArrayList<>();
         int i = 0;
 
-        if(values.size() > 0) {
+        if(!values.isEmpty()) {
             // add the first column with the image data (linkable on OMERO)
             columns.add(new TableDataColumn("Image ID", i++, ImageData.class));
             List<Object> imageData = new ArrayList<>();

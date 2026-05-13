@@ -1,5 +1,6 @@
 package ch.epfl.biop.processing;
 
+import ch.epfl.biop.command.ArgoLightCommand;
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.utils.IJLogger;
@@ -66,7 +67,8 @@ public class ArgoSlideProcessing {
      * @param argoNPoints number of rings in the same line
      */
     public static void run(ImageFile imageFile, double userSigma, double userMedianRadius, String userThresholdingMethod,
-                           double userParticleThreshold, double userRingRadius, String argoSlide, int argoSpacing, int argoFOV, int argoNPoints){
+                           double userParticleThreshold, double userRingRadius, String argoSlide, int argoSpacing,
+                           int argoFOV, int argoNPoints, ArgoLightCommand argoLightCommand){
 
         final ImagePlus imp = imageFile.getImage();
         // pixel size of the image
@@ -107,19 +109,22 @@ public class ArgoSlideProcessing {
         IJLogger.info("Detection parameters","Particle threshold : "+particleThreshold + " pix");
 
         RoiManager roiManager = RoiManager.getRoiManager();
+        argoLightCommand.checkCanceled();
 
         for(int c = 0; c < NChannels; c++){
             // reset all windows
             IJ.run("Close All", "");
             roiManager.reset();
+            argoLightCommand.checkCanceled();
 
             ImageChannel imageChannel = new ImageChannel(c, imp.getWidth(), imp.getHeight(), pixelSizeImage);
 
             // extract the current channel
             ImagePlus channel = IJ.createHyperStack(imp.getTitle() + "_ch" + c, imp.getWidth(), imp.getHeight(), 1, 1, 1, imp.getBitDepth());
-            imp.setPosition(c+1,1,1);
+            imp.setPosition(c+1,(int)((imp.getNSlices() + 1)/2),(int)((imp.getNFrames() + 1)/2));
             channel.setProcessor(imp.getProcessor());
             channel.show();
+            argoLightCommand.checkCanceled();
 
             // get the central cross
             Roi crossRoi = Processing.getCentralCross(channel, roiManager, pixelSizeImage, userThresholdingMethod, argoFOV);
@@ -131,6 +136,7 @@ public class ArgoSlideProcessing {
 
             imageChannel.setCenterCross(crossRoi);
             IJLogger.info("Channel "+c,"Cross = " +crossRoi);
+            argoLightCommand.checkCanceled();
 
             // add the cross ROI on the image
             roiManager.addRoi(crossRoi);
@@ -144,6 +150,7 @@ public class ArgoSlideProcessing {
                         "Cannot compute metrics");
                 throw new RuntimeException();
             }
+            argoLightCommand.checkCanceled();
 
             // display all points (grid and ideal)
             roiManager.reset();
@@ -178,6 +185,7 @@ public class ArgoSlideProcessing {
 
                 imageChannel.setRotationAngle(rotationAngle);
                 IJLogger.info("Channel "+c,"Rotation angle theta = "+rotationAngle*180/Math.PI + "°");
+                argoLightCommand.checkCanceled();
 
                 // create grid point ROIs
                 gridPoints.forEach(pR-> {roiManager.addRoi(new OvalRoi((pR.getX()-4*ovalRadius+0.5), pR.getY()-4*ovalRadius+0.5, 8*ovalRadius, 8*ovalRadius));});
@@ -188,6 +196,7 @@ public class ArgoSlideProcessing {
 
                 // sort the computed grid points according to ideal grid order
                 gridPoints = Processing.sortFromReference(Arrays.asList(roiManager.getRoisAsArray()), idealGridPoints);
+                argoLightCommand.checkCanceled();
 
                 // display all points (grid and ideal)
                 roiManager.reset();
@@ -208,15 +217,20 @@ public class ArgoSlideProcessing {
                 }
                 idealGridPointsRoi.forEach(roiManager::addRoi);
                 imageChannel.addIdealRings(idealGridPointsRoi);
+                argoLightCommand.checkCanceled();
 
                 // compute metrics
+                argoLightCommand.checkCanceled();
                 imageChannel.addFieldDistortion(Processing.computeFieldDistortion(gridPoints, idealGridPoints, pixelSizeImage));
-                imageChannel.addFieldUniformity(Processing.computeFieldUniformity(gridPoints, channel,ovalRadius));
+                argoLightCommand.checkCanceled();
+                imageChannel.addFieldUniformity(Processing.computeFieldUniformity(gridPoints, channel, ovalRadius));
                 // add tags to the image
                 imageFile.addTags(Tools.FIELD_DISTORTION_TAG, Tools.FIELD_UNIFORMITY_TAG);
+                argoLightCommand.checkCanceled();
             }
             if(!imageFile.getImagedFoV().equals(Tools.FULL_FOV)){
                 roiManager.reset();
+                argoLightCommand.checkCanceled();
 
                 List<Roi> fwhmGridPointsRoiList = new ArrayList<>();
                 // create grid point ROIs
@@ -228,6 +242,7 @@ public class ArgoSlideProcessing {
                     fwhmGridPointsRoiList.add(roi);
                 }
 
+                argoLightCommand.checkCanceled();
                 // save ROIs
                 imageChannel.addGridRings(fwhmGridPointsRoiList);
                 // add grid point centers
@@ -236,6 +251,8 @@ public class ArgoSlideProcessing {
                 imageChannel.addFWHM(Processing.computeFWHM(smallerGrid, channel, lineLength, pixelSizeImage));
                 // add tag to image
                 imageFile.addTags(Tools.FWHM_TAG);
+
+                argoLightCommand.checkCanceled();
             }
             roiManager.runCommand(channel,"Show All without labels");
             imageFile.addChannel(imageChannel);
@@ -243,8 +260,11 @@ public class ArgoSlideProcessing {
         roiManager.reset();
         roiManager.close();
         IJ.run("Close All", "");
+        argoLightCommand.checkCanceled();
 
-        if(NChannels > 1)
+        if(NChannels > 1) {
             imageFile.computePCC();
+        }
+        argoLightCommand.checkCanceled();
     }
 }
