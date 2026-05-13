@@ -220,11 +220,13 @@ public class LocalSender implements Sender{
         }
 
         if(sizes.size() > 1){
+            IJLogger.warn("Not all rings have been detected on all the channels. Only measurements for channels " +
+                    "with all rings detected will be sent.");
             int maxSize = sizes.last();
             for(List<Double> val: values){
                 if(val.size() != maxSize){
                     val.clear();
-                    for(int i = 0; i< maxSize;i++){
+                    for(int i = 0; i< maxSize; i++){
                         val.add(-1d);
                     }
                 }

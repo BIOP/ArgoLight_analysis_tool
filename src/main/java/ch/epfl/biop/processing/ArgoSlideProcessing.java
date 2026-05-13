@@ -211,7 +211,7 @@ public class ArgoSlideProcessing {
 
                 // compute metrics
                 imageChannel.addFieldDistortion(Processing.computeFieldDistortion(gridPoints, idealGridPoints, pixelSizeImage));
-                imageChannel.addFieldUniformity(Processing.computeFieldUniformity(gridPoints, channel,ovalRadius));
+                imageChannel.addFieldUniformity(Processing.computeFieldUniformity(gridPoints, channel, ovalRadius));
                 // add tags to the image
                 imageFile.addTags(Tools.FIELD_DISTORTION_TAG, Tools.FIELD_UNIFORMITY_TAG);
             }

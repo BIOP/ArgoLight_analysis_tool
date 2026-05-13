@@ -18,30 +18,13 @@ import loci.formats.FormatException;
 import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
 import net.imagej.ImageJ;
+import omero.gateway.exception.DSAccessException;
 import org.scijava.command.Command;
+import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
+import org.scijava.thread.ThreadService;
 
-import javax.swing.BorderFactory;
-import javax.swing.ButtonGroup;
-import javax.swing.DefaultComboBoxModel;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JDialog;
-import javax.swing.JFileChooser;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JRadioButton;
-import javax.swing.JRootPane;
-import javax.swing.JSeparator;
-import javax.swing.JSpinner;
-import javax.swing.JTextField;
-import javax.swing.SpinnerModel;
-import javax.swing.SpinnerNumberModel;
-import javax.swing.UIManager;
+import javax.swing.*;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dialog;
@@ -74,6 +57,10 @@ import java.util.Map;
  */
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
 public class ArgoLightCommand implements Command {
+
+    @Parameter
+    private ThreadService threadService;
+
     private String userHost;
     private String userPort;
     private List<String> omeroMicroscopes = Collections.emptyList();
@@ -95,7 +82,6 @@ public class ArgoLightCommand implements Command {
     private boolean isDefaultThresholdMethod;
     private boolean isDefaultParticleThresh;
     private boolean isDefaultRingRadius;
-    private boolean startsProcessing = false;
 
     private JDialog mainDialog;
     private JDialog settingsDialog;
@@ -267,13 +253,7 @@ public class ArgoLightCommand implements Command {
         } catch (Exception e){
             finalPopupMessage = false;
             IJLogger.error("Unexpected issue occurred", e);
-        } finally {
-            if(this.client.isConnected()) {
-                this.client.disconnect();
-                IJLogger.info("Disconnected from OMERO ");
-            }
         }
-        IJLogger.info("ArgoLight Analysis Tool exited");
 
         if(finalPopupMessage) {
             showInfoMessage("Processing Done", "All images have been analyzed and results saved");
@@ -733,33 +713,81 @@ public class ArgoLightCommand implements Command {
         });
 
         bOk.addActionListener(e->{
-            startsProcessing = true;
-            mainDialog.dispose();
-
-            char[] password = tfPassword.getPassword();
+            // freeze UI
+            cbMicroscope.setEnabled(false);
+            cbArgoSlide.setEnabled(false);
+            bArgoSlideSettings.setEnabled(false);
+            bLivePreview.setEnabled(false);
+            chkSaveHeatMap.setEnabled(false);
+            chkAllImages.setEnabled(false);
+            rbOmeroSender.setEnabled(false);
+            rbLocalSender.setEnabled(false);
+            rbOmeroRetriever.setEnabled(false);
+            rbLocalRetriever.setEnabled(false);
+            cbProject.setEnabled(false);
+            rbOmeroDataset.setEnabled(false);
+            rbOmeroProject.setEnabled(false);
+            bGeneralSettings.setEnabled(false);
+            bProcessingSettings.setEnabled(false);
+            bConnectToOmero.setEnabled(false);
+            bOk.setEnabled(false);
 
             String folderName;
             if(rbOmeroProject.isSelected() && rbOmeroRetriever.isSelected())
                 folderName = (String)cbDataset.getSelectedItem();
             else folderName = (String)cbProject.getSelectedItem();
 
-            runProcessing(rbOmeroRetriever.isSelected(),
-                    folderName,
-                    rbOmeroProject.isSelected(),
-                    tfRootFolder.getText(),
-                    ((String)cbMicroscope.getSelectedItem()),
-                    ((String)cbArgoSlide.getSelectedItem()),
-                    rbOmeroSender.isSelected(),
-                    tfSavingFolder.getText(),
-                    chkSaveHeatMap.isSelected(),
-                    chkAllImages.isSelected(),
-                    chkRemovePreviousRun.isSelected());
+
+            // send processing in another thread to get the Logs in the log window
+            threadService.run(() -> {
+                try {
+                    runProcessing(rbOmeroRetriever.isSelected(),
+                            folderName,
+                            rbOmeroProject.isSelected(),
+                            tfRootFolder.getText(),
+                            ((String) cbMicroscope.getSelectedItem()),
+                            ((String) cbArgoSlide.getSelectedItem()),
+                            rbOmeroSender.isSelected(),
+                            tfSavingFolder.getText(),
+                            chkSaveHeatMap.isSelected(),
+                            chkAllImages.isSelected(),
+                            chkRemovePreviousRun.isSelected());
+                }catch (Exception e1){
+                    IJLogger.error("Issue during processing", e1);
+                }
+
+                // release UI
+                SwingUtilities.invokeLater(() -> {
+                    cbMicroscope.setEnabled(true);
+                    cbArgoSlide.setEnabled(true);
+                    bArgoSlideSettings.setEnabled(true);
+                    bLivePreview.setEnabled(true);
+                    chkSaveHeatMap.setEnabled(true);
+                    chkAllImages.setEnabled(true);
+                    rbOmeroSender.setEnabled(true);
+                    rbLocalSender.setEnabled(true);
+                    rbOmeroRetriever.setEnabled(true);
+                    rbLocalRetriever.setEnabled(true);
+                    cbProject.setEnabled(true);
+                    rbOmeroDataset.setEnabled(true);
+                    rbOmeroProject.setEnabled(true);
+                    bGeneralSettings.setEnabled(true);
+                    bProcessingSettings.setEnabled(true);
+                    bConnectToOmero.setEnabled(true);
+                    bOk.setEnabled(true);
+                });
+            });
         });
 
         JButton bCancel = new JButton("Cancel");
         bCancel.setFont(stdFont);
         bCancel.addActionListener(e->{
             mainDialog.dispose();
+            if(this.client.isConnected()) {
+                this.client.disconnect();
+                IJLogger.info("Disconnected from OMERO ");
+            }
+            IJLogger.info("ArgoLight Analysis Tool exited");
         });
 
         // build everything together
@@ -1005,7 +1033,7 @@ public class ArgoLightCommand implements Command {
         omeroPane.setBorder(BorderFactory.createEmptyBorder(20,20,20,20));
         mainDialog.getContentPane().add(omeroPane);
         mainDialog.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
-        mainDialog.setResizable(false);
+        mainDialog.setResizable(true);
 
         if (JDialog.isDefaultLookAndFeelDecorated()) {
             boolean supportsWindowDecorations =
@@ -1026,13 +1054,11 @@ public class ArgoLightCommand implements Command {
         mainDialog.setVisible(true);
         mainDialog.dispose();
 
-        if(!startsProcessing) {
-            if (this.client.isConnected()) {
-                this.client.disconnect();
-                IJLogger.info("Disconnected from OMERO ");
-            }
-            IJLogger.info("ArgoLight Analysis Tool exited");
+        if (this.client.isConnected()) {
+            this.client.disconnect();
+            IJLogger.info("Disconnected from OMERO ");
         }
+        IJLogger.info("ArgoLight Analysis Tool exited");
     }
 
 
