@@ -19,6 +19,7 @@ import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
 import net.imagej.ImageJ;
 import omero.gateway.exception.DSAccessException;
+import org.scijava.Cancelable;
 import org.scijava.command.Command;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
@@ -48,6 +49,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This plugin runs image analysis pipeline on ArgoLight slide, pattern B, to measure the quality of objectives over
@@ -56,10 +60,14 @@ import java.util.Map;
  * or locally.
  */
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
-public class ArgoLightCommand implements Command {
+public class ArgoLightCommand implements Command, Cancelable {
 
     @Parameter
     private ThreadService threadService;
+    private final AtomicBoolean canceled = new AtomicBoolean(false);
+    private String cancelReason;
+    private Future<?> processingFuture;
+
 
     private String userHost;
     private String userPort;
@@ -126,6 +134,7 @@ public class ArgoLightCommand implements Command {
 
     final private Font stdFont = new Font("Calibri", Font.PLAIN, 17);
     final private Font titleFont = new Font("Calibri", Font.BOLD, 22);
+
     private enum CONNECTION_STATE{
         CONNECTED("Disconnect"),
         DISCONNECTED("Connect");
@@ -224,7 +233,8 @@ public class ArgoLightCommand implements Command {
                 List<String> argoParams = argoSlidesParameters.get(argoSlide);
 
                 // run analysis
-                if (nImages > 0)
+                if (nImages > 0) {
+                    checkCanceled();
                     Processing.run(retriever, saveHeatMaps, sender,
                             isDefaultSigma ? defaultSigma : userSigma,
                             isDefaultMedianRadius ? defaultMedianRadius : userMedianRadius,
@@ -234,8 +244,9 @@ public class ArgoLightCommand implements Command {
                             argoSlide,
                             Integer.parseInt(argoParams.get(argoSpacingPos)),
                             Integer.parseInt(argoParams.get(argoFoVPos)),
-                            Integer.parseInt(argoParams.get(argoNRingsPos)));
-                else {
+                            Integer.parseInt(argoParams.get(argoNRingsPos)),
+                            ArgoLightCommand.this);
+                } else {
                     IJLogger.warn("Parent container : "+rawTarget + ", microscope " + microscope + " does not contain any images");
                     showWarningMessage("No Images", "<html> Parent container : "+rawTarget + ", microscope '" + microscope + "', does not contain any images." +
                             "<p>" +
@@ -272,6 +283,32 @@ public class ArgoLightCommand implements Command {
         }
     }
 
+    @Override
+    public boolean isCanceled() {
+        return canceled.get();
+    }
+
+    @Override
+    public void cancel(String reason) {
+        this.cancelReason = reason;
+        this.canceled.set(true);
+
+        if (processingFuture != null) {
+            processingFuture.cancel(true);
+        }
+        IJLogger.warn("Processing cancelled: " + reason);
+    }
+
+    @Override
+    public String getCancelReason() {
+        return cancelReason;
+    }
+
+    public void checkCanceled() {
+        if (canceled.get()) {
+            throw new CancellationException(cancelReason);
+        }
+    }
 
     /**
      * build the main user interface
@@ -712,6 +749,21 @@ public class ArgoLightCommand implements Command {
             cbProject.setSelectedItem(omeroProjects);
         });
 
+        JButton bCancel = new JButton("Cancel");
+        bCancel.setFont(stdFont);
+        bCancel.addActionListener(e->{
+            if(bCancel.getText().equals("Cancel")) {
+                mainDialog.dispose();
+                if (this.client.isConnected()) {
+                    this.client.disconnect();
+                    IJLogger.info("Disconnected from OMERO ");
+                }
+                IJLogger.info("ArgoLight Analysis Tool exited");
+            }else{
+                cancel("Aborted by user !");
+            }
+        });
+
         bOk.addActionListener(e->{
             // freeze UI
             cbMicroscope.setEnabled(false);
@@ -731,6 +783,7 @@ public class ArgoLightCommand implements Command {
             bProcessingSettings.setEnabled(false);
             bConnectToOmero.setEnabled(false);
             bOk.setEnabled(false);
+            bCancel.setText("Abort");
 
             String folderName;
             if(rbOmeroProject.isSelected() && rbOmeroRetriever.isSelected())
@@ -739,7 +792,8 @@ public class ArgoLightCommand implements Command {
 
 
             // send processing in another thread to get the Logs in the log window
-            threadService.run(() -> {
+            processingFuture = threadService.run(() -> {
+                canceled.set(false);
                 try {
                     runProcessing(rbOmeroRetriever.isSelected(),
                             folderName,
@@ -752,8 +806,8 @@ public class ArgoLightCommand implements Command {
                             chkSaveHeatMap.isSelected(),
                             chkAllImages.isSelected(),
                             chkRemovePreviousRun.isSelected());
-                }catch (Exception e1){
-                    IJLogger.error("Issue during processing", e1);
+                } catch (CancellationException e1) {
+                    IJLogger.warn("Processing stopped by user.");
                 }
 
                 // release UI
@@ -775,19 +829,9 @@ public class ArgoLightCommand implements Command {
                     bProcessingSettings.setEnabled(true);
                     bConnectToOmero.setEnabled(true);
                     bOk.setEnabled(true);
+                    bCancel.setText("Cancel");
                 });
             });
-        });
-
-        JButton bCancel = new JButton("Cancel");
-        bCancel.setFont(stdFont);
-        bCancel.addActionListener(e->{
-            mainDialog.dispose();
-            if(this.client.isConnected()) {
-                this.client.disconnect();
-                IJLogger.info("Disconnected from OMERO ");
-            }
-            IJLogger.info("ArgoLight Analysis Tool exited");
         });
 
         // build everything together
