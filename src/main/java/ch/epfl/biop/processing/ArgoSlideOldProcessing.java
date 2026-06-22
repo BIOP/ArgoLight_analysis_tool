@@ -1,5 +1,6 @@
 package ch.epfl.biop.processing;
 
+import ch.epfl.biop.command.ArgoLightCommand;
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.utils.IJLogger;
@@ -31,7 +32,7 @@ public class ArgoSlideOldProcessing {
     final private static int argoNPoints = 21; // on each row/column
     final private static String thresholdingMethod = "Huang dark";
 
-    public static void run(ImageFile imageFile){
+    public static void run(ImageFile imageFile, ArgoLightCommand argoLightCommand){
         ImagePlus imp = imageFile.getImage();
         // pixel size of the image
         final double pixelSizeImage = imp.getCalibration().pixelWidth;
@@ -52,6 +53,7 @@ public class ArgoSlideOldProcessing {
         imageFile.addKeyValue("thresholding_method", thresholdingMethod);
 
         RoiManager roiManager = new RoiManager();
+        argoLightCommand.checkCanceled();
 
         for(int c = 0; c < NChannels; c++){
             // reset all windows
@@ -65,6 +67,7 @@ public class ArgoSlideOldProcessing {
             imp.setPosition(c+1,1,1);
             channel.setProcessor(imp.getProcessor());
             channel.show();
+            argoLightCommand.checkCanceled();
 
             // get the central cross
             Roi crossRoi = getCentralCross(channel, roiManager, pixelSizeImage);
@@ -74,6 +77,7 @@ public class ArgoSlideOldProcessing {
             // add the cross ROI on the image
             roiManager.addRoi(crossRoi);
             channel.setRoi(crossRoi);
+            argoLightCommand.checkCanceled();
 
             double sigma = 0.14 * argoSpacing / (pixelSizeImage * Math.sqrt(2));
             List<Point2D> gridPoints = getGridPoint2(channel, crossRoi, pixelSizeImage, sigma);
@@ -97,6 +101,7 @@ public class ArgoSlideOldProcessing {
             double rotationAngle = getRotationAngle(gridPoints, crossRoi);
             imageChannel.setRotationAngle(rotationAngle*180/Math.PI);
             IJLogger.info("Channel "+c,"Rotation angle theta = "+rotationAngle*180/Math.PI + "°");
+            argoLightCommand.checkCanceled();
 
             // get the ideal grid
             List<Point2D> idealGridPoints = getIdealGridPoints(crossRoi, (int)Math.sqrt(gridPoints.size() + 1), xStepAvg, yStepAvg, rotationAngle);
@@ -105,6 +110,7 @@ public class ArgoSlideOldProcessing {
 
             // sort the computed grid points according to ideal grid order
             gridPoints = sortFromReference(Arrays.asList(roiManager.getRoisAsArray()), idealGridPoints);
+            argoLightCommand.checkCanceled();
 
             // display all points (grid and ideal)
             roiManager.reset();
@@ -121,11 +127,15 @@ public class ArgoSlideOldProcessing {
             imageChannel.addIdealRings(idealGridPointsRoi);
 
             roiManager.runCommand(channel,"Show All without labels");
+            argoLightCommand.checkCanceled();
 
             // compute metrics
             imageChannel.addFieldDistortion(computeFieldDistortion(gridPoints, idealGridPoints, pixelSizeImage));
+            argoLightCommand.checkCanceled();
             imageChannel.addFieldUniformity(computeFieldUniformity(gridPoints,channel,ovalRadius));
+            argoLightCommand.checkCanceled();
             imageChannel.addFWHM(computeFWHM(gridPoints,channel, lineLength, roiManager, pixelSizeImage));
+            argoLightCommand.checkCanceled();
 
             imageFile.addChannel(imageChannel);
         }
@@ -133,9 +143,11 @@ public class ArgoSlideOldProcessing {
         roiManager.reset();
         roiManager.close();
         IJ.run("Close All", "");
-
-        if(NChannels > 1)
+        argoLightCommand.checkCanceled();
+        if(NChannels > 1) {
             imageFile.computePCC();
+        }
+        argoLightCommand.checkCanceled();
     }
 
 

@@ -18,30 +18,13 @@ import loci.formats.FormatException;
 import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
 import net.imagej.ImageJ;
+import org.scijava.Cancelable;
 import org.scijava.command.Command;
+import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
+import org.scijava.thread.ThreadService;
 
-import javax.swing.BorderFactory;
-import javax.swing.ButtonGroup;
-import javax.swing.DefaultComboBoxModel;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JDialog;
-import javax.swing.JFileChooser;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JRadioButton;
-import javax.swing.JRootPane;
-import javax.swing.JSeparator;
-import javax.swing.JSpinner;
-import javax.swing.JTextField;
-import javax.swing.SpinnerModel;
-import javax.swing.SpinnerNumberModel;
-import javax.swing.UIManager;
+import javax.swing.*;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dialog;
@@ -65,6 +48,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This plugin runs image analysis pipeline on ArgoLight slide, pattern B, to measure the quality of objectives over
@@ -73,7 +59,15 @@ import java.util.Map;
  * or locally.
  */
 @Plugin(type = Command.class, menuPath = "Plugins>BIOP>ArgoLight analysis tool")
-public class ArgoLightCommand implements Command {
+public class ArgoLightCommand implements Command, Cancelable {
+
+    @Parameter
+    private ThreadService threadService;
+    private final AtomicBoolean canceled = new AtomicBoolean(false);
+    private String cancelReason;
+    private Future<?> processingFuture;
+
+
     private String userHost;
     private String userPort;
     private List<String> omeroMicroscopes = Collections.emptyList();
@@ -82,7 +76,7 @@ public class ArgoLightCommand implements Command {
     private List<String> localMicroscopes = Collections.emptyList();
     private List<String> userArgoSlides;
     private String defaultArgoSlide;
-    private Map<String, List<String>> argoSlidesParameters = Collections.emptyMap();
+    private final Map<String, List<String>> argoSlidesParameters = new HashMap<>();
     private String userRootFolder;
     private String userSaveFolder;
     private double userSigma;
@@ -95,7 +89,6 @@ public class ArgoLightCommand implements Command {
     private boolean isDefaultThresholdMethod;
     private boolean isDefaultParticleThresh;
     private boolean isDefaultRingRadius;
-    private boolean startsProcessing = false;
 
     private JDialog mainDialog;
     private JDialog settingsDialog;
@@ -140,6 +133,7 @@ public class ArgoLightCommand implements Command {
 
     final private Font stdFont = new Font("Calibri", Font.PLAIN, 17);
     final private Font titleFont = new Font("Calibri", Font.BOLD, 22);
+
     private enum CONNECTION_STATE{
         CONNECTED("Disconnect"),
         DISCONNECTED("Connect");
@@ -238,7 +232,8 @@ public class ArgoLightCommand implements Command {
                 List<String> argoParams = argoSlidesParameters.get(argoSlide);
 
                 // run analysis
-                if (nImages > 0)
+                if (nImages > 0) {
+                    checkCanceled();
                     Processing.run(retriever, saveHeatMaps, sender,
                             isDefaultSigma ? defaultSigma : userSigma,
                             isDefaultMedianRadius ? defaultMedianRadius : userMedianRadius,
@@ -248,8 +243,9 @@ public class ArgoLightCommand implements Command {
                             argoSlide,
                             Integer.parseInt(argoParams.get(argoSpacingPos)),
                             Integer.parseInt(argoParams.get(argoFoVPos)),
-                            Integer.parseInt(argoParams.get(argoNRingsPos)));
-                else {
+                            Integer.parseInt(argoParams.get(argoNRingsPos)),
+                            ArgoLightCommand.this);
+                } else {
                     IJLogger.warn("Parent container : "+rawTarget + ", microscope " + microscope + " does not contain any images");
                     showWarningMessage("No Images", "<html> Parent container : "+rawTarget + ", microscope '" + microscope + "', does not contain any images." +
                             "<p>" +
@@ -267,13 +263,7 @@ public class ArgoLightCommand implements Command {
         } catch (Exception e){
             finalPopupMessage = false;
             IJLogger.error("Unexpected issue occurred", e);
-        } finally {
-            if(this.client.isConnected()) {
-                this.client.disconnect();
-                IJLogger.info("Disconnected from OMERO ");
-            }
         }
-        IJLogger.info("ArgoLight Analysis Tool exited");
 
         if(finalPopupMessage) {
             showInfoMessage("Processing Done", "All images have been analyzed and results saved");
@@ -292,6 +282,32 @@ public class ArgoLightCommand implements Command {
         }
     }
 
+    @Override
+    public boolean isCanceled() {
+        return canceled.get();
+    }
+
+    @Override
+    public void cancel(String reason) {
+        this.cancelReason = reason;
+        this.canceled.set(true);
+
+        if (processingFuture != null) {
+            processingFuture.cancel(true);
+        }
+        IJLogger.warn("Processing cancelled: " + reason);
+    }
+
+    @Override
+    public String getCancelReason() {
+        return cancelReason;
+    }
+
+    public void checkCanceled() {
+        if (canceled.get()) {
+            throw new CancellationException(cancelReason);
+        }
+    }
 
     /**
      * build the main user interface
@@ -691,6 +707,8 @@ public class ArgoLightCommand implements Command {
                         // change the default button (when pressing enter with the keyboard)
                         omeroPane.getRootPane().setDefaultButton(bOk);
                         cbProject.requestFocus();
+                    }else{
+                        return;
                     }
             }else{
                 if (this.client.isConnected()) {
@@ -730,34 +748,89 @@ public class ArgoLightCommand implements Command {
             cbProject.setSelectedItem(omeroProjects);
         });
 
-        bOk.addActionListener(e->{
-            startsProcessing = true;
-            mainDialog.dispose();
+        JButton bCancel = new JButton("Cancel");
+        bCancel.setFont(stdFont);
+        bCancel.addActionListener(e->{
+            if(bCancel.getText().equals("Cancel")) {
+                mainDialog.dispose();
+                if (this.client.isConnected()) {
+                    this.client.disconnect();
+                    IJLogger.info("Disconnected from OMERO ");
+                }
+                IJLogger.info("ArgoLight Analysis Tool exited");
+            }else{
+                cancel("Aborted by user !");
+            }
+        });
 
-            char[] password = tfPassword.getPassword();
+        bOk.addActionListener(e->{
+            // freeze UI
+            cbMicroscope.setEnabled(false);
+            cbArgoSlide.setEnabled(false);
+            bArgoSlideSettings.setEnabled(false);
+            bLivePreview.setEnabled(false);
+            chkSaveHeatMap.setEnabled(false);
+            chkAllImages.setEnabled(false);
+            rbOmeroSender.setEnabled(false);
+            rbLocalSender.setEnabled(false);
+            rbOmeroRetriever.setEnabled(false);
+            rbLocalRetriever.setEnabled(false);
+            cbProject.setEnabled(false);
+            rbOmeroDataset.setEnabled(false);
+            rbOmeroProject.setEnabled(false);
+            bGeneralSettings.setEnabled(false);
+            bProcessingSettings.setEnabled(false);
+            bConnectToOmero.setEnabled(false);
+            bOk.setEnabled(false);
+            bCancel.setText("Abort");
 
             String folderName;
             if(rbOmeroProject.isSelected() && rbOmeroRetriever.isSelected())
                 folderName = (String)cbDataset.getSelectedItem();
             else folderName = (String)cbProject.getSelectedItem();
 
-            runProcessing(rbOmeroRetriever.isSelected(),
-                    folderName,
-                    rbOmeroProject.isSelected(),
-                    tfRootFolder.getText(),
-                    ((String)cbMicroscope.getSelectedItem()),
-                    ((String)cbArgoSlide.getSelectedItem()),
-                    rbOmeroSender.isSelected(),
-                    tfSavingFolder.getText(),
-                    chkSaveHeatMap.isSelected(),
-                    chkAllImages.isSelected(),
-                    chkRemovePreviousRun.isSelected());
-        });
 
-        JButton bCancel = new JButton("Cancel");
-        bCancel.setFont(stdFont);
-        bCancel.addActionListener(e->{
-            mainDialog.dispose();
+            // send processing in another thread to get the Logs in the log window
+            processingFuture = threadService.run(() -> {
+                canceled.set(false);
+                try {
+                    runProcessing(rbOmeroRetriever.isSelected(),
+                            folderName,
+                            rbOmeroProject.isSelected(),
+                            tfRootFolder.getText(),
+                            ((String) cbMicroscope.getSelectedItem()),
+                            ((String) cbArgoSlide.getSelectedItem()),
+                            rbOmeroSender.isSelected(),
+                            tfSavingFolder.getText(),
+                            chkSaveHeatMap.isSelected(),
+                            chkAllImages.isSelected(),
+                            chkRemovePreviousRun.isSelected());
+                } catch (CancellationException e1) {
+                    IJLogger.warn("Processing stopped by user.");
+                }
+
+                // release UI
+                SwingUtilities.invokeLater(() -> {
+                    cbMicroscope.setEnabled(true);
+                    cbArgoSlide.setEnabled(true);
+                    bArgoSlideSettings.setEnabled(true);
+                    bLivePreview.setEnabled(true);
+                    chkSaveHeatMap.setEnabled(true);
+                    chkAllImages.setEnabled(true);
+                    rbOmeroSender.setEnabled(true);
+                    rbLocalSender.setEnabled(true);
+                    rbOmeroRetriever.setEnabled(true);
+                    rbLocalRetriever.setEnabled(true);
+                    cbProject.setEnabled(true);
+                    rbOmeroDataset.setEnabled(true);
+                    rbOmeroProject.setEnabled(true);
+                    bGeneralSettings.setEnabled(true);
+                    bProcessingSettings.setEnabled(true);
+                    bConnectToOmero.setEnabled(true);
+                    bOk.setEnabled(true);
+                    bCancel.setText("Cancel");
+                });
+            });
         });
 
         // build everything together
@@ -1003,7 +1076,7 @@ public class ArgoLightCommand implements Command {
         omeroPane.setBorder(BorderFactory.createEmptyBorder(20,20,20,20));
         mainDialog.getContentPane().add(omeroPane);
         mainDialog.setModalityType(Dialog.ModalityType.DOCUMENT_MODAL);
-        mainDialog.setResizable(false);
+        mainDialog.setResizable(true);
 
         if (JDialog.isDefaultLookAndFeelDecorated()) {
             boolean supportsWindowDecorations =
@@ -1024,13 +1097,11 @@ public class ArgoLightCommand implements Command {
         mainDialog.setVisible(true);
         mainDialog.dispose();
 
-        if(!startsProcessing) {
-            if (this.client.isConnected()) {
-                this.client.disconnect();
-                IJLogger.info("Disconnected from OMERO ");
-            }
-            IJLogger.info("ArgoLight Analysis Tool exited");
+        if (this.client.isConnected()) {
+            this.client.disconnect();
+            IJLogger.info("Disconnected from OMERO ");
         }
+        IJLogger.info("ArgoLight Analysis Tool exited");
     }
 
 
@@ -1146,7 +1217,7 @@ public class ArgoLightCommand implements Command {
 
             // replace old values
             argoSlidesParameters.clear();
-            argoSlidesParameters = newMap;
+            argoSlidesParameters.putAll(newMap);
         }
     }
 
@@ -1249,8 +1320,9 @@ public class ArgoLightCommand implements Command {
                     if(readyToSave) {
                         String argoSlidesList = String.join(",", argoSettings.keySet());
                         tfArgoslide.setText(argoSlidesList);
-                        argoSlidesParameters = tempMap;
-                        saveArgoSlideParams();
+                        argoSlidesParameters.clear();
+                        argoSlidesParameters.putAll(tempMap);
+                        saveArgoSlideParams(tempMap);
                         setDefaultArgoParams();
                     }else{
                         showErrorMessage("ArgoSlide settings", "The provided CSV is not correctly formatted. " +
@@ -2328,7 +2400,7 @@ public class ArgoLightCommand implements Command {
 
         // replace old parameters
         argoSlidesParameters.clear();
-        argoSlidesParameters = cleanArgoSlides;
+        argoSlidesParameters.putAll(cleanArgoSlides);
     }
 
     /**
@@ -2526,9 +2598,10 @@ public class ArgoLightCommand implements Command {
         argoslideParamList.add(String.valueOf(argoFov));
         argoslideParamList.add(String.valueOf(argoNRings));
         tempMap.put(argoSlide, argoslideParamList);
-        argoSlidesParameters = tempMap;
 
-        return saveArgoSlideParams();
+        saveArgoSlideParams(tempMap);
+
+        return tempMap;
     }
 
     /**
@@ -2536,7 +2609,7 @@ public class ArgoLightCommand implements Command {
      *
      * @return
      */
-    private  Map<String, List<String>> saveArgoSlideParams() {
+    private void saveArgoSlideParams(Map<String, List<String>> argoSlidesParametersMap) {
         File directory = new File(folderName);
 
         if(!directory.exists())
@@ -2546,8 +2619,8 @@ public class ArgoLightCommand implements Command {
             File file = new File(directory.getAbsoluteFile() + File.separator + argoSlideFileName);
             // write the file
             BufferedWriter buffer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
-            for(String argoSlideKey : argoSlidesParameters.keySet()){
-                String argoSlideParamCSV = String.join(",", argoSlidesParameters.get(argoSlideKey));
+            for(String argoSlideKey : argoSlidesParametersMap.keySet()){
+                String argoSlideParamCSV = String.join(",", argoSlidesParametersMap.get(argoSlideKey));
                 buffer.write(argoSlideKey+","+ argoSlideParamCSV + "\n");
             }
             // close the file
@@ -2556,7 +2629,6 @@ public class ArgoLightCommand implements Command {
         } catch (IOException e) {
             showWarningMessage("CSV writing","Couldn't write the csv for ArgoSlide parameters.");
         }
-        return argoSlidesParameters;
     }
 
     public static void main(String... args){

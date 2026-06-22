@@ -1,5 +1,5 @@
-OMERO Host,omero-server-poc.epfl.ch
+OMERO Host,omero-server-test.epfl.ch
 OMERO Port,4064
-ArgoSlides,ArgoSIM,ArgoSLJ488,ArgoSLG482
+ArgoSlides,ArgoSIM,ArgoSLJ488,ArgoSLG482,ArgoHM
 Root folder,D:\Remy\ArgoLight\new protocole\Raw Data
 Saving folder,D:\Remy\ArgoLight\new protocole

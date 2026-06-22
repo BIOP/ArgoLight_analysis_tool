@@ -1,5 +1,6 @@
 package ch.epfl.biop.processing;
 
+import ch.epfl.biop.command.ArgoLightCommand;
 import ch.epfl.biop.image.ImageChannel;
 import ch.epfl.biop.image.ImageFile;
 import ch.epfl.biop.retrievers.Retriever;
@@ -15,6 +16,7 @@ import ij.measure.CurveFitter;
 import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageStatistics;
+import org.scijava.Cancelable;
 
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
@@ -27,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -51,8 +54,10 @@ public class Processing {
      * @param argoFOV FoV of the pattern B of the ArgoSlide in um
      * @param argoNPoints number of rings in the same line
      */
-    public static void run(Retriever retriever, boolean savingHeatMaps, Sender sender, double userSigma, double userMedianRadius, String userThresholdingMethod,
-                           double userParticleThreshold, double userRingRadius, String argoSlide, int argoSpacing, int argoFOV, int argoNPoints){
+    public static void run(Retriever retriever, boolean savingHeatMaps, Sender sender, double userSigma,
+                           double userMedianRadius, String userThresholdingMethod,
+                           double userParticleThreshold, double userRingRadius, String argoSlide,
+                           int argoSpacing, int argoFOV, int argoNPoints, ArgoLightCommand argoLightCommand){
         Map<String, List<List<Double>>> summaryMap = new HashMap<>();
         List<String> headers = new ArrayList<>();
         List<String> IDs = retriever.getIDs();
@@ -82,18 +87,21 @@ public class Processing {
                     // choose the right ArgoLight processing
                     if (!imageFile.getArgoSlideName().contains("ArgoSimOld")) {
                         ArgoSlideProcessing.run(imageFile, userSigma, userMedianRadius, userThresholdingMethod,
-                                userParticleThreshold, userRingRadius, argoSlide, argoSpacing, argoFOV, argoNPoints);
+                                userParticleThreshold, userRingRadius, argoSlide, argoSpacing, argoFOV, argoNPoints,
+                                argoLightCommand);
                     } else {
-                        ArgoSlideOldProcessing.run(imageFile);
+                        ArgoSlideOldProcessing.run(imageFile, argoLightCommand);
                         isOldProtocol = true;
                     }
 
                     IJLogger.info("End of processing");
+                    argoLightCommand.checkCanceled();
                     IJLogger.info("Sending results ... ");
 
                     // send image results (metrics, rings, tags, key-values)
                     sender.initialize(imageFile, retriever);
                     sender.sendTags(imageFile.getTags());
+                    argoLightCommand.checkCanceled();
                     sendResults(sender, imageFile, savingHeatMaps, isOldProtocol, argoSpacing);
 
                     // metrics summary to populate parent table
@@ -102,6 +110,8 @@ public class Processing {
                     if (!allChannelMetrics.values().isEmpty())
                         summaryMap.put(uniqueID, allChannelMetrics.values().iterator().next());
 
+                } catch (CancellationException e) {
+                    throw e;
                 } catch (Exception e) {
                     IJLogger.error("An error occurred during processing ; cannot analyse the image " + imgTitle, e);
                 }
@@ -109,6 +119,7 @@ public class Processing {
         }
 
         // populate parent table with summary results
+        argoLightCommand.checkCanceled();
         sender.populateParentTable(retriever, summaryMap, headers, !retriever.isProcessingAllRawImages());
     }
 
@@ -123,8 +134,9 @@ public class Processing {
         Map<String, String> keyValues = imageFile.getKeyValues();
 
         // send PCC table
-        if (imageFile.getNChannels() > 1)
+        if (imageFile.getNChannels() > 1) {
             sender.sendPCCTable(imageFile.getPCC(), imageFile.getNChannels());
+        }
 
         List<List<Double>> distortionValues = new ArrayList<>();
         List<List<Double>> uniformityValues = new ArrayList<>();
